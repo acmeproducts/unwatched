@@ -1,4 +1,6 @@
-import { mkdirSync, writeFileSync, createWriteStream } from "node:fs";
+import { mkdirSync, writeFileSync, createWriteStream, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Town, MINUTES_PER_DAY } from "@ferrytown/engine";
 import type { Brain } from "@ferrytown/engine";
 import { MockBrain, AnthropicBrain, seedPersonas } from "@ferrytown/cognition";
@@ -16,6 +18,16 @@ const brainName = arg("brain", "mock");
 const tick = Number(arg("tick", "1"));
 const outDir = arg("out", "out");
 const owner = arg("owner", "you");
+
+// Load .env from the repo root, wherever this is run from.
+const here = dirname(fileURLToPath(import.meta.url));
+const envFile = resolve(here, "../../../.env");
+if (existsSync(envFile)) process.loadEnvFile(envFile);
+
+if (brainName === "anthropic" && !process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
+  console.error("The Anthropic brain needs credentials. Put ANTHROPIC_API_KEY=... in " + envFile + " (copy .env.example), or export it in your shell, then run again.");
+  process.exit(1);
+}
 
 mkdirSync(outDir, { recursive: true });
 const eventsFile = createWriteStream(`${outDir}/events.jsonl`);

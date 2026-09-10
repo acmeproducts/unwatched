@@ -307,7 +307,7 @@ export class Town {
         a.lastConversation = this.t; b.lastConversation = this.t;
         a.needs.social = Math.max(0, a.needs.social - 0.5); b.needs.social = Math.max(0, b.needs.social - 0.5);
         const transcript = d.lines.map((l) => `${this.agents.get(l.speaker)?.persona.name ?? l.speaker}: “${l.text}”`).join(" ");
-        const importance = Math.min(1, 0.25 + Math.abs(d.outcome.a_trust_delta) * 2 + Math.abs(d.outcome.b_trust_delta) * 2);
+        const importance = Math.min(1, 0.12 + Math.abs(d.outcome.a_trust_delta) * 3 + Math.abs(d.outcome.b_trust_delta) * 3 + (d.outcome.rumor ? 0.1 : 0));
         this.emit("conversation", [a.id, b.id], placeId, `${a.persona.name} and ${b.persona.name} talked at ${place.name}. ${transcript}`, importance, { lines: d.lines });
         this.remember(a, d.outcome.a_remember, 0.3 + Math.abs(d.outcome.a_trust_delta) * 2);
         this.remember(b, d.outcome.b_remember, 0.3 + Math.abs(d.outcome.b_trust_delta) * 2);
@@ -322,7 +322,7 @@ export class Town {
   // ---------- hourly and nightly ----------
   private hourly(): void {
     const h = this.hour;
-    if (h % 1 === 0 && h >= 6 && h <= 20) {
+    if (h >= 6 && h <= 20) {
       this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry docked.`, 0.03);
     }
     for (const job of this.jobs.values()) {
@@ -342,7 +342,7 @@ export class Town {
     for (const a of this.agents.values()) {
       if (!a.funded || this.brain.name === "none") continue;
       const dayStart = (this.day - 1) * MINUTES_PER_DAY;
-      const dayMemories = a.memory.filter((m) => m.t >= dayStart).sort((x, y) => y.importance - x.importance).slice(0, 12).map((m) => m.text);
+      const dayMemories = a.memory.filter((m) => m.t >= dayStart && m.kind !== "reflect").sort((x, y) => y.importance - x.importance).slice(0, 12).map((m) => m.text);
       const keyMemories = retrieve(a.memory, a.persona.want, this.t, 6).map((m) => m.text);
       const rels = [...a.relationships.entries()].map(([id, r]) => ({ id, name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion }));
       let ref: Reflection;
@@ -441,8 +441,9 @@ export class Town {
   digest(agentId: AgentId, sinceT: number): { headline: string; items: TownEvent[]; people: { name: string; trust: number; opinion: string }[] } {
     const a = this.agents.get(agentId); if (!a) return { headline: "", items: [], people: [] };
     const known = new Set([agentId, ...a.relationships.keys()]);
-    const items = this.events.filter((e) => e.t >= sinceT && e.actors.some((x) => known.has(x)) && e.importance >= 0.3 && e.kind !== "agent.reflect").sort((x, y) => y.importance - x.importance).slice(0, 12).sort((x, y) => x.t - y.t);
-    const top = [...items].sort((x, y) => y.importance - x.importance)[0];
+    const weight = (e: TownEvent) => e.importance + (e.actors.includes(agentId) ? 0.35 : 0);
+    const items = this.events.filter((e) => e.t >= sinceT && e.kind !== "agent.reflect" && (e.actors.includes(agentId) ? e.importance >= 0.25 : e.actors.some((x) => known.has(x)) && e.importance >= 0.45)).sort((x, y) => weight(y) - weight(x)).slice(0, 12).sort((x, y) => x.t - y.t);
+    const top = [...items].sort((x, y) => weight(y) - weight(x))[0];
     return { headline: top?.text ?? `Nothing changed for ${a.persona.name}.`, items, people: [...a.relationships.entries()].map(([id, r]) => ({ name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion })) };
   }
 }

@@ -113,9 +113,14 @@ export class MockBrain implements Brain {
   }
 
   async writePaper(ctx: PaperContext): Promise<Paper> {
-    const evs = ctx.events;
+    // Talk is filler; the lead is the day's most important thing that was not a chat, if there was one.
+    const isTalk = (t: string) => / talked at /.test(t);
+    const evs = [...ctx.events.filter((e) => !isTalk(e.text)), ...ctx.events.filter((e) => isTalk(e.text))];
     const lead = evs[0];
-    const headline = (t: string) => t.replace(/[“”"]/g, "").split(/[.!?]/)[0]!.slice(0, 88);
+    const headline = (t: string) => {
+      if (isTalk(t)) { const m = /^(.+?) and (.+?) talked at (.+?)\./.exec(t); return m ? `${m[1]} and ${m[2]} seen talking at ${m[3]}` : t.slice(0, 88); }
+      return t.replace(/[“”"]/g, "").split(/[.!?]/)[0]!.slice(0, 88);
+    };
     return {
       edition: ctx.edition, date: ctx.date, weather: ctx.weather,
       lead: lead ? { headline: headline(lead.text), deck: `Reported from ${lead.actors.join(" and ") || "the harbor"}.`, body: lead.text.slice(0, 1200) } : { headline: "A quiet day on the island", deck: "Nothing changed, and that is allowed.", body: `The ferry came and went. ${ctx.population} people live here.` },

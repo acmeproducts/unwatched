@@ -33,12 +33,10 @@ const t0 = Date.now();
 let lastDay = town.day;
 const startT = town.t;
 
-const originalNightly = town.day;
-void originalNightly;
-
 await (async () => {
   while (town.day <= days) {
     await town.tick();
+    if (town.day === 2 && town.hour === 6 && town.minuteOfDay === 360) town.sendLetter(mira.id, "Find honest work first. Don't borrow. Write to me before any big decision.");
     if (town.day !== lastDay) {
       const d = lastDay;
       const paper = town.papers[town.papers.length - 1];

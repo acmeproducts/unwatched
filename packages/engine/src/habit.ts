@@ -55,6 +55,16 @@ export function habit(a: AgentState, v: HabitView): Action {
     }
   }
 
+  // No job: go where the work is, so a thought can be spent on applying there.
+  if (!a.job && v.hour >= 6 && v.hour < 17) {
+    const open = [...v.jobs.values()].filter((j) => j.holders.length < j.slots);
+    if (open.length > 0) {
+      const target = open.map((j) => j.place).find((pl) => pl === a.location) ?? open[Math.floor(a.persona.traits.ambition * open.length) % open.length]!.place;
+      if (target !== a.location) { const next = v.path(a.location, target); if (next) return { kind: "move", to: next }; }
+      return { kind: "wait" };
+    }
+  }
+
   // Social: drift toward people in public places.
   if (a.needs.social > 0.5 && v.hour >= 8 && v.hour < 22) {
     const candidates = ["market", "inn", "tavern", "harbor"].filter((p) => p !== a.location);

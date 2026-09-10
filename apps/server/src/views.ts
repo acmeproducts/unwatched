@@ -1,0 +1,37 @@
+import type { Town, AgentState } from "@ferrytown/engine";
+import type { TownEvent } from "@ferrytown/protocol";
+
+/** What anyone may see about a person: what the town knows. */
+export function publicAgent(town: Town, a: AgentState) {
+  const job = a.job ? town.jobs.get(a.job)?.title ?? a.job : null;
+  return {
+    id: a.id, name: a.persona.name, age: a.persona.age, origin: a.persona.origin, summary: a.persona.summary,
+    location: a.location, place: town.places.get(a.location)?.name ?? a.location, asleep: a.asleep,
+    job, home: a.home?.place ?? null, arrivedDay: Math.floor(a.arrivedAt / 1440) + 1, funded: a.funded,
+    ownerId: a.owner, appearance: a.appearance ?? null,
+  };
+}
+
+/** What the owner sees: everything the agent knows. */
+export function ownerAgent(town: Town, a: AgentState) {
+  return {
+    ...publicAgent(town, a),
+    persona: a.persona,
+    needs: a.needs, coins: a.coins, inventory: a.inventory,
+    nightsPaid: a.home?.nightsPaid ?? 0,
+    budget: a.budget, intentions: a.intentions,
+    people: [...a.relationships.entries()].map(([id, r]) => ({ id, name: town.agents.get(id)?.persona.name ?? id, trust: r.trust, affection: r.affection, opinion: r.opinion, lastSeen: r.lastSeen, tide: tideWord(r.trust, r.affection) })),
+    memories: a.memory.slice(-60).reverse(),
+    letters: a.letters,
+  };
+}
+
+export function tideWord(trust: number, _affection: number): string {
+  if (trust < 0.2) return "gone"; if (trust < 0.3) return "ebbing"; if (trust < 0.45) return "steady"; if (trust < 0.65) return "rising"; return "close";
+}
+
+export function serializeEvent(e: TownEvent) { return e; }
+
+export function clockOf(town: Town) {
+  return { t: town.t, day: town.day, minute: town.minuteOfDay, hour: town.hour, label: town.clock(), weather: town.weather, season: town.season, population: town.agents.size, flourShortage: town.flourShortage };
+}

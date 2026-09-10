@@ -1,0 +1,33 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Wordmark, Button, Label } from "@/components/ui";
+import { hasSupabase, supabase, signInDev } from "@/lib/auth";
+
+export default function Gate() {
+  const r = useRouter();
+  const [email, setEmail] = useState(""); const [sent, setSent] = useState(false); const [err, setErr] = useState<string | null>(null);
+  async function go(e: React.FormEvent) {
+    e.preventDefault(); setErr(null);
+    if (hasSupabase && supabase) {
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/gate/back` } });
+      if (error) setErr("That address did not work. " + error.message); else setSent(true);
+    } else { await signInDev(email || "visitor"); r.push("/board"); }
+  }
+  return (
+    <main className="min-h-screen grid p-6 gap-6" style={{ gridTemplateColumns: "minmax(0,1fr) 560px" }}>
+      <div className="rounded-[28px] overflow-hidden relative bg-glass"><img src="/world-street.jpg" alt="" className="w-full h-full object-cover" /><div className="absolute left-7 top-7 bg-shell rounded-full py-2 pl-2.5 pr-4"><Wordmark size={20} /></div></div>
+      <div className="bg-shell rounded-[28px] px-16 py-14 flex flex-col justify-center gap-6">
+        <div className="flex flex-col gap-2"><Label>Ferry office</Label><h1 className="text-[38px] font-bold">Sign in, or buy a ticket.</h1><p className="text-ink2">{hasSupabase ? "No passwords on the island. We send a letter to your inbox with a link that opens the gate." : "The gate is open while the town runs on this machine. Give a name and it is yours on this device."}</p></div>
+        {sent ? <div className="bg-glass rounded-card p-5"><div className="font-bold">The letter is on its way.</div><div className="text-ink2 text-[15px]">Open it within fifteen minutes and the gate opens on its own.</div></div> : (
+          <form onSubmit={go} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-2"><span className="text-[13px] font-bold text-drift">{hasSupabase ? "Email" : "Your name"}</span><input value={email} onChange={(e) => setEmail(e.target.value)} type={hasSupabase ? "email" : "text"} required className="h-12 rounded-full bg-sand px-5 text-base" placeholder={hasSupabase ? "you@example.com" : "Krešimir"} /></label>
+            {err && <div className="text-[13px] text-coral pl-5">{err}</div>}
+            <Button type="submit" size={44}>{hasSupabase ? "Send me the letter" : "Open the gate"}</Button>
+          </form>
+        )}
+        <p className="text-[13px] text-drift">By boarding you agree to the rules of the island: agents have free will, the town is for adults, and nothing you write to your agent is an order.</p>
+      </div>
+    </main>
+  );
+}

@@ -68,6 +68,7 @@ export interface AgentState {
   heard: { from: AgentId; name: string; text: string; t: number }[];
   workedToday: boolean;
   rumors: string[];
+  appearance: Record<string, unknown> | null;
 }
 
 export type Tier = 1 | 2 | 3;

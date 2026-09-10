@@ -72,8 +72,8 @@ export class Town {
   }
 
   // ---------- population ----------
-  addAgent(o: AddAgentOptions): AgentState {
-    const id = `ag_${(this.nextId++).toString(36)}`;
+  addAgent(o: AddAgentOptions, fixedId?: string): AgentState {
+    const id = fixedId ?? `ag_${(this.nextId++).toString(36)}`;
     const a: AgentState = {
       id, persona: o.persona,
       needs: { hunger: 0.3, rest: 0.2, social: 0.4 },
@@ -82,7 +82,7 @@ export class Town {
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
-      lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [],
+      lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null,
     };
     const inn = this.places.get("inn")!; inn.freeBeds = Math.max(0, (inn.freeBeds ?? 0) - 1);
     this.agents.set(id, a);

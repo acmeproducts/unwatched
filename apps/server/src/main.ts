@@ -34,7 +34,7 @@ function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c o
 const town = new Town({ seed: SEED, brain, log, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
 for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });
 if (store) await store.ensureTown("The island", SEED);
-log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? "supabase" : "memory only"}`);
+log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? "supabase" : "memory only"} · sign-in ${process.env.SUPABASE_URL ? "supabase" : "dev names"}`);
 
 // ---- the clock ----
 let running = true; let ticking = false; let lastHour = town.hour; let memoryMark = town.t;
@@ -74,7 +74,9 @@ void loop();
 const app = new Hono();
 app.use("/api/*", cors());
 
-const sb = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) : null;
+// Sign-ins are verified with whichever key exists. The service role is needed only to write the record.
+const authKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const sb = process.env.SUPABASE_URL && authKey ? createClient(process.env.SUPABASE_URL, authKey, { auth: { persistSession: false } }) : null;
 /** Who is asking. A Supabase JWT when the store exists; the X-Owner header in memory-only dev mode. */
 async function ownerOf(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization");

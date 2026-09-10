@@ -30,8 +30,8 @@ create table if not exists agents (
   appearance jsonb not null default '{}'::jsonb,
   brain text not null default 'hosted',
   funded boolean not null default true,
-  state jsonb not null,            -- needs, location, coins, inventory, job, home, asleep, budget, intentions
-  arrived_t bigint not null,
+  state jsonb not null default '{}'::jsonb,   -- needs, location, coins, inventory, job, home, asleep, budget, intentions
+  arrived_t bigint,
   left_t bigint,
   created_at timestamptz not null default now()
 );
@@ -141,3 +141,12 @@ create policy "owners write letters" on letters for insert with check (owner_id 
 create policy "instructions are the owner's" on standing_instructions for all using (exists (select 1 from agents a where a.id = standing_instructions.agent_id and a.owner_id = auth.uid()));
 
 -- The engine writes with the service role, which bypasses RLS.
+
+-- Owners row appears the moment someone signs in.
+create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.owners (id, email) values (new.id, new.email) on conflict (id) do nothing;
+  return new;
+end; $$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();

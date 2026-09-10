@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wordmark, Button, Label } from "@/components/ui";
 import { hasSupabase, supabase, signInDev } from "@/lib/auth";
@@ -7,10 +7,16 @@ import { hasSupabase, supabase, signInDev } from "@/lib/auth";
 export default function Gate() {
   const r = useRouter();
   const [email, setEmail] = useState(""); const [sent, setSent] = useState(false); const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.auth.getSession().then(({ data }) => { if (data.session) r.replace("/digest"); });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (session) r.replace("/digest"); });
+    return () => sub.subscription.unsubscribe();
+  }, [r]);
   async function go(e: React.FormEvent) {
     e.preventDefault(); setErr(null);
     if (hasSupabase && supabase) {
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/gate/back` } });
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/gate` } });
       if (error) setErr("That address did not work. " + error.message); else setSent(true);
     } else { await signInDev(email || "visitor"); r.push("/board"); }
   }

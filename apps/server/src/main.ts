@@ -27,7 +27,8 @@ const CITIZENS = Number(process.env.FT_CITIZENS ?? 20);
 const log = (l: string) => console.log(`[town] ${l}`);
 
 const brain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) : BRAIN === "anthropic" ? new AnthropicBrain({ log }) : new MockBrain(SEED);
-const store = TownStore.fromEnv("island");
+let store = TownStore.fromEnv("island");
+if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 

@@ -21,6 +21,14 @@ export class TownStore {
     return new TownStore(url, key, townId);
   }
 
+  /** One cheap read at startup. Returns a reason when the key or the project is wrong. */
+  async probe(): Promise<string | null> {
+    const { error } = await this.sb.from("towns").select("id").limit(1);
+    if (!error) return null;
+    if (/invalid api key|jwt/i.test(error.message)) return "the service role key is not valid for this project; re-copy it from Settings, then API";
+    return error.message;
+  }
+
   async ensureTown(name: string, seed: number): Promise<void> {
     await this.sb.from("towns").upsert({ id: this.townId, name, seed }, { onConflict: "id", ignoreDuplicates: true });
   }

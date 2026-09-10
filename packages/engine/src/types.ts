@@ -101,3 +101,26 @@ export interface Brain {
 }
 
 export type EventSink = (e: TownEvent) => void;
+
+/** Everything needed to bring a town back exactly as it was. */
+export interface AgentSnapshot {
+  id: AgentId;
+  persona: Persona;
+  owner: string | null;
+  funded: boolean;
+  appearance: Record<string, unknown> | null;
+  arrivedAt: number;
+  state: {
+    needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
+    home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number;
+  };
+  relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
+  memory: Memory[];
+}
+export interface TownSnapshot {
+  t: number; day: number; weather: string; flourShortage: boolean;
+  agents: AgentSnapshot[];
+  papers: Paper[];
+  laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[];
+}

@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { TownEvent, Paper } from "@ferrytown/protocol";
-import type { Town, AgentState } from "@ferrytown/engine";
+import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@ferrytown/engine";
+import { compress } from "@ferrytown/engine";
 
 /**
  * The town's record on Supabase. The engine writes with the service role; owners and visitors read through RLS.
@@ -75,6 +76,38 @@ export class TownStore {
     if (error) console.error("memories insert failed:", error.message);
   }
 
+  /** The town as it was at the last snapshot, or null when nothing has been saved yet. */
+  async loadSnapshot(): Promise<TownSnapshot | null> {
+    const { data: town } = await this.sb.from("towns").select("sim_t, day, weather, flour_shortage").eq("id", this.townId).maybeSingle();
+    if (!town) return null;
+    const { data: rows, error } = await this.sb.from("agents").select("id, owner_id, name, persona, appearance, funded, arrived_t, state").eq("town_id", this.townId).is("left_t", null).not("arrived_t", "is", null);
+    if (error) { console.error("agents read failed:", error.message); return null; }
+    if (!rows || rows.length === 0) return null;
+    const ids = rows.map((r) => r.id as string);
+    const [{ data: rels }, { data: mems }, { data: papers }, { data: laws }] = await Promise.all([
+      this.sb.from("relationships").select("agent_id, other_id, trust, affection, last_seen, opinion").in("agent_id", ids),
+      this.sb.from("memories").select("agent_id, t, kind, text, importance").in("agent_id", ids).order("t", { ascending: false }).limit(400 * ids.length),
+      this.sb.from("papers").select("paper").eq("town_id", this.townId).order("edition", { ascending: false }).limit(14),
+      this.sb.from("laws").select("text, proposed_by, yes, no, open").eq("town_id", this.townId),
+    ]);
+    const relBy = new Map<string, AgentSnapshot["relationships"]>(); for (const r of rels ?? []) (relBy.get(r.agent_id) ?? relBy.set(r.agent_id, []).get(r.agent_id)!).push({ other: r.other_id, trust: r.trust, affection: r.affection, lastSeen: Number(r.last_seen), opinion: r.opinion });
+    const memBy = new Map<string, AgentSnapshot["memory"]>(); for (const m of mems ?? []) (memBy.get(m.agent_id) ?? memBy.set(m.agent_id, []).get(m.agent_id)!).push({ t: Number(m.t), kind: m.kind, text: m.text, importance: m.importance });
+    const agents: AgentSnapshot[] = rows.map((r) => {
+      const st = (r.state ?? {}) as Partial<AgentSnapshot["state"]>;
+      return {
+        id: r.id, persona: r.persona as AgentSnapshot["persona"], owner: r.owner_id ?? null, funded: r.funded, appearance: (r.appearance as Record<string, unknown>) ?? null, arrivedAt: Number(r.arrived_t),
+        state: { needs: st.needs ?? { hunger: 0.3, rest: 0.2, social: 0.4 }, location: st.location ?? "harbor", coins: st.coins ?? 40, inventory: st.inventory ?? [], job: st.job ?? null, home: st.home ?? null, asleep: st.asleep ?? false, budget: st.budget ?? { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5 }, intentions: st.intentions ?? [], rumors: st.rumors ?? [], letters: st.letters ?? [], ...(st.lastConversation !== undefined ? { lastConversation: st.lastConversation } : {}), ...(st.lastThought !== undefined ? { lastThought: st.lastThought } : {}) },
+        relationships: relBy.get(r.id) ?? [],
+        memory: compress((memBy.get(r.id) ?? []).reverse()),
+      };
+    });
+    return {
+      t: Number(town.sim_t), day: town.day, weather: town.weather, flourShortage: town.flour_shortage,
+      agents, papers: (papers ?? []).map((p) => p.paper as Paper).reverse(),
+      laws: (laws ?? []).map((l) => ({ text: l.text, by: l.proposed_by ?? "", yes: l.yes, no: l.no, open: l.open })),
+    };
+  }
+
   async savePaper(paper: Paper): Promise<void> {
     const { error } = await this.sb.from("papers").upsert({ town_id: this.townId, edition: paper.edition, paper }, { onConflict: "town_id,edition" });
     if (error) console.error("paper upsert failed:", error.message);
@@ -107,7 +140,7 @@ export class TownStore {
     return {
       id: a.id, town_id: this.townId, owner_id: a.owner && /^[0-9a-f-]{36}$/.test(a.owner) ? a.owner : null, name: a.persona.name, persona: a.persona,
       brain: "hosted", funded: a.funded, arrived_t: a.arrivedAt,
-      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5) },
+      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought },
     };
   }
 }

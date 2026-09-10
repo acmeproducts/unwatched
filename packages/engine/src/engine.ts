@@ -1,7 +1,7 @@
 import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
-import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory } from "./types.ts";
+import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
@@ -90,6 +90,48 @@ export class Town {
     this.emit("agent.arrive", [id], "harbor", `${a.persona.name} arrived on the ferry.`, 0.5);
     this.arrivalsToday++;
     return a;
+  }
+
+  /** Bring the town back from its record. Replaces whatever population exists. */
+  restore(snap: TownSnapshot): void {
+    this.t = snap.t; this.day = snap.day; this.weather = snap.weather; this.flourShortage = snap.flourShortage;
+    this.agents.clear();
+    for (const j of this.jobs.values()) j.holders = [];
+    for (const p of this.places.values()) if (p.beds) p.freeBeds = p.beds.capacity;
+    let maxId = 0;
+    for (const sa of snap.agents) {
+      const a: AgentState = {
+        id: sa.id, persona: sa.persona,
+        needs: { ...sa.state.needs }, location: this.places.has(sa.state.location) ? sa.state.location : "harbor",
+        coins: sa.state.coins, inventory: [...sa.state.inventory], job: sa.state.job && this.jobs.has(sa.state.job) ? sa.state.job : null,
+        home: sa.state.home, asleep: sa.state.asleep, arrivedAt: sa.arrivedAt,
+        relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
+        memory: [...sa.memory].sort((x, y) => x.t - y.t),
+        budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance,
+      };
+      this.agents.set(a.id, a);
+      if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
+      if (a.asleep) { const p = this.places.get(a.location); if (p?.beds) p.freeBeds = Math.max(0, (p.freeBeds ?? 0) - 1); }
+      const n = parseInt(a.id.slice(3), 36); if (Number.isFinite(n) && n > maxId) maxId = n;
+    }
+    this.nextId = maxId + 1;
+    this.papers = [...snap.papers];
+    this.laws.splice(0, this.laws.length, ...snap.laws);
+    this.nextLetterId = 1 + Math.max(0, ...[...this.agents.values()].flatMap((a) => a.letters.map((l) => l.id)));
+  }
+
+  snapshot(): TownSnapshot {
+    return {
+      t: this.t, day: this.day, weather: this.weather, flourShortage: this.flourShortage,
+      agents: [...this.agents.values()].map((a): AgentSnapshot => ({
+        id: a.id, persona: a.persona, owner: a.owner, funded: a.funded, appearance: a.appearance, arrivedAt: a.arrivedAt,
+        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought },
+        relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
+        memory: a.memory,
+      })),
+      papers: this.papers.slice(-14), laws: this.laws,
+    };
   }
 
   sendLetter(agentId: AgentId, text: string): void {

@@ -33,12 +33,19 @@ const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const town = new Town({ seed: SEED, brain, log, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
-for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });
-if (store) await store.ensureTown("The island", SEED);
+const saved = store ? await store.loadSnapshot() : null;
+if (saved) {
+  town.restore(saved);
+  log(`restored the island from its record: ${town.clock()}, ${town.agents.size} citizens, ${saved.papers.length} editions`);
+} else {
+  for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });
+  if (store) { await store.ensureTown("The island", SEED); await store.snapshot(town); }
+  log("a new island: seeded the first citizens");
+}
 log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? "supabase" : "memory only"} · sign-in ${process.env.SUPABASE_URL ? "supabase" : "dev names"}`);
 
 // ---- the clock ----
-let running = true; let ticking = false; let lastHour = town.hour; let memoryMark = town.t;
+let running = true; let ticking = false; let lastHour = town.hour; let memoryMark = town.t + 1;
 async function loop() {
   while (running) {
     const started = Date.now();
@@ -156,4 +163,5 @@ wss.on("connection", (ws) => {
   ws.on("close", () => clients.delete(ws));
 });
 
-process.on("SIGINT", async () => { running = false; log("snapshotting before exit"); await store?.snapshot(town); process.exit(0); });
+async function shutdown() { running = false; log("snapshotting before exit"); if (store) { await store.snapshot(town); for (const a of town.agents.values()) await store.appendMemories(a, memoryMark); } process.exit(0); }
+process.on("SIGINT", shutdown); process.on("SIGTERM", shutdown);

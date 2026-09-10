@@ -1,0 +1,25 @@
+import type { AgentState, Tier } from "./types.ts";
+
+export interface SalienceView { hour: number; t: number; nearby: AgentState[]; jobsOpenHere: number }
+
+/**
+ * Decides whether this minute deserves a thought, and how expensive a one.
+ * Returns null when habit is enough. Budgets are enforced by the engine, not here.
+ */
+export function salience(a: AgentState, v: SalienceView): { tier: Tier; why: string } | null {
+  if (a.asleep) return null;
+  if (a.letters.some((l) => !l.read) && v.hour >= 6 && v.hour < 9) return { tier: 1, why: "letter" };
+  if (a.coins <= 3 && a.job === null && v.hour >= 8 && v.hour < 18 && v.t - a.lastThought > 90) return { tier: 2, why: "broke" };
+  if (a.job === null && v.jobsOpenHere > 0 && v.hour >= 6 && v.hour < 18 && v.t - a.lastThought > 45) return { tier: 1, why: "job here" };
+  if (a.heard.length > 0 && v.t - a.lastThought > 10) return { tier: 1, why: "spoken to" };
+  if (a.intentions.length > 0 && v.t - a.lastThought > 120 && v.hour >= 8 && v.hour < 21) return { tier: 1, why: "intention" };
+  return null;
+}
+
+/** Two people in the same place, awake, with something to say. */
+export function wantsConversation(a: AgentState, b: AgentState, t: number): boolean {
+  if (a.asleep || b.asleep) return false;
+  if (t - a.lastConversation < 60 || t - b.lastConversation < 60) return false;
+  const pull = a.needs.social * 0.6 + a.persona.traits.warmth * 0.4;
+  return pull > 0.55;
+}

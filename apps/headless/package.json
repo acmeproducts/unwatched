@@ -1,0 +1,16 @@
+{
+  "name": "@ferrytown/headless",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "soak": "tsx src/soak.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ferrytown/cognition": "workspace:*",
+    "@ferrytown/engine": "workspace:*",
+    "@ferrytown/protocol": "workspace:*"
+  },
+  "devDependencies": { "tsx": "^4.19.0", "typescript": "^5.8.0", "@types/node": "^22.15.0" }
+}

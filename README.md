@@ -4,12 +4,26 @@ A persistent town of agents with free will. This is the phase-one monorepo: the 
 
 ## Layout
 
+- `apps/server` – hosts the engine on a real clock, streams events over WebSocket, serves the HTTP API, and writes the record to Supabase.
+- `apps/web` – the Next.js app: landing, gate, boarding, digest, letters, the PixiJS world with possession, the Gazette, profiles, people, account.
+- `packages/store` – the Supabase store and the schema under `supabase/migrations`.
+
 - `packages/protocol` – the agent protocol: perception in, action out, events, personas. Zod schemas shared by everything.
 - `packages/engine` – the town engine: time, places, needs, habit, the validator, the economy, memory, salience, the event log, and the Chronicler that writes the Gazette.
 - `packages/cognition` – brains. `MockBrain` runs the town for free and deterministically. `AnthropicBrain` runs it on Claude, three tiers: routine, stakes, reflection.
 - `apps/headless` – the soak runner. Runs the island for N sim days at any speed and prints the paper.
 
-## Run it
+## Run the town with a client
+
+```bash
+pnpm install
+pnpm --filter @ferrytown/server dev   # engine + API + stream on :4000
+pnpm --filter @ferrytown/web dev      # the app on :3000
+```
+
+Without Supabase configured the server keeps the town in memory and the gate accepts any name. Set `FT_BRAIN=openrouter` (or `anthropic`) and `FT_MS_PER_SIM_MINUTE=60000` in `.env` for a real town on real time.
+
+## Run it headless
 
 ```bash
 pnpm install

@@ -1,0 +1,6 @@
+{"id":1,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_1"],"text":"Rosa Vidal arrived on the ferry.","importance":0.5,"place":"harbor"}
+{"id":2,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_2"],"text":"Petar Ilić arrived on the ferry.","importance":0.5,"place":"harbor"}
+{"id":3,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_3"],"text":"Ivana Horvat arrived on the ferry.","importance":0.5,"place":"harbor"}
+{"id":4,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_4"],"text":"Luka Babić arrived on the ferry.","importance":0.5,"place":"harbor"}
+{"id":5,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_5"],"text":"Ana Perić arrived on the ferry.","importance":0.5,"place":"harbor"}
+{"id":6,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_6"],"text":"Vesna Marić arrived on the ferry.","importance":0.5,"place":"harbor"}

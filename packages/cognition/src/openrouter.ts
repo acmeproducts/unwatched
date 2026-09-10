@@ -37,12 +37,14 @@ export class OpenRouterBrain implements Brain {
   usage() { return { ...this.spent }; }
 
   private async call<T>(model: string, system: string, user: string, schema: z.ZodType<T>, name: string, maxTokens: number): Promise<T | null> {
-    const jsonSchema = z.toJSONSchema(schema);
+    // Providers behind OpenRouter accept a subset of JSON Schema: no regex patterns, no defaults, anyOf not oneOf.
+    // The schema goes in the request as a strict format and in the system prompt as belt and braces.
+    const jsonSchema = cleanSchema(z.toJSONSchema(schema));
     const body = {
       model,
       max_tokens: maxTokens,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      response_format: { type: "json_schema", json_schema: { name, schema: jsonSchema } },
+      messages: [{ role: "system", content: `${system}\n\nAnswer with a single JSON object matching this JSON schema exactly, no prose:\n${JSON.stringify(jsonSchema)}` }, { role: "user", content: user }],
+      response_format: { type: "json_schema", json_schema: { name, strict: true, schema: jsonSchema } },
     };
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -80,4 +82,17 @@ export class OpenRouterBrain implements Brain {
     const out = await this.call(this.reflectModel, paperSystem, paperPrompt(ctx), Paper, "paper", 3000);
     return out ?? this.fallback.writePaper(ctx);
   }
+}
+
+function cleanSchema(x: unknown): unknown {
+  if (Array.isArray(x)) return x.map(cleanSchema);
+  if (x && typeof x === "object") {
+    const o: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
+      if (k === "pattern" || k === "$schema" || k === "default") continue;
+      o[k === "oneOf" ? "anyOf" : k] = cleanSchema(v);
+    }
+    return o;
+  }
+  return x;
 }

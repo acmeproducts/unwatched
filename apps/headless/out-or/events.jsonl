@@ -4,3 +4,211 @@
 {"id":4,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_4"],"text":"Luka Babić arrived on the ferry.","importance":0.5,"place":"harbor"}
 {"id":5,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_5"],"text":"Ana Perić arrived on the ferry.","importance":0.5,"place":"harbor"}
 {"id":6,"t":360,"day":1,"kind":"agent.arrive","actors":["ag_6"],"text":"Vesna Marić arrived on the ferry.","importance":0.5,"place":"harbor"}
+{"id":7,"t":360,"day":1,"kind":"agent.say","actors":["ag_1"],"text":"Rosa Vidal: “Morning. I'm Rosa, I run the inn. Welcome to Ferry Town. What brings you here?”","importance":0.15,"place":"harbor"}
+{"id":8,"t":360,"day":1,"kind":"agent.hired","actors":["ag_2"],"text":"Petar Ilić was taken on as dock hand.","importance":0.5,"place":"harbor"}
+{"id":9,"t":360,"day":1,"kind":"agent.say","actors":["ag_3","ag_1"],"text":"Ivana Horvat to Rosa Vidal: “Good morning, Rosa. I'm Ivana. I'm here to get to know the town and its people. Thank you for the welcome.”","importance":0.15,"place":"harbor"}
+{"id":10,"t":360,"day":1,"kind":"agent.say","actors":["ag_4"],"text":"Luka Babić: “I'm here for work. There's a mill roof that needs fixing.”","importance":0.15,"place":"harbor"}
+{"id":11,"t":360,"day":1,"kind":"agent.say","actors":["ag_5"],"text":"Ana Perić: “Hi, I'm Ana. I'm a journalist - editor of the Gazette actually. I'm here looking for stories. What's the situation with that mill roof?”","importance":0.15,"place":"harbor"}
+{"id":12,"t":360,"day":1,"kind":"agent.say","actors":["ag_6"],"text":"Vesna Marić: “Morning. I'm Vesna, I run the chandlery. Need anything from the harbor?”","importance":0.15,"place":"harbor"}
+{"id":13,"t":360,"day":1,"kind":"conversation","actors":["ag_5","ag_3"],"text":"Ana Perić and Ivana Horvat talked at the harbor. Ana Perić: “Have you heard anything about the mill roof?” Ivana Horvat: “Only what everyone has. It will not end well.” Ana Perić: “Come by the inn later. I will tell you the rest.”","importance":0.48,"place":"harbor","payload":{"lines":[{"speaker":"ag_5","text":"Have you heard anything about the mill roof?"},{"speaker":"ag_3","text":"Only what everyone has. It will not end well."},{"speaker":"ag_5","text":"Come by the inn later. I will tell you the rest."}]}}
+{"id":14,"t":380,"day":1,"kind":"agent.say","actors":["ag_1"],"text":"Rosa Vidal: “Welcome, Ivana. I'm Rosa, I run the inn. You'll want to stay with us - best place to hear what's really happening in town. Ana, always chasing stories. That mill roof's been a problem for weeks now. Luka, you looking for work? We could use someone reliable.”","importance":0.15,"place":"harbor"}
+{"id":15,"t":380,"day":1,"kind":"agent.say","actors":["ag_2"],"text":"Petar Ilić: “Morning. I'm Petar, I run the bakery here. That mill roof - it's been causing problems for weeks. The mill's not producing like it should. If someone can get it fixed, we'd all benefit.”","importance":0.15,"place":"harbor"}
+{"id":16,"t":380,"day":1,"kind":"agent.say","actors":["ag_3","ag_5"],"text":"Ivana Horvat to Ana Perić: “Ana, is it. I'm Ivana Horvat. I'm the new mayor, as you may know. A mill roof issue sounds like something I should understand better. Do you have more details on what's needed?”","importance":0.15,"place":"harbor"}
+{"id":17,"t":380,"day":1,"kind":"agent.say","actors":["ag_4"],"text":"Luka Babić: “Mill roof needs fixing. I can do it. Need materials and someone to help with the high work.”","importance":0.15,"place":"harbor"}
+{"id":18,"t":380,"day":1,"kind":"agent.say","actors":["ag_5","ag_2"],"text":"Ana Perić to Petar Ilić: “Petar, right? I'm Ana, from the Gazette. This mill roof problem - how long has it been affecting production? What exactly is broken?”","importance":0.15,"place":"harbor"}
+{"id":19,"t":390,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the chandlery.","importance":0.02,"place":"chandlery"}
+{"id":20,"t":400,"day":1,"kind":"agent.say","actors":["ag_1"],"text":"Rosa Vidal: “Ivana, welcome to Ferry Town. I'm Rosa Vidal, I run the harbor inn. You'll find most of what matters happens over a drink there. And you're already seeing it - the mill roof's been our headache for weeks. Luka here knows how to fix it, but he'll need backing and materials. That's the kind of thing gets people talking, and talking gets things done.”","importance":0.15,"place":"harbor"}
+{"id":21,"t":400,"day":1,"kind":"agent.say","actors":["ag_2"],"text":"Petar Ilić: “The mill roof, yes. It's been killing us. Luka's right - it needs fixing, and I need that mill working again. I've been covering costs I can't afford. If you can get the materials and do the work, I'll back it. What do you need?”","importance":0.15,"place":"harbor"}
+{"id":22,"t":400,"day":1,"kind":"agent.hired","actors":["ag_3"],"text":"Ivana Horvat was taken on as dock hand.","importance":0.5,"place":"harbor"}
+{"id":23,"t":410,"day":1,"kind":"agent.move","actors":["ag_1"],"text":"Rosa Vidal went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":24,"t":410,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the market square.","importance":0.02,"place":"market"}
+{"id":25,"t":410,"day":1,"kind":"agent.say","actors":["ag_5","ag_2"],"text":"Ana Perić to Petar Ilić: “Morning, Petar. I'm Ana, I'm the editor of the Gazette. I just got here yesterday and I'm already hearing about this mill roof problem. Sounds like it's affecting the whole town. Mind if I ask you some questions about it for a piece I'm working on?”","importance":0.15,"place":"harbor"}
+{"id":26,"t":420,"day":1,"kind":"ferry.dock","actors":[],"text":"The 07:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":27,"t":420,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the hill road.","importance":0.02,"place":"hill"}
+{"id":28,"t":420,"day":1,"kind":"agent.move","actors":["ag_5"],"text":"Ana Perić went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":29,"t":420,"day":1,"kind":"agent.hired","actors":["ag_1"],"text":"Rosa Vidal was taken on as help at the inn.","importance":0.5,"place":"inn"}
+{"id":30,"t":420,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":31,"t":430,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":32,"t":430,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the hill fields.","importance":0.02,"place":"fields"}
+{"id":33,"t":440,"day":1,"kind":"agent.hired","actors":["ag_6"],"text":"Vesna Marić was taken on as clerk at the chandlery.","importance":0.5,"place":"chandlery"}
+{"id":34,"t":460,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the mill.","importance":0.02,"place":"mill"}
+{"id":35,"t":460,"day":1,"kind":"agent.hired","actors":["ag_5"],"text":"Ana Perić was taken on as help at the inn.","importance":0.5,"place":"inn"}
+{"id":36,"t":480,"day":1,"kind":"ferry.dock","actors":[],"text":"The 08:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":37,"t":490,"day":1,"kind":"conversation","actors":["ag_1","ag_5"],"text":"Rosa Vidal and Ana Perić talked at the harbor inn. Rosa Vidal: “Have you heard anything about the price of bread?” Ana Perić: “Only what everyone has. It will not end well.” Rosa Vidal: “Come by the tavern later. I will tell you the rest.”","importance":0.6,"place":"inn","payload":{"lines":[{"speaker":"ag_1","text":"Have you heard anything about the price of bread?"},{"speaker":"ag_5","text":"Only what everyone has. It will not end well."},{"speaker":"ag_1","text":"Come by the tavern later. I will tell you the rest."}]}}
+{"id":38,"t":510,"day":1,"kind":"action.rejected","actors":["ag_4"],"text":"Luka Babić tried to work but no job.","importance":0.05,"place":"mill","payload":{"action":{"kind":"work"},"source":"tier 1: job here"}}
+{"id":39,"t":540,"day":1,"kind":"ferry.dock","actors":[],"text":"The 09:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":40,"t":560,"day":1,"kind":"agent.hired","actors":["ag_4"],"text":"Luka Babić was taken on as mill hand.","importance":0.5,"place":"mill"}
+{"id":41,"t":560,"day":1,"kind":"conversation","actors":["ag_3","ag_2"],"text":"Ivana Horvat and Petar Ilić talked at the harbor. Ivana Horvat: “Have you heard anything about the last ferry?” Petar Ilić: “Only what everyone has. Give it a week.” Ivana Horvat: “Come by the tavern later. I will tell you the rest.”","importance":0.54,"place":"harbor","payload":{"lines":[{"speaker":"ag_3","text":"Have you heard anything about the last ferry?"},{"speaker":"ag_2","text":"Only what everyone has. Give it a week."},{"speaker":"ag_3","text":"Come by the tavern later. I will tell you the rest."}]}}
+{"id":42,"t":600,"day":1,"kind":"ferry.dock","actors":[],"text":"The 10:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":43,"t":600,"day":1,"kind":"agent.trade","actors":["ag_1"],"text":"Rosa Vidal bought bread for 1.","importance":0.02,"place":"inn"}
+{"id":44,"t":600,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the market square.","importance":0.02,"place":"market"}
+{"id":45,"t":600,"day":1,"kind":"agent.move","actors":["ag_3"],"text":"Ivana Horvat went to the market square.","importance":0.02,"place":"market"}
+{"id":46,"t":600,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the hill road.","importance":0.02,"place":"hill"}
+{"id":47,"t":600,"day":1,"kind":"agent.trade","actors":["ag_5"],"text":"Ana Perić bought bread for 1.","importance":0.02,"place":"inn"}
+{"id":48,"t":600,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the market square.","importance":0.02,"place":"market"}
+{"id":49,"t":610,"day":1,"kind":"agent.eat","actors":["ag_1"],"text":"Rosa Vidal ate bread.","importance":0.01,"place":"inn"}
+{"id":50,"t":610,"day":1,"kind":"agent.trade","actors":["ag_2"],"text":"Petar Ilić bought bread for 1.","importance":0.02,"place":"market"}
+{"id":51,"t":610,"day":1,"kind":"agent.trade","actors":["ag_3"],"text":"Ivana Horvat bought bread for 1.","importance":0.02,"place":"market"}
+{"id":52,"t":610,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the market square.","importance":0.02,"place":"market"}
+{"id":53,"t":610,"day":1,"kind":"agent.eat","actors":["ag_5"],"text":"Ana Perić ate bread.","importance":0.01,"place":"inn"}
+{"id":54,"t":610,"day":1,"kind":"agent.trade","actors":["ag_6"],"text":"Vesna Marić bought bread for 1.","importance":0.02,"place":"market"}
+{"id":55,"t":620,"day":1,"kind":"agent.eat","actors":["ag_2"],"text":"Petar Ilić ate bread.","importance":0.01,"place":"market"}
+{"id":56,"t":620,"day":1,"kind":"agent.eat","actors":["ag_3"],"text":"Ivana Horvat ate bread.","importance":0.01,"place":"market"}
+{"id":57,"t":620,"day":1,"kind":"agent.trade","actors":["ag_4"],"text":"Luka Babić bought bread for 1.","importance":0.02,"place":"market"}
+{"id":58,"t":620,"day":1,"kind":"agent.eat","actors":["ag_6"],"text":"Vesna Marić ate bread.","importance":0.01,"place":"market"}
+{"id":59,"t":620,"day":1,"kind":"conversation","actors":["ag_4","ag_2"],"text":"Luka Babić and Petar Ilić talked at the market square. Luka Babić: “Have you heard anything about the mill roof?” Petar Ilić: “Only what everyone has. Give it a week.” Luka Babić: “Come by the inn later. I will tell you the rest.”","importance":0.51,"place":"market","payload":{"lines":[{"speaker":"ag_4","text":"Have you heard anything about the mill roof?"},{"speaker":"ag_2","text":"Only what everyone has. Give it a week."},{"speaker":"ag_4","text":"Come by the inn later. I will tell you the rest."}]}}
+{"id":60,"t":630,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":61,"t":630,"day":1,"kind":"agent.move","actors":["ag_3"],"text":"Ivana Horvat went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":62,"t":630,"day":1,"kind":"agent.eat","actors":["ag_4"],"text":"Luka Babić ate bread.","importance":0.01,"place":"market"}
+{"id":63,"t":630,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the chandlery.","importance":0.02,"place":"chandlery"}
+{"id":64,"t":640,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the hill road.","importance":0.02,"place":"hill"}
+{"id":65,"t":650,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the mill.","importance":0.02,"place":"mill"}
+{"id":66,"t":660,"day":1,"kind":"ferry.dock","actors":[],"text":"The 11:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":67,"t":720,"day":1,"kind":"ferry.dock","actors":[],"text":"The 12:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":68,"t":720,"day":1,"kind":"agent.work","actors":["ag_2"],"text":"Petar Ilić was paid 2 for a shift as dock hand.","importance":0.03,"place":"harbor"}
+{"id":69,"t":720,"day":1,"kind":"agent.work","actors":["ag_3"],"text":"Ivana Horvat was paid 2 for a shift as dock hand.","importance":0.03,"place":"harbor"}
+{"id":70,"t":780,"day":1,"kind":"ferry.dock","actors":[],"text":"The 13:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":71,"t":830,"day":1,"kind":"conversation","actors":["ag_5","ag_1"],"text":"Ana Perić and Rosa Vidal talked at the harbor inn. Ana Perić: “Have you heard anything about Rosa's ledger?” Rosa Vidal: “Only what everyone has. It will not end well.” Ana Perić: “Come by the tavern later. I will tell you the rest.”","importance":0.73,"place":"inn","payload":{"lines":[{"speaker":"ag_5","text":"Have you heard anything about Rosa's ledger?"},{"speaker":"ag_1","text":"Only what everyone has. It will not end well."},{"speaker":"ag_5","text":"Come by the tavern later. I will tell you the rest."}]}}
+{"id":72,"t":840,"day":1,"kind":"ferry.dock","actors":[],"text":"The 14:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":73,"t":840,"day":1,"kind":"agent.work","actors":["ag_4"],"text":"Luka Babić was paid 3 for a shift as mill hand.","importance":0.03,"place":"mill"}
+{"id":74,"t":900,"day":1,"kind":"ferry.dock","actors":[],"text":"The 15:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":75,"t":960,"day":1,"kind":"ferry.dock","actors":[],"text":"The 16:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":76,"t":960,"day":1,"kind":"agent.work","actors":["ag_1"],"text":"Rosa Vidal was paid 2 for a shift as help at the inn.","importance":0.03,"place":"inn"}
+{"id":77,"t":960,"day":1,"kind":"agent.work","actors":["ag_5"],"text":"Ana Perić was paid 2 for a shift as help at the inn.","importance":0.03,"place":"inn"}
+{"id":78,"t":1020,"day":1,"kind":"ferry.dock","actors":[],"text":"The 17:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":79,"t":1020,"day":1,"kind":"agent.work","actors":["ag_6"],"text":"Vesna Marić was paid 2 for a shift as clerk at the chandlery.","importance":0.03,"place":"chandlery"}
+{"id":80,"t":1020,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":81,"t":1080,"day":1,"kind":"ferry.dock","actors":[],"text":"The 18:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":82,"t":1100,"day":1,"kind":"agent.trade","actors":["ag_1"],"text":"Rosa Vidal bought bread for 1.","importance":0.02,"place":"inn"}
+{"id":83,"t":1100,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the market square.","importance":0.02,"place":"market"}
+{"id":84,"t":1100,"day":1,"kind":"agent.move","actors":["ag_3"],"text":"Ivana Horvat went to the market square.","importance":0.02,"place":"market"}
+{"id":85,"t":1100,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the hill road.","importance":0.02,"place":"hill"}
+{"id":86,"t":1100,"day":1,"kind":"agent.trade","actors":["ag_5"],"text":"Ana Perić bought bread for 1.","importance":0.02,"place":"inn"}
+{"id":87,"t":1100,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the market square.","importance":0.02,"place":"market"}
+{"id":88,"t":1110,"day":1,"kind":"agent.eat","actors":["ag_1"],"text":"Rosa Vidal ate bread.","importance":0.01,"place":"inn"}
+{"id":89,"t":1110,"day":1,"kind":"agent.trade","actors":["ag_2"],"text":"Petar Ilić bought bread for 1.","importance":0.02,"place":"market"}
+{"id":90,"t":1110,"day":1,"kind":"agent.trade","actors":["ag_3"],"text":"Ivana Horvat bought bread for 1.","importance":0.02,"place":"market"}
+{"id":91,"t":1110,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the market square.","importance":0.02,"place":"market"}
+{"id":92,"t":1110,"day":1,"kind":"agent.eat","actors":["ag_5"],"text":"Ana Perić ate bread.","importance":0.01,"place":"inn"}
+{"id":93,"t":1110,"day":1,"kind":"agent.trade","actors":["ag_6"],"text":"Vesna Marić bought bread for 1.","importance":0.02,"place":"market"}
+{"id":94,"t":1120,"day":1,"kind":"agent.eat","actors":["ag_2"],"text":"Petar Ilić ate bread.","importance":0.01,"place":"market"}
+{"id":95,"t":1120,"day":1,"kind":"agent.eat","actors":["ag_3"],"text":"Ivana Horvat ate bread.","importance":0.01,"place":"market"}
+{"id":96,"t":1120,"day":1,"kind":"agent.trade","actors":["ag_4"],"text":"Luka Babić bought bread for 1.","importance":0.02,"place":"market"}
+{"id":97,"t":1120,"day":1,"kind":"agent.eat","actors":["ag_6"],"text":"Vesna Marić ate bread.","importance":0.01,"place":"market"}
+{"id":98,"t":1130,"day":1,"kind":"agent.eat","actors":["ag_4"],"text":"Luka Babić ate bread.","importance":0.01,"place":"market"}
+{"id":99,"t":1140,"day":1,"kind":"ferry.dock","actors":[],"text":"The 19:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":100,"t":1170,"day":1,"kind":"conversation","actors":["ag_1","ag_5"],"text":"Rosa Vidal and Ana Perić talked at the harbor inn. Rosa Vidal: “Have you heard anything about the surveyor?” Ana Perić: “Only what everyone has. Give it a week.” Rosa Vidal: “Come by the inn later. I will tell you the rest.”","importance":0.54,"place":"inn","payload":{"lines":[{"speaker":"ag_1","text":"Have you heard anything about the surveyor?"},{"speaker":"ag_5","text":"Only what everyone has. Give it a week."},{"speaker":"ag_1","text":"Come by the inn later. I will tell you the rest."}]}}
+{"id":101,"t":1200,"day":1,"kind":"ferry.dock","actors":[],"text":"The 20:00 ferry docked.","importance":0.03,"place":"harbor"}
+{"id":102,"t":1210,"day":1,"kind":"conversation","actors":["ag_6","ag_4"],"text":"Vesna Marić and Luka Babić talked at the market square. Vesna Marić: “Have you heard anything about the surveyor?” Luka Babić: “Only what everyone has. Nobody asked me.” Vesna Marić: “Come by the inn later. I will tell you the rest.”","importance":0.54,"place":"market","payload":{"lines":[{"speaker":"ag_6","text":"Have you heard anything about the surveyor?"},{"speaker":"ag_4","text":"Only what everyone has. Nobody asked me."},{"speaker":"ag_6","text":"Come by the inn later. I will tell you the rest."}]}}
+{"id":103,"t":1260,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":104,"t":1260,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":105,"t":1260,"day":1,"kind":"agent.move","actors":["ag_3"],"text":"Ivana Horvat went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":106,"t":1260,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":107,"t":1260,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":108,"t":1260,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the harbor inn.","importance":0.02,"place":"inn"}
+{"id":109,"t":1270,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":110,"t":1270,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":111,"t":1270,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":112,"t":1270,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":113,"t":1270,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":114,"t":1270,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":115,"t":1280,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":116,"t":1280,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":117,"t":1280,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":118,"t":1280,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":119,"t":1280,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":120,"t":1280,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":121,"t":1290,"day":1,"kind":"agent.move","actors":["ag_1"],"text":"Rosa Vidal went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":122,"t":1290,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":123,"t":1290,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":124,"t":1290,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":125,"t":1290,"day":1,"kind":"agent.move","actors":["ag_5"],"text":"Ana Perić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":126,"t":1290,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the harbor inn.","importance":0.01,"place":"inn"}
+{"id":127,"t":1300,"day":1,"kind":"agent.move","actors":["ag_1"],"text":"Rosa Vidal went to the boat shed.","importance":0.02,"place":"boatshed"}
+{"id":128,"t":1300,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":129,"t":1300,"day":1,"kind":"agent.move","actors":["ag_3"],"text":"Ivana Horvat went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":130,"t":1300,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":131,"t":1300,"day":1,"kind":"agent.move","actors":["ag_5"],"text":"Ana Perić went to the boat shed.","importance":0.02,"place":"boatshed"}
+{"id":132,"t":1300,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the harbor.","importance":0.02,"place":"harbor"}
+{"id":133,"t":1310,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":134,"t":1310,"day":1,"kind":"agent.move","actors":["ag_2"],"text":"Petar Ilić went to the boat shed.","importance":0.02,"place":"boatshed"}
+{"id":135,"t":1310,"day":1,"kind":"agent.move","actors":["ag_3"],"text":"Ivana Horvat went to the boat shed.","importance":0.02,"place":"boatshed"}
+{"id":136,"t":1310,"day":1,"kind":"agent.move","actors":["ag_4"],"text":"Luka Babić went to the boat shed.","importance":0.02,"place":"boatshed"}
+{"id":137,"t":1310,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":138,"t":1310,"day":1,"kind":"agent.move","actors":["ag_6"],"text":"Vesna Marić went to the boat shed.","importance":0.02,"place":"boatshed"}
+{"id":139,"t":1320,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":140,"t":1320,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":141,"t":1320,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":142,"t":1320,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":143,"t":1320,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":144,"t":1320,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":145,"t":1330,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":146,"t":1330,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":147,"t":1330,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":148,"t":1330,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":149,"t":1330,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":150,"t":1330,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":151,"t":1340,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":152,"t":1340,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":153,"t":1340,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":154,"t":1340,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":155,"t":1340,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":156,"t":1340,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":157,"t":1350,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":158,"t":1350,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":159,"t":1350,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":160,"t":1350,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":161,"t":1350,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":162,"t":1350,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":163,"t":1360,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":164,"t":1360,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":165,"t":1360,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":166,"t":1360,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":167,"t":1360,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":168,"t":1360,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":169,"t":1370,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":170,"t":1370,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":171,"t":1370,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":172,"t":1370,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":173,"t":1370,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":174,"t":1370,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":175,"t":1380,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":176,"t":1380,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":177,"t":1380,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":178,"t":1380,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":179,"t":1380,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":180,"t":1380,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":181,"t":1390,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":182,"t":1390,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":183,"t":1390,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":184,"t":1390,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":185,"t":1390,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":186,"t":1390,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":187,"t":1400,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":188,"t":1400,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":189,"t":1400,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":190,"t":1400,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":191,"t":1400,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":192,"t":1400,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":193,"t":1410,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":194,"t":1410,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":195,"t":1410,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":196,"t":1410,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":197,"t":1410,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":198,"t":1410,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":199,"t":1420,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":200,"t":1420,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":201,"t":1420,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":202,"t":1420,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":203,"t":1420,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":204,"t":1420,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":205,"t":1430,"day":1,"kind":"agent.sleep","actors":["ag_1"],"text":"Rosa Vidal went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":206,"t":1430,"day":1,"kind":"agent.sleep","actors":["ag_2"],"text":"Petar Ilić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":207,"t":1430,"day":1,"kind":"agent.sleep","actors":["ag_3"],"text":"Ivana Horvat went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":208,"t":1430,"day":1,"kind":"agent.sleep","actors":["ag_4"],"text":"Luka Babić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":209,"t":1430,"day":1,"kind":"agent.sleep","actors":["ag_5"],"text":"Ana Perić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":210,"t":1430,"day":1,"kind":"agent.sleep","actors":["ag_6"],"text":"Vesna Marić went to sleep at the boat shed.","importance":0.01,"place":"boatshed"}
+{"id":211,"t":1440,"day":1,"kind":"agent.reflect","actors":["ag_1"],"text":"Rosa Vidal reflected: Day 1. Stepped off the ferry with a suitcase and 40 coins. Three nights paid at the harbor inn. I got work as help at the inn. 2 coins a shift. Ana Perić told me: Ana Perić says the mayor asked for the survey to stall the vote.","importance":0.2,"place":"boatshed"}
+{"id":212,"t":1440,"day":1,"kind":"agent.letter","actors":["ag_2"],"text":"Petar Ilić wrote to you: “Stepped off the ferry with a suitcase and 40 coins. Three nights paid at the harbor inn. Tell me what you would do.”","importance":0.8,"place":"boatshed","payload":{"text":"Stepped off the ferry with a suitcase and 40 coins. Three nights paid at the harbor inn. Tell me what you would do."}}
+{"id":213,"t":1440,"day":1,"kind":"agent.reflect","actors":["ag_2"],"text":"Petar Ilić reflected: Day 1. Stepped off the ferry with a suitcase and 40 coins. Three nights paid at the harbor inn. I got work as dock hand. 2 coins a shift. Luka Babić stopped to talk about the mill roof.","importance":0.2,"place":"boatshed"}
+{"id":214,"t":1440,"day":1,"kind":"agent.reflect","actors":["ag_3"],"text":"Ivana Horvat reflected: Day 1. Stepped off the ferry with a suitcase and 40 coins. Three nights paid at the harbor inn. I got work as dock hand. 2 coins a shift. Talked with Petar Ilić about the last ferry. Easy company.","importance":0.2,"place":"boatshed"}

@@ -160,7 +160,28 @@ export class Town {
   }
 
   // ---------- apply ----------
-  apply(a: AgentState, action: Action, source: string): boolean {
+  /** Brains refer to people by id or by name. Resolve to an id, or leave the string alone (it may be a place). */
+  resolveRef(ref: string, near?: AgentState[]): string {
+    if (this.agents.has(ref)) return ref;
+    const q = ref.trim().toLowerCase();
+    const pool = near ?? [...this.agents.values()];
+    const hit = pool.find((b) => b.persona.name.toLowerCase() === q) ?? pool.find((b) => b.persona.name.toLowerCase().startsWith(q) || q.startsWith(b.persona.name.toLowerCase().split(" ")[0] ?? "\u0000")) ?? [...this.agents.values()].find((b) => b.persona.name.toLowerCase() === q);
+    return hit ? hit.id : ref;
+  }
+
+  private resolveAction(a: AgentState, action: Action): Action {
+    const near = this.nearby(a);
+    switch (action.kind) {
+      case "say": return action.to ? { ...action, to: this.resolveRef(action.to, near) } : action;
+      case "give": return { ...action, to: this.resolveRef(action.to, near) };
+      case "take": return action.from ? { ...action, from: this.resolveRef(action.from, near) } : action;
+      case "trade": return { ...action, with: this.resolveRef(action.with, near) };
+      default: return action;
+    }
+  }
+
+  apply(a: AgentState, rawAction: Action, source: string): boolean {
+    const action = this.resolveAction(a, rawAction);
     const here = this.places.get(a.location)!;
     const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, price: (p, i) => this.price(p, i) });
     if (!verdict.ok) {
@@ -306,6 +327,8 @@ export class Town {
         } catch (err) { this.log(`converse failed: ${(err as Error).message}`); continue; }
         a.lastConversation = this.t; b.lastConversation = this.t;
         a.needs.social = Math.max(0, a.needs.social - 0.5); b.needs.social = Math.max(0, b.needs.social - 0.5);
+        const pair = [a, b];
+        d = { ...d, lines: d.lines.map((l, i) => ({ ...l, speaker: this.resolveRef(l.speaker, pair) === b.id ? b.id : this.resolveRef(l.speaker, pair) === a.id ? a.id : (i % 2 === 0 ? a.id : b.id) })) };
         const transcript = d.lines.map((l) => `${this.agents.get(l.speaker)?.persona.name ?? l.speaker}: “${l.text}”`).join(" ");
         const importance = Math.min(1, 0.12 + Math.abs(d.outcome.a_trust_delta) * 3 + Math.abs(d.outcome.b_trust_delta) * 3 + (d.outcome.rumor ? 0.1 : 0));
         this.emit("conversation", [a.id, b.id], placeId, `${a.persona.name} and ${b.persona.name} talked at ${place.name}. ${transcript}`, importance, { lines: d.lines });
@@ -350,7 +373,7 @@ export class Town {
       catch (err) { this.log(`reflect failed for ${a.persona.name}: ${(err as Error).message}`); continue; }
       this.remember(a, ref.summary, 0.75, "reflect");
       for (const i of ref.insights) this.remember(a, i, 0.6, "reflect");
-      for (const o of ref.opinions) { const r = this.rel(a, o.about); r.opinion = o.opinion; r.trust = clamp(r.trust + o.trust_delta); if (Math.abs(o.trust_delta) > 0.1) this.emit("relation.change", [a.id, o.about], undefined, `${a.persona.name} now thinks of ${this.agents.get(o.about)?.persona.name ?? o.about}: “${o.opinion}”`, 0.4 + Math.abs(o.trust_delta)); }
+      for (const o0 of ref.opinions) { const about = this.resolveRef(o0.about); if (!this.agents.has(about) || about === a.id) continue; const o = { ...o0, about }; const r = this.rel(a, o.about); r.opinion = o.opinion; r.trust = clamp(r.trust + o.trust_delta); if (Math.abs(o.trust_delta) > 0.1) this.emit("relation.change", [a.id, o.about], undefined, `${a.persona.name} now thinks of ${this.agents.get(o.about)?.persona.name ?? o.about}: “${o.opinion}”`, 0.4 + Math.abs(o.trust_delta)); }
       a.intentions = ref.intentions;
       if (ref.letter_to_owner && a.owner) { this.emit("agent.letter", [a.id], a.location, `${a.persona.name} wrote to ${a.owner}: “${ref.letter_to_owner}”`, 0.8, { text: ref.letter_to_owner }); }
       this.emit("agent.reflect", [a.id], a.location, `${a.persona.name} reflected: ${ref.summary}`, 0.2);
@@ -394,7 +417,7 @@ export class Town {
   private maybeWake(a: AgentState): void {
     const wake = 6 + Math.round(a.persona.traits.caution * 1.5);
     if (this.hour >= wake && a.needs.rest < 0.4) { a.asleep = false; this.emit("agent.wake", [a.id], a.location, `${a.persona.name} woke up.`, 0.01); }
-    else if (this.hour >= 10) { a.asleep = false; }
+    else if (this.hour >= 10 && this.hour < 20) { a.asleep = false; }
   }
   private spend(a: AgentState, tier: Tier): boolean {
     if (!a.funded) return false;

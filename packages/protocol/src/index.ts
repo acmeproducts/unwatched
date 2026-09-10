@@ -4,6 +4,9 @@ import { z } from "zod";
 export const AgentId = z.string().regex(/^ag_[a-z0-9]+$/);
 export const PlaceId = z.string().regex(/^[a-z][a-z0-9_.]*$/);
 export type AgentId = z.infer<typeof AgentId>;
+/** How a brain may refer to a person: by id or by name. The engine resolves it. */
+export const AgentRef = z.string().min(1).max(60);
+export type AgentRef = z.infer<typeof AgentRef>;
 export type PlaceId = z.infer<typeof PlaceId>;
 
 /** Who a person is. Written once at boarding; everything after is memory. */
@@ -36,19 +39,19 @@ export type ActionKind = z.infer<typeof ActionKind>;
 
 export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("move"), to: PlaceId }),
-  z.object({ kind: z.literal("say"), to: AgentId.optional(), text: z.string().min(1).max(400) }),
-  z.object({ kind: z.literal("give"), to: AgentId, coins: z.number().int().positive().optional(), item: z.string().optional() }),
-  z.object({ kind: z.literal("take"), item: z.string(), from: z.union([AgentId, PlaceId]).optional() }),
+  z.object({ kind: z.literal("say"), to: AgentRef.optional(), text: z.string().min(1).max(400) }),
+  z.object({ kind: z.literal("give"), to: AgentRef, coins: z.number().int().positive().optional(), item: z.string().optional() }),
+  z.object({ kind: z.literal("take"), item: z.string(), from: AgentRef.optional() }),
   z.object({ kind: z.literal("use"), item: z.string() }),
   z.object({ kind: z.literal("work") }),
   z.object({ kind: z.literal("apply"), job: z.string() }),
   z.object({ kind: z.literal("quit") }),
-  z.object({ kind: z.literal("trade"), with: z.union([AgentId, PlaceId]), buy: z.string().optional(), sell: z.string().optional(), coins: z.number().int().nonnegative() }),
+  z.object({ kind: z.literal("trade"), with: AgentRef, buy: z.string().optional(), sell: z.string().optional(), coins: z.number().int().nonnegative() }),
   z.object({ kind: z.literal("propose"), law: z.string().max(200) }),
   z.object({ kind: z.literal("vote"), proposal: z.string(), yes: z.boolean() }),
   z.object({ kind: z.literal("write"), title: z.string().max(80), text: z.string().max(2000) }),
   z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId }),
-  z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(600) }),
+  z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
   z.object({ kind: z.literal("sleep") }),
   z.object({ kind: z.literal("wait") }),
 ]);
@@ -57,8 +60,8 @@ export type Action = z.infer<typeof Action>;
 /** What an agent returns when it thinks. The model proposes, the engine disposes. */
 export const ActionProposal = z.object({
   action: Action,
-  intent: z.string().max(200).optional(),
-  remember: z.array(z.string().max(300)).max(3).default([]),
+  intent: z.string().max(300).optional(),
+  remember: z.array(z.string().max(400)).max(3).default([]),
 });
 export type ActionProposal = z.infer<typeof ActionProposal>;
 
@@ -114,23 +117,23 @@ export type TownEvent = z.infer<typeof TownEvent>;
 
 /** Nightly reflection, produced by a brain. */
 export const Reflection = z.object({
-  summary: z.string().max(600),
-  insights: z.array(z.string().max(200)).max(3),
-  opinions: z.array(z.object({ about: AgentId, opinion: z.string().max(200), trust_delta: z.number().min(-0.3).max(0.3) })).max(5),
-  intentions: z.array(z.string().max(160)).max(3),
-  letter_to_owner: z.string().max(600).nullable(),
+  summary: z.string().max(1500),
+  insights: z.array(z.string().max(300)).max(3),
+  opinions: z.array(z.object({ about: AgentRef, opinion: z.string().max(300), trust_delta: z.number().min(-0.3).max(0.3) })).max(5),
+  intentions: z.array(z.string().max(240)).max(3),
+  letter_to_owner: z.string().max(1200).nullable(),
 });
 export type Reflection = z.infer<typeof Reflection>;
 
 /** A short exchange between two agents, produced in one call when no human is present. */
 export const Dialogue = z.object({
-  lines: z.array(z.object({ speaker: AgentId, text: z.string().max(240) })).min(1).max(8),
+  lines: z.array(z.object({ speaker: AgentRef, text: z.string().max(400) })).min(1).max(8),
   outcome: z.object({
     a_trust_delta: z.number().min(-0.2).max(0.2),
     b_trust_delta: z.number().min(-0.2).max(0.2),
-    a_remember: z.string().max(200),
-    b_remember: z.string().max(200),
-    rumor: z.string().max(200).nullable(),
+    a_remember: z.string().max(400),
+    b_remember: z.string().max(400),
+    rumor: z.string().max(300).nullable(),
   }),
 });
 export type Dialogue = z.infer<typeof Dialogue>;
@@ -140,9 +143,9 @@ export const Paper = z.object({
   edition: z.number().int(),
   date: z.string(),
   weather: z.string(),
-  lead: z.object({ headline: z.string().max(90), deck: z.string().max(160), body: z.string().max(1200) }),
-  briefs: z.array(z.object({ headline: z.string().max(90), body: z.string().max(400) })).max(4),
-  notices: z.array(z.string().max(160)).max(6),
+  lead: z.object({ headline: z.string().max(120), deck: z.string().max(240), body: z.string().max(2000) }),
+  briefs: z.array(z.object({ headline: z.string().max(120), body: z.string().max(700) })).max(4),
+  notices: z.array(z.string().max(240)).max(6),
 });
 export type Paper = z.infer<typeof Paper>;
 

@@ -5,6 +5,7 @@ import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api
 import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
 import { drawThing } from "./world/buildings";
+import { Interior, type InteriorPerson } from "./Interior";
 
 /**
  * The island, drawn by PixiJS from the live event stream, in the Tide style.
@@ -53,7 +54,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
   const clockRef = useRef<Clock | null>(null);
   const ambienceRef = useRef<Ambience | null>(null);
   const [sound, setSound] = useState(false);
-  const [placeInfo, setPlaceInfo] = useState<{ id: string; name: string; district: string; kind: string; owner: string | null; site: PlaceView["site"]; people: { name: string; asleep: boolean; job: string | null }[] } | null>(null);
+  const [placeInfo, setPlaceInfo] = useState<{ id: string; name: string; district: string; kind: string; sprite: string; owner: string | null; site: PlaceView["site"]; people: InteriorPerson[] } | null>(null);
   const [mini, setMini] = useState<{ w: number; h: number; places: { id: string; x: number; y: number; kind: string; crowd: number }[]; view: { x: number; y: number; w: number; h: number }; people: { x: number; y: number; mine: boolean }[] } | null>(null);
 
   useEffect(() => {
@@ -146,7 +147,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         const t = new Text({ text: p.name.replace(/^the /, "").replace(/^an? /, "").toUpperCase(), style: nameStyle }); t.anchor.set(0.5, 0); t.position.set(0, p.site ? 22 : 6); t.zIndex = 100000; g.addChild(t);
         g.position.set(p.x, p.y);
         g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -90 && x < 90 && y > -170 && y < 30 } as never;
-        g.on("pointertap", () => { const here = [...agents.current.values()].filter((a) => a.location === p.id); setPlaceInfo({ id: p.id, name: p.name, district: p.district, kind: p.kind, owner: p.owner, site: p.site, people: here.map((a) => ({ name: a.name, asleep: a.asleep, job: a.job })) }); });
+        g.on("pointertap", () => { const here = [...agents.current.values()].filter((a) => a.location === p.id); setPlaceInfo({ id: p.id, name: p.name, district: p.district, kind: p.kind, sprite: p.sprite, owner: p.owner, site: p.site, people: here.map((a) => ({ id: a.id, name: a.name, asleep: a.asleep, job: a.job, appearance: a.appearance, ...(a.pose ? { pose: a.pose } : {}) })) }); });
       };
       for (const p of places.values()) drawPlace(p);
       const decor = decorFor([...places.values()]);
@@ -315,6 +316,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       </svg>}
       {placeInfo && <div className="absolute right-3 top-14 sm:right-6 sm:top-16 w-[min(320px,calc(100%-24px))] bg-shell rounded-card p-4 flex flex-col gap-2 pointer-events-auto rise">
         <div className="flex justify-between items-baseline gap-2"><div><div className="label">{placeInfo.district}</div><div className="display text-[20px] font-semibold">{placeInfo.name}</div></div><button onClick={() => setPlaceInfo(null)} className="text-sm text-drift">Close</button></div>
+        {placeInfo.kind !== "plot" && placeInfo.kind !== "wild" && <Interior kind={placeInfo.kind} sprite={placeInfo.sprite} hour={clock?.hour ?? 12} people={placeInfo.people} />}
         {placeInfo.owner && <div className="text-sm text-ink2">Owned by {placeInfo.owner}.</div>}
         {placeInfo.site && <div className="text-sm text-ink2">{placeInfo.site.by} is building {placeInfo.site.name}: {placeInfo.site.done} of {placeInfo.site.of} mornings done.</div>}
         {placeInfo.kind === "plot" && !placeInfo.site && <div className="text-sm text-ink2">Empty land. A house costs 15 coins and six mornings; a shop 30 and ten.</div>}

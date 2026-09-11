@@ -376,7 +376,12 @@ export class Town {
       case "accuse": return { ...action, who: this.resolveRef(action.who, [...this.agents.values()]) };
       case "write": return action.about ? { ...action, about: this.resolveRef(action.about, [...this.agents.values()]) } : action;
       case "take": return action.from ? { ...action, from: this.resolveRef(action.from, near) } : action;
-      case "trade": return { ...action, with: this.resolveRef(action.with, near) };
+      case "trade": {
+        // a bare trade is a hungry person at a counter: the place they stand in, the cheapest food on its shelf
+        const w = action.with ? this.resolveRef(action.with, near) : a.location; let buy = action.buy;
+        if (!buy && !action.sell && w === a.location) { const here = this.places.get(a.location); const cheapest = here ? here.sells.filter((x) => FOOD_ITEMS.has(x.item)).map((x) => ({ item: x.item, price: this.price(here, x.item) })).filter((x) => x.price !== null).sort((x, y) => x.price! - y.price!)[0] : undefined; if (cheapest) buy = cheapest.item; }
+        return { ...action, with: w, ...(buy ? { buy } : {}), coins: action.coins ?? 0 };
+      }
       default: return action;
     }
   }
@@ -475,9 +480,10 @@ export class Town {
         break;
       }
       case "trade": {
-        if (this.agents.has(action.with)) {
+        const coins = action.coins ?? 0;
+        if (action.with && this.agents.has(action.with)) {
           const b = this.agents.get(action.with)!;
-          if (action.buy) { b.inventory.splice(b.inventory.indexOf(action.buy), 1); a.inventory.push(action.buy); a.coins -= action.coins; b.coins += action.coins; }
+          if (action.buy) { b.inventory.splice(b.inventory.indexOf(action.buy), 1); a.inventory.push(action.buy); a.coins -= coins; b.coins += coins; }
           if (action.sell) { a.inventory.splice(a.inventory.indexOf(action.sell), 1); b.inventory.push(action.sell); }
           this.emit("agent.trade", [a.id, b.id], here.id, `${name} traded with ${b.persona.name}.`, 0.3);
         } else {

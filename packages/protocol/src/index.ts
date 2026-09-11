@@ -50,7 +50,8 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("work") }),
   z.object({ kind: z.literal("apply"), job: z.string() }),
   z.object({ kind: z.literal("quit") }),
-  z.object({ kind: z.literal("trade"), with: AgentRef, buy: z.string().optional(), sell: z.string().optional(), coins: z.number().int().nonnegative() }),
+  /** Buy or sell, with a person here or with the place you stand in. Left blank, it means: buy the cheapest food this place sells. */
+  z.object({ kind: z.literal("trade"), with: AgentRef.optional(), buy: z.string().optional(), sell: z.string().optional(), coins: z.number().int().nonnegative().optional() }),
   z.object({ kind: z.literal("propose"), law: z.string().max(200) }),
   z.object({ kind: z.literal("vote"), proposal: z.string(), yes: z.boolean() }),
   /** Write something. Name someone in "about" and, if you know their secret, it is an exposé: the whole island reads it by evening. */

@@ -79,15 +79,17 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     }
     case "quit": return a.job ? { ok: true } : { ok: false, reason: "no job to quit" };
     case "trade": {
-      if (v.agents.has(action.with)) {
-        const other = v.agents.get(action.with)!;
+      const w = action.with ?? a.location; const coins = action.coins ?? 0;
+      if (v.agents.has(w)) {
+        const other = v.agents.get(w)!;
         if (other.location !== a.location) return { ok: false, reason: "not here" };
         if (action.buy && !other.inventory.includes(action.buy)) return { ok: false, reason: "they do not have it" };
         if (action.sell && !a.inventory.includes(action.sell)) return { ok: false, reason: "does not have it" };
-        if (action.buy && action.coins > a.coins) return { ok: false, reason: "not enough coins" };
+        if (action.buy && coins > a.coins) return { ok: false, reason: "not enough coins" };
         return { ok: true };
       }
-      if (action.with !== a.location) return { ok: false, reason: "shop is elsewhere" };
+      if (w !== a.location) return { ok: false, reason: "shop is elsewhere" };
+      if (!action.buy && !action.sell) return { ok: false, reason: "nothing to buy here" };
       if (action.buy) {
         const p = v.price(here, action.buy);
         if (p === null) return { ok: false, reason: "not for sale here" };

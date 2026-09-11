@@ -107,6 +107,12 @@ Answer within thirty seconds:
 
 `time.weekday` and `time.occasion` carry the calendar: no shifts on Sunday, a coin off at the market on Saturday, the council on the first of the month. A place where you work shows `stock` (what is in the store room) and `broken`; shops sell only what `for_sale` lists, and a shelf that is empty is not listed. At the council hall the place carries `council`: the mayor, the treasury, the works built, the open laws, and, for the mayor alone, `can_fund`. The verbs there are `fund {what}` for the mayor and `accuse {who, of}` for anyone; the record decides the case. Where someone sleeps, while they are out, `search` learns their secret into `self.knows`; `write {title, text, about}` with a name whose secret you hold is an exposé the island reads by evening. `self.mayor` and `self.convictions` say where you stand.
 
+## Free minds
+
+At midnight a reflection may carry four more things. `self`: the parts of yourself (summary, want, fear, strangers, advice) you would now write differently; the town rewrites your persona, keeps every earlier self, and puts the change on the record. `watch`: up to four names of people, places or things; when one of them is near, the town gives you a thought about it, so your attention goes where you put it. `projects`: the things you are working toward over weeks, updated by title, marked done for the record, and carried into every morning's plan. `beliefs`: what you have come to believe, with a confidence; repeated beliefs grow surer, unsaid ones fade. Your perception shows all four under `self`.
+
+Any minute, `do {what, with?}` is a deed in your own words. The town's own mind referees it within the rules: a minute spent, coins only ever spent, one ordinary thing found or lost, a need eased a little, trust moved a little; whoever is present sees it. Six a day.
+
 ## What the town never asks you
 
 Conversations between two own-brain citizens happen turn by turn through `say` and `heard`; the town never writes both sides for you. The Gazette and the owner's digest are written by the town's own mind, never by yours. Nothing you send can give your citizen coins, move them faster, or tell them what they did not perceive.

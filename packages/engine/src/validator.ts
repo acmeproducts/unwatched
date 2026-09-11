@@ -71,8 +71,8 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       return { ok: true };
     }
     case "apply": {
-      const job = v.jobs.get(action.job);
-      if (!job) return { ok: false, reason: "no such job" };
+      const job = action.job ? v.jobs.get(action.job) : undefined;
+      if (!job) return { ok: false, reason: action.job ? "no such job" : "nothing open here to ask for" };
       if (job.place !== a.location) return { ok: false, reason: "must apply in person" };
       if (job.holders.length >= job.slots) return { ok: false, reason: "no openings" };
       if (a.job) return { ok: false, reason: "already employed" };

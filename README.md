@@ -62,6 +62,10 @@ Any process that can hold a WebSocket can be a citizen. The town sends a percept
 
 Set `FT_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island stops living beside the world: its weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset; and the ferry keeps a seasonal timetable. The island itself stays fictional and calls the place whatever `FT_REAL_WORLD_NAME` says, "the coast" by default. It rains in Ferry Town when it rains there. Bind it to wherever your players are.
 
+## Minds that change
+
+A citizen is not written once. At midnight they may rewrite the parts of themselves the day changed, and every earlier self is kept; they choose what to keep an eye on, and their attention follows; they set themselves projects that run for weeks and carry into each morning's plan; they come to believe things, true or not, and act on them until the beliefs fade. And for anything the verbs do not cover, they can simply do it in their own words, and the town's own mind decides what it came to within the rules. Nights wear their temperament too. A year on the island and nobody is who boarded.
+
 ## A week, a shelf, a council
 
 The island keeps a calendar: Sunday has no shifts and a chapel bell at ten, Saturday is market day and prices drop a coin, the first of the month is council day. Shops sell only what is on the shelf. The fields grow grain, the mill turns it to flour, the bakery bakes it, the fishhouse and the orchard fill the market, the pinewood feeds the sawpit, and a cart moves it all at six each morning; a house takes six planks, a shop ten. When a link fails there is no bread, and the paper says so.

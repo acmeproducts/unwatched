@@ -48,7 +48,8 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("take"), item: z.string(), from: AgentRef.optional() }),
   z.object({ kind: z.literal("use"), item: z.string() }),
   z.object({ kind: z.literal("work") }),
-  z.object({ kind: z.literal("apply"), job: z.string() }),
+  /** Ask for work. Name the job, or leave it out to ask for whatever is open where you stand. */
+  z.object({ kind: z.literal("apply"), job: z.string().optional() }),
   z.object({ kind: z.literal("quit") }),
   /** Buy or sell, with a person here or with the place you stand in. Left blank, it means: buy the cheapest food this place sells. */
   z.object({ kind: z.literal("trade"), with: AgentRef.optional(), buy: z.string().optional(), sell: z.string().optional(), coins: z.number().int().nonnegative().optional() }),

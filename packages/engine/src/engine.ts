@@ -399,6 +399,8 @@ export class Town {
       case "say": return action.to ? { ...action, to: this.resolveRef(action.to, near) } : action;
       case "give": return { ...action, to: this.resolveRef(action.to, near) };
       case "accuse": return { ...action, who: this.resolveRef(action.who, [...this.agents.values()]) };
+      // asking for work without naming the post means whatever is open here, or the post whose title they used
+      case "apply": { if (action.job && this.jobs.has(action.job)) return action; const here = this.openJobsAt(a.location); const named = action.job ? here.find((j) => j.title.toLowerCase().includes(action.job!.toLowerCase()) || j.id.includes(action.job!.toLowerCase())) : undefined; return { ...action, job: (named ?? here[0])?.id ?? action.job ?? "" }; }
       case "write": return action.about ? { ...action, about: this.resolveRef(action.about, [...this.agents.values()]) } : action;
       case "take": return action.from ? { ...action, from: this.resolveRef(action.from, near) } : action;
       case "trade": {
@@ -494,7 +496,7 @@ export class Town {
         break;
       }
       case "apply": {
-        const job = this.jobs.get(action.job)!; job.holders.push(a.id); a.job = job.id;
+        const job = this.jobs.get(action.job!)!; job.holders.push(a.id); a.job = job.id;
         this.emit("agent.hired", [a.id], here.id, `${name} was taken on as ${job.title}.`, 0.5);
         this.remember(a, `I got work as ${job.title}. ${job.wage} coins a shift.`, 0.7);
         break;

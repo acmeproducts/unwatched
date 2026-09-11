@@ -19,8 +19,9 @@ export interface Look {
   skin?: number;
 }
 
-const PALETTE: Record<Look["top"], number> = { Teal: 0x1f5f5b, Sage: 0xb9d9c6, Cream: 0xf7f5ee, Sand: 0xefede4, Kelp: 0x1e2a2b };
-const KELP = 0x1e2a2b, CORAL = 0xe8735a, HAIR = 0x2b2f30, GREY = 0xb9c4bf, STRAW = 0xe3d3a2, LEATHER = 0x8e6a4b;
+import { KELP, CORAL, TEAL, SAGE, CREAM, SAND } from "./palette";
+const PALETTE: Record<Look["top"], number> = { Teal: TEAL, Sage: SAGE, Cream: CREAM, Sand: SAND, Kelp: KELP };
+const HAIR = 0x2b2f30, GREY = 0xb9c4bf, STRAW = 0xe3d3a2, LEATHER = 0x8e6a4b;
 const SKINS = [0xf1d6c0, 0xe7c3a5, 0xd2a682, 0xb98460, 0x8f5f42, 0x6b4630];
 const STROKE = { width: 1.6, color: KELP, join: "round" as const, cap: "round" as const };
 

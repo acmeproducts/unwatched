@@ -9,7 +9,7 @@ const World = dynamic(() => import("@/components/World").then((m) => m.World), {
 export default function Town() {
   const { agent } = useMyAgent();
   const [sel, setSel] = useState<PublicAgent | null>(null);
-  const [view, setView] = useState<"street" | "map">("street");
+  const [view, setView] = useState<"street" | "map" | "cinema">("street");
   const [follow, setFollow] = useState(true);
   const [possessed, setPossessed] = useState(false);
   const [say, setSay] = useState(""); const [busy, setBusy] = useState(false); const [note, setNote] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function Town() {
         <World mineId={follow && agent ? agent.id : null} onSelect={setSel} view={view} />
         <div className="scrim absolute inset-0 rounded-[28px] pointer-events-none" data-on={possessed ? "true" : "false"} aria-hidden />
         <div className="absolute left-3 top-3 sm:left-6 sm:top-6 flex gap-2 flex-wrap pointer-events-auto">
-          <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={view === "street"} onClick={() => setView("street")}>Street</Chip><Chip active={view === "map"} onClick={() => setView("map")}>Map</Chip></div>
+          <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={view === "street"} onClick={() => setView("street")}>Street</Chip><Chip active={view === "map"} onClick={() => setView("map")}>Map</Chip><Chip active={view === "cinema"} onClick={() => setView("cinema")}>Follow the day</Chip></div>
           {agent && <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={follow} onClick={() => setFollow(true)}>Follow {agent.name.split(" ")[0]}</Chip><Chip active={!follow} onClick={() => setFollow(false)}>Free camera</Chip></div>}
           {possessed && agent && <div className="flex items-center gap-2 bg-shell rounded-full px-4"><span className="w-2.5 h-2.5 rounded-full bg-coral" /><span className="font-bold text-sm">You are {agent.name.split(" ")[0]}</span></div>}
         </div>

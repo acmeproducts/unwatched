@@ -5,6 +5,7 @@ import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api
 import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
+import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
 import { Interior, type InteriorPerson } from "./Interior";
 
 /**
@@ -12,7 +13,7 @@ import { Interior, type InteriorPerson } from "./Interior";
  * The server owns the map: every place arrives with its position, district and sprite, so a house someone builds
  * this morning stands on the canvas by the time the paper prints it. Labels and bubbles are HTML over the canvas.
  */
-const C = { water: 0xc3dcd6, waterDeep: 0xb0cec7, shallow: 0xd2e5de, foam: 0xf7f5ee, sand: 0xe9e0c8, wetSand: 0xdccfb0, shell: 0xf7f5ee, grass: 0xcadcc2, sage: 0xb9d9c6, earth: 0xe0d4b8, earthEdge: 0xcfc1a3, cobble: 0xe1dbcb, teal: 0x1f5f5b, kelp: 0x1e2a2b, coral: 0xe8735a, drift: 0x6f7a78 };
+const C = { ...GROUND, shell: CREAM, sage: SAGE, teal: TEAL, kelp: KELP, coral: CORAL, drift: DRIFT };
 
 type PlaceView = { id: string; name: string; kind: string; exits: string[]; x: number; y: number; district: string; sprite: string; stock?: Record<string, number>; look?: string; owner: string | null; site: { what: string; name: string; by: string; done: number; of: number } | null; crowd: number };
 type TownView = Clock & { size: { w: number; h: number }; places: PlaceView[] };
@@ -55,9 +56,9 @@ function lookSvg(hash: string): Promise<string | null> {
 
 type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean };
 
-export function World({ mineId, onSelect, view }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" }) {
+export function World({ mineId, onSelect, view }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema" }) {
   const host = useRef<HTMLDivElement>(null);
-  const [labels, setLabels] = useState<{ id: string; name: string; x: number; y: number; mine: boolean; bubble?: string }[]>([]);
+  const [labels, setLabels] = useState<{ id: string; name: string; x: number; y: number; mine: boolean; shown: boolean; bubble?: string }[]>([]);
   const [feed, setFeed] = useState<TownEvent[]>([]);
   const [clock, setClock] = useState<Clock | null>(null);
   const [ready, setReady] = useState(false);
@@ -67,6 +68,9 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
   const camera = useRef({ x: 0, y: 0, zoom: 1, follow: mineId as string | null });
   const seatOf = useRef(new Map<string, number>());
   const viewRef = useRef(view); viewRef.current = view;
+  const hoverRef = useRef<string | null>(null);
+  /** Where the day is happening: the latest moment that mattered, for the camera to follow. */
+  const cinema = useRef<{ x: number; y: number; ids: string[]; at: number } | null>(null);
   const clockRef = useRef<Clock | null>(null);
   const ambienceRef = useRef<Ambience | null>(null);
   const [sound, setSound] = useState(false);
@@ -107,7 +111,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const OLD_TOWN = ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern", "chandlery"];
       const segs: { ax: number; ay: number; bx: number; by: number; cobbled: boolean }[] = []; const roads = new Set<string>();
       for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); segs.push({ ax: A.x + A.w / 2, ay: A.y, bx: B.x + B.w / 2, by: B.y, cobbled: OLD_TOWN.includes(p.id) && OLD_TOWN.includes(q.id) }); }
-      const TW = 64, TH = 32; const FOREST = 0xb5cdb6, ROCK = 0xd7d3c6, FIELD = 0xc9d9b8;
+      const TW = 64, TH = 32; const FOREST = GROUND.forest, ROCK = GROUND.rock, FIELD = GROUND.field;
       const shade = (color: number, k: number) => { const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255; const f = 1 + k; return (Math.min(255, Math.round(r * f)) << 16) | (Math.min(255, Math.round(g * f)) << 8) | Math.min(255, Math.round(b * f)); };
       const hash = (i: number, j: number) => ((i * 73856093) ^ (j * 19349663)) >>> 0;
       // the ground is isometric tiles with no grid lines: three lightnesses of each ground, so it reads as texture, not as a grid
@@ -148,7 +152,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const shadows = new Graphics(); shadows.zIndex = 0.5; scene.addChild(shadows);
       const shadowSpecs: { x: number; y: number; w: number }[] = [];
       // shadows sit under things at noon and stretch away from a low sun: west in the morning, east in the evening, and warmer
-      const redrawShadows = (stretch: number, dir: number) => { shadows.clear(); for (const sp of shadowSpecs) shadows.ellipse(sp.x + sp.w * 0.12 + dir * stretch * sp.w * 0.35, sp.y + 4, sp.w * 0.5 * (1 + stretch * 0.9), Math.max(6, sp.w * 0.16)).fill({ color: stretch > 0.05 ? 0x5a3f2e : C.kelp, alpha: 0.09 + stretch * 0.05 }); };
+      const redrawShadows = (stretch: number, dir: number) => { shadows.clear(); for (const sp of shadowSpecs) shadows.ellipse(sp.x + sp.w * 0.12 + dir * stretch * sp.w * 0.35, sp.y + 4, sp.w * 0.5 * (1 + stretch * 0.9), Math.max(6, sp.w * 0.16)).fill({ color: stretch > 0.05 ? LIGHT.lowSunShadow : C.kelp, alpha: 0.09 + stretch * 0.05 }); };
       const shadowUnder = (x: number, y: number, w: number) => { if (w < 30) return; shadowSpecs.push({ x, y, w }); shadows.ellipse(x + w * 0.12, y + 4, w * 0.5, Math.max(6, w * 0.16)).fill({ color: C.kelp, alpha: 0.09 }); };
       const put = (name: string, x: number, y: number, w?: number, flip = false) => {
         const d = drawThing(name); if (!d) return null;
@@ -226,8 +230,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const smoke = new Graphics(); smoke.zIndex = 190000; scene.addChild(smoke);
       const fog = new Graphics(); fog.zIndex = 210000; scene.addChild(fog);
       const flash = new Graphics(); flash.rect(-3000, -3000, W + 6000, H + 6000).fill(0xffffff); flash.alpha = 0; world.addChild(flash); let nextBolt = 0;
-      const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(C.kelp); night.alpha = 0; world.addChild(night);
-      const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(0xe8735a); dusk.alpha = 0; world.addChild(dusk);
+      const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.night); night.alpha = 0; world.addChild(night);
+      const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.dusk); dusk.alpha = 0; world.addChild(dusk);
       const lamps = new Graphics(); lamps.zIndex = 150000; scene.addChild(lamps);
       const moths = new Graphics(); moths.zIndex = 150001; scene.addChild(moths);
       const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
@@ -250,6 +254,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           const rig = new Citizen(lookFor(a.name, a.appearance as Partial<Look> | null)); rig.scale.set(0.82); g.addChild(rig);
           g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -18 && x < 18 && y > -66 && y < 0 } as never;
           g.on("pointertap", () => onSelect(agents.current.get(a.id) ?? null));
+          g.on("pointerover", () => { hoverRef.current = a.id; }); g.on("pointerout", () => { if (hoverRef.current === a.id) hoverRef.current = null; });
           scene.addChild(g);
           const seat = seatOf.current.get(a.location) ?? 0; seatOf.current.set(a.location, (seat + 1) % 10);
           const sp = spot(a.location, seat);
@@ -271,6 +276,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (msg.type === "clock" && msg.clock) { setClock(msg.clock); clockRef.current = msg.clock; }
         if (msg.type === "event" && msg.event) {
           const e = msg.event;
+          if (e.importance >= 0.45 && e.kind !== "agent.move" && e.kind !== "agent.reflect") { const f = e.actors[0] ? figs.current.get(e.actors[0]) : null; const p = e.place ? places.get(e.place) : null; const x = f?.x ?? p?.x, y = f?.y ?? p?.y; if (x !== undefined && y !== undefined) cinema.current = { x, y: y - 40, ids: e.actors, at: Date.now() }; }
           if (e.kind === "agent.move" && e.place) moveTo(e.actors[0]!, e.place);
           if (e.kind === "agent.sleep") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = true; f.pose = "sleep"; } }
           if (e.kind === "agent.wake") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = false; f.pose = "idle"; } }
@@ -290,12 +296,14 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       app.ticker.add(() => {
         if (!app) return; tick++;
         const Wd = app.screen.width, Hd = app.screen.height; const cam = camera.current;
-        const zoom = viewRef.current === "map" ? Math.min(Wd / W, Hd / H) : 1.05;
+        const zoom = viewRef.current === "map" ? Math.min(Wd / W, Hd / H) : viewRef.current === "cinema" ? 1.25 : 1.05;
         cam.zoom += (zoom - cam.zoom) * 0.08;
         let fx = W / 2, fy = H / 2 + 40;
         if (viewRef.current === "street") { const f = cam.follow ? figs.current.get(cam.follow) : null; if (f) { fx = f.x; fy = f.y - 60; } else { const mk = places.get("market"); if (mk) { fx = mk.x; fy = mk.y; } } }
+        // the camera follows the day: the latest moment that mattered, or the busiest place when nothing has happened for a while
+        if (viewRef.current === "cinema") { const cn = cinema.current; if (cn && Date.now() - cn.at < 120000) { const f = cn.ids[0] ? figs.current.get(cn.ids[0]) : null; fx = f?.x ?? cn.x; fy = (f?.y ?? cn.y) - 50; } else { let best: PlaceView | null = null; for (const p of places.values()) if (!best || p.crowd > best.crowd) best = p; if (best) { fx = best.x; fy = best.y - 20; } } }
         const tx = Wd / 2 - fx * cam.zoom, ty = Hd / 2 - fy * cam.zoom;
-        cam.x += (tx - cam.x) * 0.08; cam.y += (ty - cam.y) * 0.08;
+        const ease = viewRef.current === "cinema" ? 0.02 : 0.08; cam.x += (tx - cam.x) * ease; cam.y += (ty - cam.y) * ease;
         world.scale.set(cam.zoom); world.position.set(cam.x, cam.y);
         // sea
         sea.clear(); sea.rect(-3000, -3000, W + 6000, H + 6000).fill(C.water);
@@ -362,23 +370,23 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         sky.alpha = Math.max(0, (night.alpha - 0.12) / 0.3);
         if (tick % 4 === 0 && sky.alpha > 0.02) {
           sky.clear();
-          for (const st of STARS) { if (inside(st.x, st.y) < 1.1) continue; const tw = 0.5 + 0.5 * Math.sin(tick / 20 + st.tw); sky.circle(st.x, st.y, st.r).fill({ color: 0xfff6d5, alpha: 0.35 + 0.5 * tw }); }
+          for (const st of STARS) { if (inside(st.x, st.y) < 1.1) continue; const tw = 0.5 + 0.5 * Math.sin(tick / 20 + st.tw); sky.circle(st.x, st.y, st.r).fill({ color: LIGHT.star, alpha: 0.35 + 0.5 * tw }); }
           const ph = moonPhase(); const mx = W - 220, my = 90; const full = (1 - Math.cos(ph * Math.PI * 2)) / 2; // 0 new, 1 full
-          sky.circle(mx, my, 28).fill(0xfff2c2); if (full < 0.98) sky.circle(mx + (ph < 0.5 ? -1 : 1) * 58 * full, my, 29).fill({ color: 0x1b2a30, alpha: 0.94 }); // the earth's shadow slides off as the moon fills
-          for (let i = 0; i < 9; i++) { const yy = my + 60 + i * 34; sky.moveTo(mx - 14 - (i % 3) * 8 + Math.sin(tick / 30 + i) * 6, yy).lineTo(mx + 14 + (i % 2) * 10 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: 0xfff2c2, alpha: 0.35 - i * 0.03, cap: "round" }); }
+          sky.circle(mx, my, 28).fill(LIGHT.lamp); if (full < 0.98) sky.circle(mx + (ph < 0.5 ? -1 : 1) * 58 * full, my, 29).fill({ color: 0x1b2a30, alpha: 0.94 }); // the earth's shadow slides off as the moon fills
+          for (let i = 0; i < 9; i++) { const yy = my + 60 + i * 34; sky.moveTo(mx - 14 - (i % 3) * 8 + Math.sin(tick / 30 + i) * 6, yy).lineTo(mx + 14 + (i % 2) * 10 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: LIGHT.lamp, alpha: 0.35 - i * 0.03, cap: "round" }); }
           // the quay's lamps on the water
-          for (const d of decor) if (d.sprite === "lamp" && inside(d.x, d.y + 120) > 0.96) for (let i = 0; i < 4; i++) { const yy = d.y + 70 + i * 22; sky.moveTo(d.x - 8 + Math.sin(tick / 25 + i) * 4, yy).lineTo(d.x + 8 + Math.sin(tick / 25 + i) * 4, yy).stroke({ width: 2, color: 0xfff2c2, alpha: 0.35 - i * 0.07, cap: "round" }); }
+          for (const d of decor) if (d.sprite === "lamp" && inside(d.x, d.y + 120) > 0.96) for (let i = 0; i < 4; i++) { const yy = d.y + 70 + i * 22; sky.moveTo(d.x - 8 + Math.sin(tick / 25 + i) * 4, yy).lineTo(d.x + 8 + Math.sin(tick / 25 + i) * 4, yy).stroke({ width: 2, color: LIGHT.lamp, alpha: 0.35 - i * 0.07, cap: "round" }); }
         } else if (sky.alpha <= 0.02 && tick % 60 === 0) sky.clear();
         if (tick % 10 === 0) {
           lamps.clear(); windows.clear();
           if (night.alpha > 0.05) {
             const k = night.alpha / 0.42;
-            for (const d of decor) if (d.sprite === "lamp") { lamps.circle(d.x, d.y - 24, 40).fill({ color: 0xfff2c2, alpha: 0.16 * k }); lamps.circle(d.x, d.y - 24, 22).fill({ color: 0xfff2c2, alpha: 0.28 * k }); lamps.ellipse(d.x, d.y + 2, 34, 12).fill({ color: 0xfff2c2, alpha: 0.22 * k }); }
+            for (const d of decor) if (d.sprite === "lamp") { lamps.circle(d.x, d.y - 24, 40).fill({ color: LIGHT.lamp, alpha: 0.16 * k }); lamps.circle(d.x, d.y - 24, 22).fill({ color: LIGHT.lamp, alpha: 0.28 * k }); lamps.ellipse(d.x, d.y + 2, 34, 12).fill({ color: LIGHT.lamp, alpha: 0.22 * k }); }
             // a lit window where someone is inside
-            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") windows.roundRect(p.x - 30, p.y - 34, 16, 12, 3).fill({ color: 0xffe3a3, alpha: 0.5 * (night.alpha / 0.42) });
+            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") windows.roundRect(p.x - 30, p.y - 34, 16, 12, 3).fill({ color: LIGHT.window, alpha: 0.5 * (night.alpha / 0.42) });
           }
         }
-        if (tick % 2 === 0) { moths.clear(); if (night.alpha > 0.15) for (const d of decor) { if (d.sprite !== "lamp") continue; for (let i = 0; i < 3; i++) { const t = tick / (9 + i * 3) + i * 2; moths.circle(d.x + Math.cos(t) * (10 + i * 4) + Math.sin(t * 2.3) * 3, d.y - 26 + Math.sin(t * 1.7) * (7 + i * 2), 1.3).fill({ color: 0xfff6d5, alpha: 0.8 }); } } }
+        if (tick % 2 === 0) { moths.clear(); if (night.alpha > 0.15) for (const d of decor) { if (d.sprite !== "lamp") continue; for (let i = 0; i < 3; i++) { const t = tick / (9 + i * 3) + i * 2; moths.circle(d.x + Math.cos(t) * (10 + i * 4) + Math.sin(t * 2.3) * 3, d.y - 26 + Math.sin(t * 1.7) * (7 + i * 2), 1.3).fill({ color: LIGHT.star, alpha: 0.8 }); } } }
         // smoke from a chimney where someone works
         if (tick % 2 === 0) { smoke.clear(); for (const [id, [ox, oy]] of Object.entries(CHIMNEYS)) { const p = places.get(id); if (!p || p.crowd === 0 || hour < 6 || hour > 20) continue; for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
         // sound follows the camera
@@ -395,7 +403,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
           f.rig.face(f.facing); f.rig.setPose(f.asleep ? "sleep" : moving ? "walk" : b ? "talk" : f.bench ? "sit" : f.pose); f.rig.update(secs);
           f.g.zIndex = f.y;
-          next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 66) * cam.zoom + cam.y, mine: f.mine, ...(b ? { bubble: b.text } : {}) });
+          const subjectX = viewRef.current === "cinema" ? (cinema.current?.x ?? fx) : fx, subjectY = viewRef.current === "cinema" ? (cinema.current?.y ?? fy) : fy;
+          const near = viewRef.current !== "map" && Math.hypot(f.x - subjectX, f.y - subjectY) < (viewRef.current === "cinema" ? 170 : 260);
+          const inScene = viewRef.current === "cinema" && !!cinema.current?.ids.includes(f.id) && Date.now() - (cinema.current?.at ?? 0) < 120000;
+          next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 66) * cam.zoom + cam.y, mine: f.mine, shown: f.mine || !!b || hoverRef.current === f.id || inScene || (near && viewRef.current === "street"), ...(b ? { bubble: b.text } : {}) });
         }
         if (tick % 2 === 0) setLabels(next);
         if (tick % 20 === 0) setMini({ w: W, h: H, places: [...places.values()].map((p) => ({ id: p.id, x: p.x, y: p.y, kind: p.kind, crowd: p.crowd })), view: { x: -cam.x / cam.zoom, y: -cam.y / cam.zoom, w: Wd / cam.zoom, h: Hd / cam.zoom }, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, mine: f.mine })) });
@@ -413,12 +424,13 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
     <div className="absolute inset-0 overflow-hidden rounded-[28px] bg-glass">
       <div ref={host} className="absolute inset-0" />
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-teal font-bold">Crossing to the island…</div>}
+      <div className="absolute inset-0 pointer-events-none crossfade" style={{ background: "radial-gradient(ellipse at center, rgba(30,42,43,0) 55%, rgba(30,42,43,0.22) 100%)", opacity: view === "map" ? 0.5 : view === "cinema" ? 1 : 0.7 }} />
       <button onClick={() => { const a = ambienceRef.current; if (!a) return; if (sound) { void a.disable(); setSound(false); } else { void a.enable().then(() => setSound(true)); } }} className="absolute right-3 top-3 sm:right-6 sm:top-6 h-9 px-3.5 rounded-full bg-shell text-teal text-[13px] font-bold pointer-events-auto transition-colors" aria-pressed={sound}>{sound ? "Sound on" : "Sound off"}</button>
       <div className="absolute inset-0 pointer-events-none">
         {labels.map((l) => (
           <div key={l.id} className="absolute flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-full" style={{ left: l.x, top: l.y }}>
             {l.bubble && <div className="bg-glass px-3 py-2 italic text-[13px] max-w-[260px] leading-[1.3] pointer-events-auto shadow-none" style={{ borderRadius: "16px 16px 16px 4px" }}>“{l.bubble}”</div>}
-            <div className={`crossfade rounded-xl px-2 text-xs font-bold ${l.mine ? "bg-coral text-sand" : "bg-shell text-teal"}`} style={{ opacity: showLabels || l.mine || l.bubble ? 1 : 0 }}>{l.name.split(" ")[0]}{l.mine ? " · you" : ""}</div>
+            <div className={`crossfade display text-[13px] italic tracking-tight ${l.mine ? "text-coral font-bold" : "text-kelp"}`} style={{ opacity: l.shown ? 1 : 0, textShadow: "0 0 6px rgba(247,245,238,0.95), 0 0 2px rgba(247,245,238,1)" }}>{l.name.split(" ")[0]}{l.mine ? " · you" : ""}</div>
           </div>
         ))}
       </div>

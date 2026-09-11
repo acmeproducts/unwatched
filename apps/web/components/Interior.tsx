@@ -5,7 +5,7 @@ import { Citizen, lookFor, type Look, type Pose } from "@/components/world/citiz
 
 export type InteriorPerson = { id: string; name: string; asleep: boolean; job: string | null; appearance: Record<string, unknown> | null; pose?: "sleep" | "work" | "sit" | "idle" };
 
-const INK = 0x1e2a2b, WALL = 0xf4efe1, WALL2 = 0xe7e0cc, FLOOR = 0xc9b48a, FLOOR2 = 0xb99f74, WOOD = 0x8a6a45, CLOTH = 0x1f5f5b, CORAL = 0xe8735a, CREAM = 0xfbf7ea;
+import { KELP as INK, CREAM as WALL, CREAM_DARK as WALL2, WOOD as FLOOR, WOOD_DARK as FLOOR2, WOOD_DARK as WOOD, TEAL as CLOTH, CORAL, CREAM, GLASS, SAND, DRIFT, LIGHT } from "@/components/world/palette";
 
 /** The furniture a kind of place keeps, drawn in the same dimetric hand as the buildings, flat to the back wall. */
 function furnish(g: Graphics, kind: string, sprite: string, W: number, H: number, floorY: number): { seats: [number, number][]; beds: [number, number][]; benches: [number, number][] } {
@@ -13,9 +13,9 @@ function furnish(g: Graphics, kind: string, sprite: string, W: number, H: number
   const bed = (x: number) => { g.roundRect(x, floorY - 26, 58, 22, 4).fill(WOOD).stroke({ width: 1.5, color: INK }); g.roundRect(x + 3, floorY - 30, 52, 12, 3).fill(CREAM).stroke({ width: 1.2, color: INK }); g.roundRect(x + 6, floorY - 33, 14, 7, 3).fill(CLOTH); beds.push([x + 30, floorY - 22]); };
   const table = (x: number, w = 70) => { g.rect(x, floorY - 30, w, 5).fill(WOOD).stroke({ width: 1.2, color: INK }); g.rect(x + 6, floorY - 25, 4, 22).fill(WOOD); g.rect(x + w - 10, floorY - 25, 4, 22).fill(WOOD); seats.push([x - 10, floorY - 2], [x + w + 10, floorY - 2]); };
   const bench = (x: number, w = 80) => { g.rect(x, floorY - 34, w, 8).fill(WOOD).stroke({ width: 1.2, color: INK }); g.rect(x + 6, floorY - 26, 5, 24).fill(WOOD); g.rect(x + w - 11, floorY - 26, 5, 24).fill(WOOD); benches.push([x + w / 2, floorY - 2]); };
-  const shelf = (x: number, y: number, w: number) => { g.rect(x, y, w, 4).fill(WOOD); for (let i = 0; i < Math.floor(w / 14); i++) g.roundRect(x + 4 + i * 14, y - 12, 9, 12, 2).fill([CLOTH, CORAL, 0xc9b48a, 0x6f7a78][i % 4]!); };
-  const window_ = (x: number, y: number) => { g.roundRect(x, y, 34, 30, 3).fill(0xbfe0ea).stroke({ width: 1.5, color: INK }); g.moveTo(x + 17, y).lineTo(x + 17, y + 30).stroke({ width: 1.2, color: INK }); g.moveTo(x, y + 15).lineTo(x + 34, y + 15).stroke({ width: 1.2, color: INK }); };
-  const oven = (x: number) => { g.roundRect(x, floorY - 54, 54, 54, 6).fill(0x6f7a78).stroke({ width: 1.5, color: INK }); g.roundRect(x + 10, floorY - 34, 34, 18, 9).fill(0x2b2f31); g.roundRect(x + 14, floorY - 30, 26, 10, 5).fill(CORAL); benches.push([x + 27, floorY - 2]); };
+  const shelf = (x: number, y: number, w: number) => { g.rect(x, y, w, 4).fill(WOOD); for (let i = 0; i < Math.floor(w / 14); i++) g.roundRect(x + 4 + i * 14, y - 12, 9, 12, 2).fill([CLOTH, CORAL, FLOOR, DRIFT][i % 4]!); };
+  const window_ = (x: number, y: number) => { g.roundRect(x, y, 34, 30, 3).fill(GLASS).stroke({ width: 1.5, color: INK }); g.moveTo(x + 17, y).lineTo(x + 17, y + 30).stroke({ width: 1.2, color: INK }); g.moveTo(x, y + 15).lineTo(x + 34, y + 15).stroke({ width: 1.2, color: INK }); };
+  const oven = (x: number) => { g.roundRect(x, floorY - 54, 54, 54, 6).fill(DRIFT).stroke({ width: 1.5, color: INK }); g.roundRect(x + 10, floorY - 34, 34, 18, 9).fill(0x2b2f31); g.roundRect(x + 14, floorY - 30, 26, 10, 5).fill(CORAL); benches.push([x + 27, floorY - 2]); };
   const barrel = (x: number) => { g.roundRect(x, floorY - 26, 20, 26, 5).fill(WOOD).stroke({ width: 1.2, color: INK }); g.rect(x, floorY - 18, 20, 2).fill(INK); g.rect(x, floorY - 9, 20, 2).fill(INK); };
   window_(W * 0.18, 26); window_(W * 0.7, 26);
   switch (kind) {
@@ -39,7 +39,7 @@ const W = 288, H = 170;
 /** One renderer for every interior, kept for the life of the page: destroying a second Pixi application next to the world's tears down what they share. */
 let shared: Promise<Application> | null = null;
 function interiorApp(): Promise<Application> {
-  if (!shared) shared = (async () => { const app = new Application(); await app.init({ width: W, height: H, background: 0xefede4, antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true }); app.canvas.style.width = "100%"; app.canvas.style.height = "auto"; return app; })();
+  if (!shared) shared = (async () => { const app = new Application(); await app.init({ width: W, height: H, background: SAND, antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true }); app.canvas.style.width = "100%"; app.canvas.style.height = "auto"; return app; })();
   return shared;
 }
 
@@ -56,12 +56,12 @@ export function Interior({ kind, sprite, hour, people }: { kind: string; sprite:
       stage = new Container(); app.stage.addChild(stage);
       const night = hour < 6 || hour >= 21; const floorY = H - 30;
       const room = new Graphics();
-      room.rect(0, 0, W, floorY).fill(night ? 0xd9d3c0 : WALL); for (let i = 0; i < 6; i++) room.rect(0, 12 + i * 22, W, 1).fill({ color: WALL2, alpha: 0.8 });
+      room.rect(0, 0, W, floorY).fill(night ? WALL2 : WALL); for (let i = 0; i < 6; i++) room.rect(0, 12 + i * 22, W, 1).fill({ color: WALL2, alpha: 0.8 });
       room.rect(0, floorY, W, H - floorY).fill(FLOOR); for (let i = 0; i < 14; i++) room.rect(i * 22, floorY, 1, H - floorY).fill(FLOOR2);
       room.rect(0, floorY - 1, W, 2).fill(INK);
       stage.addChild(room);
       const fur = new Graphics(); const spots = furnish(fur, kind, sprite, W, H, floorY); stage.addChild(fur);
-      if (night) { const lamp = new Graphics(); lamp.circle(W / 2, 40, 70).fill({ color: 0xfff2c2, alpha: 0.35 }); lamp.circle(W / 2, 22, 6).fill(0xfff2c2); stage.addChild(lamp); }
+      if (night) { const lamp = new Graphics(); lamp.circle(W / 2, 40, 70).fill({ color: LIGHT.lamp, alpha: 0.35 }); lamp.circle(W / 2, 22, 6).fill(LIGHT.lamp); stage.addChild(lamp); }
       // people, each at a spot that fits their pose
       const rigs: Citizen[] = []; let si = 0, bi = 0, wi = 0, xi = 0;
       for (const p of people.slice(0, 6)) {
@@ -72,7 +72,7 @@ export function Interior({ kind, sprite, hour, people }: { kind: string; sprite:
         if (!at) { at = [40 + (xi++) * 52 + (people.length > 1 ? 30 : 100), floorY - 2]; }
         c.position.set(at[0], at[1]); c.face(at[0] < W / 2 ? 1 : -1); stage.addChild(c); rigs.push(c);
       }
-      const cut = new Graphics(); cut.rect(0, 0, W, H).stroke({ width: 6, color: 0xefede4 }); cut.rect(3, 3, W - 6, H - 6).stroke({ width: 1.5, color: INK, alpha: 0.6 }); stage.addChild(cut);
+      const cut = new Graphics(); cut.rect(0, 0, W, H).stroke({ width: 6, color: SAND }); cut.rect(3, 3, W - 6, H - 6).stroke({ width: 1.5, color: INK, alpha: 0.6 }); stage.addChild(cut);
       onTick = () => { const t = performance.now() / 1000; for (const r of rigs) r.update(t); }; app.ticker.add(onTick);
     })();
     return () => { alive = false; if (app && onTick) app.ticker.remove(onTick); if (stage) { stage.removeFromParent(); stage.destroy({ children: true }); } };

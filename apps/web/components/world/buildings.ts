@@ -6,7 +6,7 @@ import { Container, Graphics } from "pixi.js";
  * Each drawing's origin is the bottom front corner of its footprint, which is where the place's (x, y) puts it.
  * Cream walls, teal roofs, sage doors and awnings, one coral thing at most, thin kelp outlines. The Tide palette.
  */
-const KELP = 0x1e2a2b, TEAL = 0x1f5f5b, TEAL_DARK = 0x174a47, CREAM = 0xf7f5ee, CREAM_DARK = 0xe9e5d8, SAND = 0xefede4, SAGE = 0xb9d9c6, SAGE_DARK = 0x9fc2ad, CORAL = 0xe8735a, WOOD = 0xc9b58f, WOOD_DARK = 0xa8946f, STONE = 0xdcd9cf, STONE_DARK = 0xc8c4b8, GLASS = 0xdcebe3, DARK = 0x2f3b3a;
+import { KELP, TEAL, TEAL_DARK, CREAM, CREAM_DARK, SAND, SAGE, SAGE_DARK, CORAL, WOOD, WOOD_DARK, STONE, STONE_DARK, GLASS, DARK } from "./palette";
 const S = { width: 1.5, color: KELP, join: "round" as const };
 
 type Pt = [number, number];

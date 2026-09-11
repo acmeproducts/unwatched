@@ -6,7 +6,7 @@
  * Files: /sound/manifest.json maps a layer, a one-shot, or a music bed (music-<scene>) to a file.
  * `scripts/gen-music.mjs` makes the beds with Lyria; effects can be recordings or generated any way, by the same names.
  */
-export type Scene = { weather: string; hour: number; district: string; place: string; crowd: number; season: string };
+export type Scene = { weather: string; hour: number; district: string; place: string; crowd: number; season: string; mood?: MusicScene | null };
 
 export const LAYERS = ["sea", "rain", "wind", "murmur", "work", "forest", "night", "market"] as const;
 export const ONESHOTS = ["gull", "bell", "horn", "creak", "thunder"] as const;
@@ -97,6 +97,8 @@ export class Ambience {
   private shot(name: ShotName, level = 0.5): boolean { const buf = this.files.get(name); if (!buf || !this.ctx) return false; const src = this.ctx.createBufferSource(); src.buffer = buf; const g = this.ctx.createGain(); g.gain.value = level; src.connect(g); g.connect(this.master!); src.start(); return true; }
   private gull(): void { if (this.shot("gull", 0.35)) return; const c = this.ctx!, t = c.currentTime; const o = c.createOscillator(); o.type = "sine"; const g = c.createGain(); g.gain.value = 0; o.connect(g); g.connect(this.master!); o.frequency.setValueAtTime(1100, t); o.frequency.exponentialRampToValueAtTime(1600, t + 0.12); o.frequency.exponentialRampToValueAtTime(900, t + 0.42); g.gain.linearRampToValueAtTime(0.05, t + 0.05); g.gain.linearRampToValueAtTime(0, t + 0.45); o.start(t); o.stop(t + 0.5); }
   private bell(n: number): void { if (this.shot("bell", 0.5)) return; const c = this.ctx!; for (let i = 0; i < Math.min(n, 12); i++) { const t = c.currentTime + i * 1.4; for (const [f, a] of [[520, 0.12], [1040, 0.05], [1560, 0.02]] as const) { const o = c.createOscillator(); o.frequency.value = f; const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t + 2.4); o.connect(g); g.connect(this.master!); o.start(t); o.stop(t + 2.5); } } }
+  /** The bell tolls, from the chapel, for a wedding or a funeral. */
+  toll(n: number): void { if (!this.ctx || this.muted) return; this.bell(n); }
   horn(): void { if (!this.ctx || this.muted) return; if (this.shot("horn", 0.6)) return; const c = this.ctx, t = c.currentTime; for (const [f, s] of [[110, 0], [138, 1.1]] as const) { const o = c.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; const fl = c.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 500; const g = c.createGain(); g.gain.setValueAtTime(0, t + s); g.gain.linearRampToValueAtTime(0.12, t + s + 0.15); g.gain.setValueAtTime(0.12, t + s + 0.8); g.gain.linearRampToValueAtTime(0, t + s + 1.05); o.connect(fl); fl.connect(g); g.connect(this.master!); o.start(t + s); o.stop(t + s + 1.1); } }
   private creak(): void { if (this.shot("creak", 0.3)) return; const c = this.ctx!, t = c.currentTime; const o = c.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(180, t); o.frequency.linearRampToValueAtTime(140, t + 0.3); const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.03, t + 0.05); g.gain.linearRampToValueAtTime(0, t + 0.35); o.connect(g); g.connect(this.master!); o.start(t); o.stop(t + 0.4); }
   private thunder(): void { if (this.shot("thunder", 0.7)) return; const c = this.ctx!, t = c.currentTime; const src = c.createBufferSource(); src.buffer = noiseBuffer(c, 3); const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(600, t); f.frequency.exponentialRampToValueAtTime(80, t + 2.5); const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.08); g.gain.exponentialRampToValueAtTime(0.001, t + 2.8); src.connect(f); f.connect(g); g.connect(this.master!); src.start(t); src.stop(t + 3); }
@@ -118,7 +120,7 @@ export class Ambience {
     L("market").set(s.place === "market" && s.crowd > 2 && s.hour >= 7 && s.hour < 19 ? Math.min(0.4, 0.1 + s.crowd * 0.04) : 0);
     L("work").set((s.place === "smithy" || s.place === "mill" || s.place === "sawpit" || s.place === "quarry") && s.hour >= 7 && s.hour < 17 ? 0.3 : 0);
     // the bed for this scene, crossfaded over a few seconds; a missing bed means silence under the effects, never a substitute
-    const scene: MusicScene = s.weather === "storm" ? "storm" : s.weather === "fog" ? "fog" : (s.place === "tavern" || s.place === "inn") && s.hour >= 17 && s.crowd > 1 ? "tavern" : night ? "night" : rain > 0 ? "rain" : s.season === "winter" ? "winter" : "day";
+    const scene: MusicScene = s.mood ? s.mood : s.weather === "storm" ? "storm" : s.weather === "fog" ? "fog" : (s.place === "tavern" || s.place === "inn") && s.hour >= 17 && s.crowd > 1 ? "tavern" : night ? "night" : rain > 0 ? "rain" : s.season === "winter" ? "winter" : "day";
     if (scene !== this.bed) { this.bed = scene; for (const [m, L] of this.beds) L.set(m === scene ? 0.32 : 0, 4); }
     const now = performance.now();
     if (!night && rain < 0.7 && coast && now - this.lastGull > 4000 + Math.random() * 9000) { this.lastGull = now; this.gull(); if (Math.random() < 0.4) setTimeout(() => !this.muted && this.gull(), 300 + Math.random() * 400); }

@@ -9,7 +9,9 @@ const World = dynamic(() => import("@/components/World").then((m) => m.World), {
 export default function Town() {
   const { agent } = useMyAgent();
   const [sel, setSel] = useState<PublicAgent | null>(null);
+  // ?view=map or ?view=cinema opens the town in that view, for sharing a link and for looking at the island from afar
   const [view, setView] = useState<"street" | "map" | "cinema">("street");
+  useEffect(() => { try { const v = new URLSearchParams(window.location.search).get("view"); if (v === "map" || v === "cinema") setView(v); } catch {} }, []);
   const [follow, setFollow] = useState(true);
   const [possessed, setPossessed] = useState(false);
   const [say, setSay] = useState(""); const [busy, setBusy] = useState(false); const [note, setNote] = useState<string | null>(null);

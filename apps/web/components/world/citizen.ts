@@ -56,6 +56,7 @@ export class Citizen extends Container {
   private armL = new Graphics(); private armR = new Graphics();
   private torso = new Graphics(); private head = new Container();
   private carry = new Graphics(); private tool = new Graphics();
+  private hood = new Graphics(); private umbrella = new Graphics(); private breath = new Graphics(); private gear = { rain: false, cold: false };
   private facing = 1;
   private pose: Pose = "idle";
   private phase = Math.random() * 10;
@@ -102,6 +103,10 @@ export class Citizen extends Container {
     this.head.addChild(this.drawHair(look, headR));
     this.head.addChild(this.drawHat(look, headR));
     this.head.position.set(0, -this.legH - this.torsoH - headR + 3);
+    // weather gear: a hood in the coat's colour for the hatless, an umbrella for some, breath in the cold
+    this.hood.moveTo(-headR - 2, 2).quadraticCurveTo(-headR - 2, -headR - 6, 0, -headR - 6).quadraticCurveTo(headR + 2, -headR - 6, headR + 2, 2).lineTo(headR - 3, 2).quadraticCurveTo(headR - 3, -headR + 2, 0, -headR + 2).quadraticCurveTo(-headR + 3, -headR + 2, -headR + 3, 2).closePath().fill(PALETTE[look.top]).stroke(STROKE); this.hood.visible = false; this.head.addChild(this.hood);
+    this.umbrella.moveTo(-18, -headR - 8).quadraticCurveTo(0, -headR - 30, 18, -headR - 8).closePath().fill(this.phase % 2 < 1 ? CORAL : PALETTE.Teal).stroke(STROKE); for (const x of [-9, 0, 9]) this.umbrella.moveTo(x, -headR - 8).lineTo(x, -headR - 6).stroke({ width: 1.2, color: KELP }); this.umbrella.moveTo(2, -headR - 8).lineTo(2, 6).stroke({ width: 1.6, color: KELP }); this.umbrella.visible = false; this.head.addChild(this.umbrella);
+    this.breath.visible = false; this.head.addChild(this.breath);
     this.body.addChild(this.head);
     this.addChild(this.body);
   }
@@ -139,6 +144,8 @@ export class Citizen extends Container {
     }
   }
 
+  /** What the weather asks of a person: a hood or an umbrella in rain, visible breath in the cold. */
+  weather(g: { rain: boolean; cold: boolean }): void { if (g.rain === this.gear.rain && g.cold === this.gear.cold) return; this.gear = g; const brolly = g.rain && this.phase % 5 < 2 && this.look.carrying !== "Suitcase"; this.umbrella.visible = brolly; this.hood.visible = g.rain && !brolly && this.look.hat === "None"; this.breath.visible = g.cold; }
   setPose(p: Pose): void { if (this.pose === p) return; this.pose = p; this.tool.visible = p === "work" && this.look.carrying !== "Suitcase"; }
   face(dir: -1 | 1): void { this.facing = dir; }
 
@@ -157,5 +164,6 @@ export class Citizen extends Container {
     }
     this.legL.rotation = legL; this.legR.rotation = legR; this.armL.rotation = armL; this.armR.rotation = armR;
     this.head.rotation = headTilt; this.body.position.y += bob;
+    if (this.breath.visible && this.pose !== "sleep") { const c = (t * 0.6 + this.phase) % 1; this.breath.clear(); if (c < 0.6) this.breath.circle(11 + c * 10, 1 - c * 6, 2 + c * 4).fill({ color: 0xe6eeee, alpha: 0.45 * (1 - c / 0.6) }); }
   }
 }

@@ -9,6 +9,11 @@ export interface Place {
   kind: PlaceKind;
   exits: PlaceId[];
   sells: { item: string; base: number }[];
+  /** Recipes learned here: one thing from others on hand. */
+  recipes?: { item: string; from: string[]; by: AgentId }[];
+  /** What people have called this place, and who; a name three people use is the island's. */
+  aliases?: { name: string; by: AgentId[] }[];
+  nickname?: string;
   beds?: { price: number; capacity: number };
   freeBeds?: number;
   /** Where it stands on the island, in map units, and which district. The client draws from this. */
@@ -213,6 +218,8 @@ export interface AgentSnapshot {
 export interface Gathering { id: number; kind: "wedding" | "funeral" | "hearing" | "election" | "feast" | "fire"; place: PlaceId; day: number; hour: number; actors: AgentId[]; note: string; held: boolean }
 /** One day of the record, sealed: the hash of its events, chained to the day before. */
 export interface Seal { day: number; hash: string; prev: string; events: number; from: number; to: number }
+/** A law with teeth: what the council's words were read to mean, and what the engine now does. */
+export type Rule = { kind: "tax"; percent: number; text: string } | { kind: "cap"; item: string; price: number; text: string } | { kind: "curfew"; hour: number; text: string };
 export interface TownSnapshot {
   t: number; day: number; weather: string; flourShortage: boolean;
   /** Places whose state can change: plots, sites, what people built, beds and owners. Positions come from the code. */
@@ -223,5 +230,5 @@ export interface TownSnapshot {
   laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[];
   children?: Child[];
   /** The institutions: who is mayor, since when, and what the council has built. */
-  civic?: { mayor: AgentId | null; elected: number; works: string[]; gatherings?: Gathering[]; wedded?: string[]; chain?: Seal[] };
+  civic?: { mayor: AgentId | null; elected: number; works: string[]; gatherings?: Gathering[]; wedded?: string[]; chain?: Seal[]; rules?: Rule[]; sayings?: { text: string; by: AgentId[] }[] };
 }

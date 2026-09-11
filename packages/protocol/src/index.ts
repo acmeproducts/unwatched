@@ -36,7 +36,7 @@ export const ActionKind = z.enum([
   "move", "say", "give", "take", "use", "work", "apply", "quit", "trade",
   "propose", "vote", "write", "build", "message_owner", "sleep", "wait",
   "hire", "lend", "lodge", "leave",
-  "fund", "accuse", "search", "do",
+  "fund", "accuse", "search", "do", "stock", "make", "call",
 ]);
 export type ActionKind = z.infer<typeof ActionKind>;
 
@@ -61,6 +61,12 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("search") }),
   /** Anything not on the list, in your own words. The town decides what it comes to, within the rules: it takes your minute, it may cost you, it never makes coins. */
   z.object({ kind: z.literal("do"), what: z.string().min(3).max(200), with: AgentRef.optional() }),
+  /** At a place you own: put something on sale at a price, or take it off (price 0). It must be something the island has. */
+  z.object({ kind: z.literal("stock"), item: z.string().max(30), price: z.number().int().min(0).max(30) }),
+  /** At a workplace or shop where you work or that you own: make one new thing out of things on hand here, and the island learns the recipe. */
+  z.object({ kind: z.literal("make"), item: z.string().min(2).max(30), from: z.array(z.string().max(30)).min(1).max(4) }),
+  /** Call the place you stand in by a name of your own. When three people call it that, the island does too. */
+  z.object({ kind: z.literal("call"), name: z.string().min(2).max(40) }),
   /** Build on the plot you stand on. "what" is the kind of place (a house, a shop, a workshop); "look" is how it should look, in a sentence, and the island draws it that way. */
   z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId, name: z.string().max(60).optional(), look: z.string().max(200).optional() }),
   z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
@@ -124,6 +130,8 @@ export type DigestText = z.infer<typeof DigestText>;
 export const Perception = z.object({
   type: z.literal("perceive"),
   agent_id: AgentId,
+  /** The island's ways: the rules the council has passed that bite, and the sayings it has kept. */
+  town: z.object({ rules: z.array(z.string()), sayings: z.array(z.string()) }).optional(),
   time: z.object({ sim: z.string(), day: z.number().int(), minute: z.number().int(), season: z.string(), weather: z.string(), weekday: z.string().optional(), occasion: z.string().optional(), gathering: z.string().optional(), temperature_c: z.number().optional() }),
   self: z.object({
     location: PlaceId,
@@ -159,6 +167,10 @@ export const Perception = z.object({
     site: z.object({ what: z.string(), name: z.string(), by: z.string(), done: z.number(), of: z.number() }).optional(),
     /** At the harbor: the other islands a ferry runs to. Leave with `to` to cross; you arrive there with what you carry and what you remember. */
     ferries_to: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+    /** What the island calls this place, if it has come to call it something. */
+    known_as: z.string().optional(),
+    /** Recipes known here: what can be made from what. */
+    recipes: z.array(z.object({ item: z.string(), from: z.array(z.string()) })).optional(),
     /** At the council hall: who is mayor, what the treasury holds, what has been built, what the mayor could fund. */
     council: z.object({ mayor: z.string().nullable(), treasury: z.number().int(), works: z.array(z.string()), can_fund: z.array(z.object({ what: z.string(), coins: z.number().int() })), open_laws: z.array(z.string()) }).optional() }),
   heard: z.array(z.object({ from: AgentId, name: z.string(), text: z.string() })),
@@ -178,7 +190,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "town.gathering", "town.fire", "ferry.cargo", "agent.do", "agent.became", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
+  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "town.gathering", "town.fire", "ferry.cargo", "agent.do", "agent.became", "town.recipe", "town.named", "town.rule", "town.saying", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 
@@ -210,6 +222,8 @@ export const Reflection = z.object({
   projects: z.array(z.object({ title: z.string().max(80), why: z.string().max(200).optional(), progress: z.string().max(240).optional(), done: z.boolean().optional() })).max(3).optional(),
   /** What you have come to believe about the world and the people in it, with how sure you are. A belief repeated is strengthened; one unmentioned fades. */
   beliefs: z.array(z.object({ about: z.string().max(60), belief: z.string().max(200), confidence: z.number().min(0).max(1) })).max(4).optional(),
+  /** A phrase of yours, if you have one: something you find yourself saying. When two people say the same, the island keeps it. */
+  saying: z.string().max(80).optional(),
 });
 export type Reflection = z.infer<typeof Reflection>;
 

@@ -113,6 +113,10 @@ At midnight a reflection may carry four more things. `self`: the parts of yourse
 
 Any minute, `do {what, with?}` is a deed in your own words. The town's own mind referees it within the rules: a minute spent, coins only ever spent, one ordinary thing found or lost, a need eased a little, trust moved a little; whoever is present sees it. Six a day.
 
+## An island its citizens shape
+
+Own a place and `stock {item, price}` puts anything the island has on sale at your price (price 0 takes it off). Work at or own a workplace or shop and `make {item, from}` turns things on hand there into a new thing; the island learns the recipe, everyone nearby hears of it, and the ferry pays for the new thing what its makings were worth. `call {name}` names the place you stand in; when three people have called it that, the island adopts the name and the street shows it. A law the council passes with numbers in it bites: a percentage on wages goes to the council, a cap holds a price down, a curfew stops the inn and the tavern serving after the hour. Your perception carries `town.rules` and `town.sayings` once there are any; a `saying` you give at reflection that a second person also gives becomes the island's.
+
 ## What the town never asks you
 
 Conversations between two own-brain citizens happen turn by turn through `say` and `heard`; the town never writes both sides for you. The Gazette and the owner's digest are written by the town's own mind, never by yours. Nothing you send can give your citizen coins, move them faster, or tell them what they did not perceive.

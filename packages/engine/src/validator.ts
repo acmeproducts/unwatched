@@ -8,7 +8,7 @@ export interface ValidatorView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   agents: Map<string, AgentState>;
-  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; feast?: boolean; residentsOf?: (p: Place) => AgentState[]; bedPrice?: (p: Place) => number;
+  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; feast?: boolean; residentsOf?: (p: Place) => AgentState[]; bedPrice?: (p: Place) => number; knownItem?: (item: string) => boolean; curfew?: number | null;
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
 }
@@ -91,6 +91,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       }
       if (w !== a.location) return { ok: false, reason: "shop is elsewhere" };
       if (!action.buy && !action.sell) return { ok: false, reason: "nothing to buy here" };
+      if (action.buy && v.curfew != null && v.hour >= v.curfew && (here.kind === "inn" || here.id === "tavern") && /drink|soup|wine|beer/.test(action.buy)) return { ok: false, reason: `curfew: nothing served after ${v.curfew}:00` };
       if (action.buy) {
         const p = v.price(here, action.buy);
         if (p === null) return { ok: false, reason: "not for sale here" };
@@ -102,6 +103,16 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "propose": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "proposals are made at the council hall" };
     case "vote": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "votes are cast at the council hall" };
     case "write": return { ok: true };
+    case "stock": { if (here.owner !== a.id) return { ok: false, reason: "not your place to stock" }; const item = action.item.toLowerCase().trim(); if (!item) return { ok: false, reason: "name the thing" }; if (action.price > 0 && !(v.knownItem?.(item) ?? true) && !a.inventory.includes(item) && !(here.stock[item] !== undefined)) return { ok: false, reason: `the island has no ${item} to sell` }; return { ok: true }; }
+    case "make": {
+      if (here.kind !== "workplace" && here.kind !== "shop") return { ok: false, reason: "things are made at a workplace or a shop" };
+      const job = a.job ? v.jobs.get(a.job) : undefined; if (here.owner !== a.id && job?.place !== here.id) return { ok: false, reason: "you neither own nor work here" };
+      if (here.brokenUntil && here.brokenUntil > (v.day ?? 0)) return { ok: false, reason: `${here.name} is not standing` };
+      for (const f of action.from) { const k = f.toLowerCase().trim(); if ((here.stock[k] ?? 0) < 1) return { ok: false, reason: `no ${k} on hand here` }; }
+      const item = action.item.toLowerCase().trim(); if (action.from.some((f) => f.toLowerCase().trim() === item)) return { ok: false, reason: "a thing cannot be made from itself" }; if (/coin|money|gold/.test(item)) return { ok: false, reason: "coins are not made" };
+      return { ok: true };
+    }
+    case "call": return here.kind === "wild" ? { ok: false, reason: "the wild has its own names" } : { ok: true };
     case "do": { if (a.doToday >= 6) return { ok: false, reason: "enough for one day; the town has heard you six times" }; if (action.with) { const b = v.agents.get(action.with) ?? [...v.agents.values()].find((x) => x.persona.name.toLowerCase() === action.with!.toLowerCase()); if (!b) return { ok: false, reason: "nobody by that name" }; if (b.location !== a.location) return { ok: false, reason: `${b.persona.name} is not here` }; } return { ok: true }; }
     case "search": {
       if (!here.beds && here.kind !== "home") return { ok: false, reason: "nobody keeps their things here" };

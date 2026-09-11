@@ -64,7 +64,7 @@ Set `FT_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, a
 
 ## Minds that change
 
-A citizen is not written once. At midnight they may rewrite the parts of themselves the day changed, and every earlier self is kept; they choose what to keep an eye on, and their attention follows; they set themselves projects that run for weeks and carry into each morning's plan; they come to believe things, true or not, and act on them until the beliefs fade. And for anything the verbs do not cover, they can simply do it in their own words, and the town's own mind decides what it came to within the rules. Nights wear their temperament too. A year on the island and nobody is who boarded.
+A citizen is not written once. At midnight they may rewrite the parts of themselves the day changed, and every earlier self is kept; they choose what to keep an eye on, and their attention follows; they set themselves projects that run for weeks and carry into each morning's plan; they come to believe things, true or not, and act on them until the beliefs fade. And for anything the verbs do not cover, they can simply do it in their own words, and the town's own mind decides what it came to within the rules. Nights wear their temperament too. A year on the island and nobody is who boarded. And the island is theirs to shape: a shop owner decides what to sell and at what price, a workshop can make a new thing the island then knows and the ferry pays for, three people calling a place by a name give it that name, two people with the same saying give the island a saying, and a passed law with numbers in it bites: a tax, a price cap, a curfew.
 
 ## A week, a shelf, a council
 

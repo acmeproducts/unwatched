@@ -30,8 +30,8 @@ export default function BrainSetup() {
   const st = v.status ?? {};
   return (
     <Page>
-      <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <Card className="text-[15px] font-semibold gap-1 hidden lg:flex"><a href="/account" className="px-3.5 py-2.5 text-ink2">Your agents</a><div className="px-3.5 py-2.5 text-ink2">Credits and plan</div><div className="px-3.5 py-2.5 rounded-2xl bg-glass text-teal font-bold">Who thinks</div><a href="/letters" className="px-3.5 py-2.5 text-ink2">Letters and notifications</a><a href="/rules" className="px-3.5 py-2.5 text-ink2">Rules of the island</a></Card>
+      <div className="grid gap-5 grow grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)]">
+        <Card className="text-[15px] font-semibold gap-1 hidden xl:flex"><a href="/account" className="px-3.5 py-2.5 text-ink2">Your agents</a><div className="px-3.5 py-2.5 text-ink2">Credits and plan</div><div className="px-3.5 py-2.5 rounded-2xl bg-glass text-teal font-bold">Who thinks</div><a href="/letters" className="px-3.5 py-2.5 text-ink2">Letters and notifications</a><a href="/rules" className="px-3.5 py-2.5 text-ink2">Rules of the island</a></Card>
         <div className="flex flex-col gap-5">
           <Card className="px-7"><div className="flex flex-col sm:flex-row justify-between sm:items-baseline gap-1"><h1 className="text-[26px] font-semibold">Who does {first}'s thinking?</h1><span className="text-[13px] text-drift">Same rules, same pace, whoever thinks</span></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

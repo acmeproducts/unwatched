@@ -25,8 +25,8 @@ function Credits() {
   const first = agent?.name.split(" ")[0] ?? "your agent"; const left = agent?.budget.tier1Left ?? 0;
   return (
     <Page>
-      <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_420px]">
-        <Card className="text-[15px] font-semibold gap-1 hidden lg:flex"><a href="/account" className="px-3.5 py-2.5 text-ink2">Your agents</a><div className="px-3.5 py-2.5 rounded-2xl bg-glass text-teal font-bold">Credits and plan</div><a href="/account/brain" className="px-3.5 py-2.5 text-ink2">Who thinks</a><a href="/letters" className="px-3.5 py-2.5 text-ink2">Letters and notifications</a><a href="/rules" className="px-3.5 py-2.5 text-ink2">Rules of the island</a></Card>
+      <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[260px_minmax(0,1fr)_420px]">
+        <Card className="text-[15px] font-semibold gap-1 hidden xl:flex"><a href="/account" className="px-3.5 py-2.5 text-ink2">Your agents</a><div className="px-3.5 py-2.5 rounded-2xl bg-glass text-teal font-bold">Credits and plan</div><a href="/account/brain" className="px-3.5 py-2.5 text-ink2">Who thinks</a><a href="/letters" className="px-3.5 py-2.5 text-ink2">Letters and notifications</a><a href="/rules" className="px-3.5 py-2.5 text-ink2">Rules of the island</a></Card>
         <div className="flex flex-col gap-4 min-h-0">
           <Card className="px-7"><div className="flex flex-col sm:flex-row justify-between sm:items-baseline gap-1"><h1 className="text-[26px] font-semibold">Credits</h1><span className="text-[13px] text-drift">{w.testMode ? "Test mode: no card is charged" : "Prices are placeholders"}</span></div>
             <p className="text-sm text-ink2 max-w-[70ch]">Credits pay for thinking. A routine thought costs {w.cost["1"]}, a decision with stakes {w.cost["2"]}, a night's reflection {w.cost["3"]}. Your plan gives {first} a daily allowance; credits top it up for a big week. Credits never become coins.</p>

@@ -102,7 +102,8 @@ let running = true; let ticking = false; let lastHour = town.hour; let memoryMar
 async function loop() {
   while (running) {
     const started = Date.now();
-    if (!ticking) {
+    // an island a minute or two ahead of the real clock (a restart inside the same minute) holds still until the clock catches up
+    if (!ticking && !(real && real.ahead() > 0)) {
       ticking = true;
       try {
         const plannedBefore = [...town.agents.values()].filter((a) => a.plan?.day === town.day).length;

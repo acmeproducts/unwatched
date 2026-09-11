@@ -62,9 +62,13 @@ export class RealWorld {
   alignClock(): number {
     const target = minuteOfDayIn(this.place.tz);
     const delta = (target - this.town.minuteOfDay + 1440) % 1440;
-    if (delta > 0 && delta < 1440) this.town.skip(delta);
+    // an island a few minutes ahead of the clock (a restart inside the same minute) waits for the clock; it does not skip a day to catch it from behind
+    if (delta > 1440 - 90) return 0;
+    if (delta > 0) this.town.skip(delta);
     return delta;
   }
+  /** How far ahead of the real clock the island is, in minutes, when a restart landed inside the same minute; zero when it is not. */
+  ahead(): number { const d = (this.town.minuteOfDay - minuteOfDayIn(this.place.tz) + 1440) % 1440; return d > 0 && d < 90 ? d : 0; }
   /** How far behind the real clock the island is, in minutes, when the ticks have been slow. */
   lag(): number { const d = (minuteOfDayIn(this.place.tz) - this.town.minuteOfDay + 1440) % 1440; return d > 720 ? 0 : d; }
   async fetchOnce(): Promise<void> {

@@ -23,6 +23,27 @@ export function retrieve(memories: Memory[], query: string, now: number, n = 8):
   return scored.slice(0, n).map((x) => x.m);
 }
 
+/** Nights wear memories down. What was not important fades and, in time, is gone; what one thought about oneself, and letters from home, wear slowest. */
+export function age(memories: Memory[], now: number): Memory[] {
+  const out: Memory[] = [];
+  for (const m of memories) {
+    const days = (now - m.t) / 1440;
+    if (days > 7) m.importance *= m.kind === "reflect" || m.kind === "letter" ? 0.995 : m.kind === "rumor" ? 0.975 : 0.985;
+    if (days > 14 && m.importance < 0.04) continue; // forgotten
+    out.push(m);
+  }
+  return out;
+}
+
+/** What happens to a story between one mouth and the next: numbers slip, days blur, the teller drops out. Small, and one-way. */
+export function drift(text: string, chance: () => number): string {
+  let t = text;
+  t = t.replace(/\b(\d{1,3})\b/g, (m) => { if (chance() > 0.4) return m; const n = Number(m); const d = 1 + Math.floor(chance() * 3); return String(Math.max(0, chance() < 0.5 ? n - d : n + d)); });
+  if (chance() < 0.3) t = t.replace(/\byesterday\b/i, "the other day").replace(/\bthis morning\b/i, "earlier").replace(/\blast night\b/i, "one night");
+  if (chance() < 0.25) t = t.replace(/^I (saw|heard|found)\b/, "Someone $1").replace(/\bI think\b/, "they say");
+  return t;
+}
+
 /** Nightly: keep the important, drop the rest, cap the stream. */
 export function compress(memories: Memory[], cap = 240): Memory[] {
   if (memories.length <= cap) return memories;

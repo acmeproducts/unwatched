@@ -3,7 +3,7 @@ import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext, Gathering } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, lookHash, siteName, ISLAND, type WorldPack } from "./world.ts";
-import { retrieve, compress } from "./memory.ts";
+import { retrieve, compress, age, drift } from "./memory.ts";
 import { validate } from "./validator.ts";
 import { habit } from "./habit.ts";
 import { salience, wantsConversation } from "./salience.ts";
@@ -354,7 +354,7 @@ export class Town {
         ...(here.site ? { site: { what: here.site.what, name: here.site.name, by: this.agents.get(here.site.by)?.persona.name ?? here.site.by, done: here.site.labor, of: here.site.laborNeeded } } : {}),
         ...(here.kind === "harbor" && this.harbors.length ? { ferries_to: this.harbors.map((h) => ({ id: h.id, name: h.name })) } : {}) },
       heard: a.heard.map((h) => ({ from: h.from, name: h.name, text: h.text })),
-      recent: retrieve(a.memory, q, this.t, 8).map((m) => m.text),
+      recent: retrieve(a.memory, q, this.t, 8).map((m) => this.recall(a, m)),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
       ...(a.hint ? { hint: a.hint } : {}),
       today: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
@@ -662,7 +662,7 @@ export class Town {
         this.remember(b, d.outcome.b_remember, 0.3 + Math.abs(d.outcome.b_trust_delta) * 2);
         this.nudge(a, b.id, d.outcome.a_trust_delta, d.outcome.a_trust_delta / 2);
         this.nudge(b, a.id, d.outcome.b_trust_delta, d.outcome.b_trust_delta / 2);
-        if (d.outcome.rumor) { b.rumors.push(d.outcome.rumor); this.remember(b, `${a.persona.name} told me: ${d.outcome.rumor}`, 0.5, "rumor"); }
+        if (d.outcome.rumor) { const told = drift(d.outcome.rumor, () => this.rng.next()); b.rumors.push(told); if (b.rumors.length > 12) b.rumors.shift(); this.remember(b, `${a.persona.name} told me: ${told}`, 0.5, "rumor"); }
         for (const w of group) if (w !== a && w !== b && this.rng.chance(0.5)) this.remember(w, `I overheard ${a.persona.name} and ${b.persona.name} at ${place.name}.`, 0.15, "rumor");
       }
     }
@@ -729,7 +729,7 @@ export class Town {
       a.intentions = ref.intentions;
       if (ref.letter_to_owner && a.owner) { this.emit("agent.letter", [a.id], a.location, `${a.persona.name} wrote to ${a.owner}: “${ref.letter_to_owner}”`, 0.8, { text: ref.letter_to_owner }); }
       this.emit("agent.reflect", [a.id], a.location, `${a.persona.name} reflected: ${ref.summary}`, 0.2);
-      a.memory = compress(a.memory);
+      a.memory = compress(age(a.memory, this.t));
       a.budget.tier1Left = a.budget.tier1Max; a.budget.tier2Left = a.budget.tier2Max;
     }
     this.workedOnSite.clear();
@@ -893,6 +893,8 @@ export class Town {
     if (sold > 0) this.emit("ferry.depart", [], "harbor", `The morning ferry took ${took.join(", ")} to the mainland, for ${sold} coins.`, 0.2, { coins: sold });
   }
 
+  /** An old memory in an old head comes back a little wrong, now and then. The record keeps the truth; the person does not. */
+  private recall(a: AgentState, m: Memory): string { const days = (this.t - m.t) / MINUTES_PER_DAY; return a.persona.age >= 60 && days > 60 && m.kind !== "letter" && this.rng.chance(0.15) ? drift(m.text, () => this.rng.next()) : m.text; }
   /** The other adult who sleeps under the same owned roof, if any. */
   partnerOf(a: AgentState): AgentState | null {
     if (!a.home) return null; const p = this.places.get(a.home.place); if (!p || p.kind !== "home" || !p.owner) return null;

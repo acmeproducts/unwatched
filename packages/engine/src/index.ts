@@ -4,7 +4,7 @@ export type { AgentState, Brain, Tier, Place, Job, Relation, Memory, ConverseCon
 export { Rng } from "./rng.ts";
 export { validate } from "./validator.ts";
 export { habit } from "./habit.ts";
-export { retrieve, compress } from "./memory.ts";
+export { retrieve, compress, age, drift } from "./memory.ts";
 export { MINUTES_PER_DAY } from "./world.ts";
 export { embed, cosine } from "./embed.ts";
 export { ISLAND, BUILDS, WORKS, lookHash, buildKind } from "./world.ts";

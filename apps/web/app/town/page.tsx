@@ -26,6 +26,7 @@ export default function Town() {
     <Page>
       <div className="relative grow min-h-[520px] sm:min-h-[720px]">
         <World mineId={follow && agent ? agent.id : null} onSelect={setSel} view={view} />
+        <div className="scrim absolute inset-0 rounded-[28px] pointer-events-none" data-on={possessed ? "true" : "false"} aria-hidden />
         <div className="absolute left-3 top-3 sm:left-6 sm:top-6 flex gap-2 flex-wrap pointer-events-auto">
           <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={view === "street"} onClick={() => setView("street")}>Street</Chip><Chip active={view === "map"} onClick={() => setView("map")}>Map</Chip></div>
           {agent && <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={follow} onClick={() => setFollow(true)}>Follow {agent.name.split(" ")[0]}</Chip><Chip active={!follow} onClick={() => setFollow(false)}>Free camera</Chip></div>}

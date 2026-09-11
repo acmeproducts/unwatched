@@ -5,14 +5,15 @@ import { useEffect, useState } from "react";
 import { api, type Clock } from "@/lib/api";
 import { currentOwner, rememberedAgent } from "@/lib/auth";
 import { MobileTabs } from "./MobileTabs";
+import { Icon, type IconName } from "./icons";
 
 export function Button({ kind = "primary", size = 44, className = "", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind?: "primary" | "secondary" | "tertiary" | "leaving"; size?: 36 | 44 | 52 }) {
   const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]", leaving: "bg-transparent text-coral border-2 border-coral hover:bg-[#FBEAE5]" }[kind];
-  return <button {...p} style={{ height: size, paddingInline: size * 0.45, borderRadius: size / 2 }} className={`inline-flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-50 disabled:pointer-events-none transition-colors ${k} ${className}`} />;
+  return <button {...p} style={{ height: size, paddingInline: size * 0.45, borderRadius: size / 2 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold text-[15px] disabled:opacity-50 disabled:pointer-events-none transition-colors ${k} ${className}`} />;
 }
 export function LinkButton({ href, kind = "primary", size = 44, className = "", children }: { href: string; kind?: "primary" | "secondary" | "tertiary"; size?: 36 | 44 | 52; className?: string; children: React.ReactNode }) {
   const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]" }[kind];
-  return <Link href={href} style={{ height: size, paddingInline: size * 0.45, borderRadius: size / 2 }} className={`inline-flex items-center justify-center gap-2 font-bold text-[15px] transition-colors ${k} ${className}`}>{children}</Link>;
+  return <Link href={href} style={{ height: size, paddingInline: size * 0.45, borderRadius: size / 2 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold text-[15px] transition-colors ${k} ${className}`}>{children}</Link>;
 }
 export function Card({ tone = "shell", className = "", children }: { tone?: "shell" | "glass" | "teal" | "sand"; className?: string; children: React.ReactNode }) {
   const t = { shell: "bg-shell", glass: "bg-glass", teal: "bg-teal text-sand", sand: "bg-sand" }[tone];
@@ -23,7 +24,7 @@ export function Label({ children, tone }: { children: React.ReactNode; tone?: "t
 }
 export function Dot({ changed = false, size }: { changed?: boolean; size?: number }) {
   const s = size ?? (changed ? 12 : 8);
-  return <span aria-hidden style={{ width: s, height: s, borderRadius: s / 2, background: changed ? "#E8735A" : "#1F5F5B", flexShrink: 0, display: "inline-block" }} />;
+  return <span aria-hidden className={changed ? "ring-once" : ""} style={{ width: s, height: s, borderRadius: s / 2, background: changed ? "#E8735A" : "#1F5F5B", flexShrink: 0, display: "inline-block" }} />;
 }
 export function Changed() { return <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-coral border-[1.5px] border-coral rounded-lg px-1.5">changed</span>; }
 export function Bubble({ children, mine = false, max = 420 }: { children: React.ReactNode; mine?: boolean; max?: number }) {
@@ -36,7 +37,7 @@ export function Tide({ name, trust, word, width = 100 }: { name: string; trust: 
   return (
     <div className="flex items-center gap-3">
       <div className="font-bold text-[15px] truncate" style={{ width }}>{name}</div>
-      <div className="grow h-2.5 rounded-full bg-glass relative overflow-hidden"><div className="absolute left-0 top-0 h-2.5 rounded-full transition-[width] duration-700" style={{ width: `${Math.round(trust * 100)}%`, background: ebb ? "#E8735A" : "#1F5F5B" }} /></div>
+      <div className="grow h-2.5 rounded-full bg-glass relative overflow-hidden"><div className="absolute left-0 top-0 h-2.5 rounded-full" style={{ width: `${Math.round(trust * 100)}%`, background: ebb ? "#E8735A" : "#1F5F5B", transition: `width ${ebb ? 800 : 400}ms var(--ease-in-out)` }} /></div>
       <div className="text-[13px] w-16" style={{ color: ebb ? "#E8735A" : "#6F7A78" }}>{ebb ? "▼ " : ""}{word}</div>
     </div>
   );
@@ -51,7 +52,7 @@ export function Wordmark({ size = 21, dark = false }: { size?: number; dark?: bo
   return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display font-bold" style={{ fontSize: size, letterSpacing: "-0.035em", color: dark ? "#DCEBE3" : "#1F5F5B" }}>Ferry Town</span></Link>;
 }
 
-const TABS = [["Digest", "/digest"], ["Letters", "/letters"], ["Town", "/town"], ["Gazette", "/gazette"]] as const;
+const TABS: [string, string, IconName][] = [["Digest", "/digest", "digest"], ["Letters", "/letters", "letter"], ["Town", "/town", "town"], ["Gazette", "/gazette", "gazette"]];
 export function TopBar() {
   const path = usePathname();
   const [c, setC] = useState<Clock | null>(null);
@@ -70,7 +71,7 @@ export function TopBar() {
       <div className="flex items-center gap-8">
         <Wordmark />
         <div className="hidden lg:flex gap-1.5 bg-shell rounded-full p-1">
-          {TABS.map(([t, h]) => <Link key={h} href={h} className={`h-9 px-4 rounded-full text-sm font-bold inline-flex items-center ${path.startsWith(h) ? "bg-teal text-sand" : "text-ink2 hover:bg-sand"}`}>{t}</Link>)}
+          {TABS.map(([t, h, ic]) => <Link key={h} href={h} className={`h-9 px-4 rounded-full text-sm font-bold inline-flex items-center gap-1.5 transition-colors ${path.startsWith(h) ? "bg-teal text-sand" : "text-ink2 hover:bg-sand"}`}><Icon name={ic} size={16} />{t}</Link>)}
         </div>
       </div>
       <div className="flex items-center gap-3.5 text-sm">
@@ -87,5 +88,5 @@ export function Page({ children }: { children: React.ReactNode }) {
   return <><main className="max-w-[1440px] mx-auto px-4 sm:px-8 pt-3 sm:pt-5 pb-24 lg:pb-6 flex flex-col gap-4 sm:gap-5 min-h-screen"><TopBar />{children}</main><MobileTabs /></>;
 }
 export function Strip({ items }: { items: { t: string; changed: boolean; text: React.ReactNode }[] }) {
-  return <div className="flex flex-col">{items.map((it, i) => <div key={i} className="grid items-center gap-x-3 py-2.5" style={{ gridTemplateColumns: "90px 16px minmax(0,1fr)" }}><div className="text-[13px] text-drift tabular">{it.t}</div><div className="justify-self-center"><Dot changed={it.changed} /></div><div className={`text-[15px] ${it.changed ? "font-semibold" : ""}`}>{it.text}</div></div>)}</div>;
+  return <div className="flex flex-col">{items.map((it, i) => <div key={i} className="grid items-center gap-x-3 py-2.5 rise" style={{ gridTemplateColumns: "90px 16px minmax(0,1fr)", "--i": i } as React.CSSProperties}><div className="text-[13px] text-drift tabular">{it.t}</div><div className="justify-self-center"><Dot changed={it.changed} /></div><div className={`text-[15px] ${it.changed ? "font-semibold" : ""}`}>{it.text}</div></div>)}</div>;
 }

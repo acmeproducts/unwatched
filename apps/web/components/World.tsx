@@ -196,7 +196,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         {labels.map((l) => (
           <div key={l.id} className="absolute flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-full" style={{ left: l.x, top: l.y }}>
             {l.bubble && <div className="bg-glass px-3 py-2 italic text-[13px] max-w-[260px] leading-[1.3] pointer-events-auto shadow-none" style={{ borderRadius: "16px 16px 16px 4px" }}>“{l.bubble}”</div>}
-            {(showLabels || l.mine || l.bubble) && <div className={`rounded-xl px-2 text-xs font-bold ${l.mine ? "bg-coral text-sand" : "bg-shell text-teal"}`}>{l.name.split(" ")[0]}{l.mine ? " · you" : ""}</div>}
+            <div className={`crossfade rounded-xl px-2 text-xs font-bold ${l.mine ? "bg-coral text-sand" : "bg-shell text-teal"}`} style={{ opacity: showLabels || l.mine || l.bubble ? 1 : 0 }}>{l.name.split(" ")[0]}{l.mine ? " · you" : ""}</div>
           </div>
         ))}
       </div>

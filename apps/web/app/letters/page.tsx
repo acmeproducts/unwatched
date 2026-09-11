@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Page, Card, Label, Bubble, Button, Dot, LinkButton } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { api, clock, type TownEvent } from "@/lib/api";
 import { useMyAgent } from "@/lib/useAgent";
 import { Loading, SignedOut, NoAgent } from "@/components/states";
@@ -21,7 +22,7 @@ export default function Letters() {
   useEffect(() => { void load(); }, [agent]);
   async function send() {
     if (!agent || !draft.trim()) return; setBusy(true);
-    try { await api(`/api/agents/${agent.id}/letters`, { method: "POST", body: JSON.stringify({ text: draft.trim() }) }); setThread((t) => [...t, { t: Date.now() / 60000 | 0, mine: true, text: draft.trim() }]); setDraft(""); setToast(`Sent. ${agent.name.split(" ")[0]} reads it in the morning.`); setTimeout(() => setToast(null), 4000); }
+    try { await api(`/api/agents/${agent.id}/letters`, { method: "POST", body: JSON.stringify({ text: draft.trim() }) }); setThread((t) => [...t, { t: Date.now() / 60000 | 0, mine: true, text: draft.trim() }]); setTimeout(() => setDraft(""), 400); setToast(`Sent. ${agent.name.split(" ")[0]} reads it in the morning.`); setTimeout(() => setToast(null), 4000); }
     catch (e) { setToast("The letter did not go. " + (e as Error).message); }
     setBusy(false);
   }
@@ -36,9 +37,9 @@ export default function Letters() {
           <div className="flex justify-between items-center border-b border-line pb-3"><div><div className="display text-[22px] font-semibold">{agent.name}</div><div className="text-[13px] text-drift">at {agent.place} · {agent.coins} coins · reads letters in the morning</div></div><LinkButton href="/town" kind="secondary" size={36}>Visit</LinkButton></div>
           <div className="flex flex-col gap-3.5 grow">
             {thread.length === 0 && <p className="text-drift text-sm">Nothing yet. {first} writes when it matters. You can write first, if you want them to know something.</p>}
-            {thread.map((m, i) => <div key={i} className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"}`}><div className="text-[11px] text-drift">{m.mine ? "you" : first}</div><Bubble mine={m.mine} max={560}>{m.mine ? m.text : `“${m.text}”`}</Bubble></div>)}
+            {thread.map((m, i) => <div key={i} className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"} ${m.mine && i === thread.length - 1 ? "land" : ""}`}><div className="text-[11px] text-drift">{m.mine ? "you" : first}</div><Bubble mine={m.mine} max={560}>{m.mine ? m.text : `“${m.text}”`}</Bubble></div>)}
           </div>
-          <div className="flex flex-col gap-2 mt-auto"><textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={`Write to ${first}. Advice, not orders.`} className="rounded-[20px] bg-sand px-[18px] py-3.5 min-h-[88px] text-[15px]" /><div className="flex justify-between items-center"><span className="text-xs text-drift">{toast ?? `Advice, not orders. ${first} decides.`}</span><Button disabled={busy || !draft.trim()} onClick={send}>Send the letter</Button></div></div>
+          <div className="flex flex-col gap-2 mt-auto"><textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={`Write to ${first}. Advice, not orders.`} className="rounded-[20px] bg-sand px-[18px] py-3.5 min-h-[88px] text-[15px]" /><div className="flex justify-between items-center"><span className="text-xs text-drift">{toast ?? `Advice, not orders. ${first} decides.`}</span><Button disabled={busy || !draft.trim()} onClick={send}><Icon name="send" size={20} />Send the letter</Button></div></div>
         </div>
         <div className="flex flex-col gap-4">
         <Card><div className="flex justify-between items-baseline"><Label>Standing instructions</Label><span className="text-xs text-drift">Read every morning</span></div><textarea value={instr ?? String((agent as unknown as { instructions?: string }).instructions ?? "")} onChange={(e) => setInstr(e.target.value)} placeholder="Find honest work first. Don't borrow. Write to me before any big decision." className="rounded-[18px] bg-sand px-4 py-3 min-h-[100px] text-[15px]" /><p className="text-[13px] text-drift">Whether {first} follows these depends on who they are. Changing them often makes them trust you less.</p><div className="flex items-center justify-between"><span className="text-xs text-drift">{savedInstr ?? ""}</span><Button kind="secondary" size={36} disabled={instr === null} onClick={saveInstr}>Save instructions</Button></div></Card>

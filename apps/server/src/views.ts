@@ -38,7 +38,7 @@ export function serializeEvent(e: TownEvent) { return e; }
 /** What the real world adds to the clock, when the island keeps our time. The server sets it. */
 export const realClock: { place?: string; temperatureC?: number | null; sunrise?: string | null; sunset?: string | null } = {};
 export function clockOf(town: Town) {
-  return { t: town.t, day: town.day, minute: town.minuteOfDay, hour: town.hour, label: town.clock(), weather: town.weather, season: town.season, population: town.agents.size, flourShortage: town.flourShortage, ...(realClock.place ? { place: realClock.place, temperatureC: realClock.temperatureC ?? null, sunrise: realClock.sunrise ?? null, sunset: realClock.sunset ?? null } : {}) };
+  return { t: town.t, day: town.day, minute: town.minuteOfDay, hour: town.hour, label: town.clock(), weather: town.weather, season: town.season, population: town.agents.size, flourShortage: town.flourShortage, weekday: town.weekdayName, occasion: town.occasion, ...(realClock.place ? { place: realClock.place, temperatureC: realClock.temperatureC ?? null, sunrise: realClock.sunrise ?? null, sunset: realClock.sunset ?? null } : {}) };
 }
 
 /** What the body is doing this minute, for the world to draw: asleep, at work, on a site, at ease somewhere, or standing. */

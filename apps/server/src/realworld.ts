@@ -54,6 +54,9 @@ export class RealWorld {
   applyCalendar(): void {
     const season = seasonOf(new Date(), this.place.tz);
     this.town.seasonOverride = season; this.town.ferryTimes = TIMETABLE[season] ?? TIMETABLE.spring!;
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: this.place.tz, weekday: "short", day: "numeric" }).formatToParts(new Date());
+    const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((x) => x.type === "weekday")?.value ?? "Mon");
+    this.town.weekdayOverride = wd >= 0 ? wd : null; this.town.dayOfMonthOverride = Number(parts.find((x) => x.type === "day")?.value ?? 1);
   }
   /** Bring the island's clock to the island's real time of day, forward only, without anyone thinking through the gap. */
   alignClock(): number {

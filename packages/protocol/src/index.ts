@@ -110,7 +110,7 @@ export type DigestText = z.infer<typeof DigestText>;
 export const Perception = z.object({
   type: z.literal("perceive"),
   agent_id: AgentId,
-  time: z.object({ sim: z.string(), day: z.number().int(), minute: z.number().int(), season: z.string(), weather: z.string(), temperature_c: z.number().optional() }),
+  time: z.object({ sim: z.string(), day: z.number().int(), minute: z.number().int(), season: z.string(), weather: z.string(), weekday: z.string().optional(), occasion: z.string().optional(), temperature_c: z.number().optional() }),
   self: z.object({
     location: PlaceId,
     needs: z.object({ hunger: z.number(), rest: z.number(), social: z.number() }),
@@ -130,6 +130,8 @@ export const Perception = z.object({
   })),
   place: z.object({ id: PlaceId, name: z.string(), kind: z.string(), for_sale: z.array(z.object({ item: z.string(), price: z.number() })), jobs_open: z.array(z.string()), exits: z.array(PlaceId),
     owner: z.string().nullable().optional(),
+    /** For someone who works here: what is in the store room, and whether the place is broken. */
+    stock: z.record(z.string(), z.number()).optional(), broken: z.boolean().optional(),
     plot: z.object({ free: z.boolean(), house: z.object({ coins: z.number(), mornings: z.number() }), shop: z.object({ coins: z.number(), mornings: z.number() }) }).optional(),
     site: z.object({ what: z.string(), name: z.string(), by: z.string(), done: z.number(), of: z.number() }).optional(),
     /** At the harbor: the other islands a ferry runs to. Leave with `to` to cross; you arrive there with what you carry and what you remember. */

@@ -353,6 +353,7 @@ app.get("/api/ops", (c) => {
     hours: metrics.hours.filter((h) => h.day === town.day).map((h) => ({ hour: h.hour, calls: h.t1 + h.t2 + h.t3 + h.converse, t1: h.t1, t2: h.t2, t3: h.t3, converse: h.converse, cost: Math.round(h.cost * 100) / 100 })),
     byTier: [{ tier: "Tier 1 · routine", model: MODELS.routine, calls: today.t1 + today.converse }, { tier: "Tier 2 · stakes", model: MODELS.stakes, calls: today.t2 }, { tier: "Tier 3 · reflection and the paper", model: MODELS.reflect, calls: today.t3 }],
     real: real ? { ...real.state, season: town.season, timetable: town.ferryTimes } : null,
+    shelves: Object.fromEntries([...town.places.values()].filter((p) => Object.keys(p.stock).length).map((p) => [p.id, p.stock])),
     health: { coins, tills: [...town.places.values()].reduce((s, p) => s + p.treasury, 0), council: town.places.get("council")?.treasury ?? 0, employed, jobs: jobs.reduce((s, j) => s + j.slots, 0), flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boredomPct: funded.length ? Math.round(bored / funded.length * 100) : 0, events: town.events.length, tickP50: ticks.length ? ticks[Math.floor(ticks.length / 2)] : 0, tickMax: ticks.length ? ticks[ticks.length - 1] : 0, store: !!store, brain: townBrain.name, msPerMinute: MS_PER_SIM_MINUTE },
     holds: metrics.holds.slice(0, 20), ownBrains: brains,
   });

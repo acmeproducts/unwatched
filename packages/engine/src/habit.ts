@@ -6,7 +6,7 @@ export interface HabitView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   hour: number;
-  weather?: string; season?: string;
+  weather?: string; season?: string; weekday?: number;
   crowd(placeId: string): number;
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
@@ -48,8 +48,12 @@ export function habit(a: AgentState, v: HabitView): Action {
 
   // Weak with hunger and no coins: go where people are and stay there; a thought will have to do the rest.
   if (a.starving >= 2 && a.coins === 0 && v.hour >= 7 && v.hour < 21 && a.location !== "market" && a.location !== "inn") { const next = v.path(a.location, v.crowd("inn") >= v.crowd("market") ? "inn" : "market"); if (next) return { kind: "move", to: next }; }
+  // Sunday: the chapel at ten, for those so inclined; no shifts
+  if (v.weekday === 0) {
+    if (v.hour === 10 && a.location !== "chapel" && v.places.has("chapel") && (a.persona.traits.caution + a.persona.traits.warmth) / 2 > 0.45 && a.needs.hunger < 0.6) { const next = v.path(a.location, "chapel"); if (next) return { kind: "move", to: next }; }
+  }
   // Work: be at work during hours.
-  if (a.job) {
+  if (a.job && v.weekday !== 0) {
     const job = v.jobs.get(a.job);
     if (job && v.hour >= job.hours[0] && v.hour < job.hours[1]) {
       if (a.location === job.place) return { kind: "work" };
@@ -114,8 +118,10 @@ function cheapestFood(here: Place, v: HabitView): { item: string; price: number 
   return best;
 }
 
+/** Where food is on the shelf and within the purse today; the market first, then the inn, the bakery, the fields. Nothing sold-out draws anyone. */
 function nearestFoodPlace(a: AgentState, v: HabitView): string | null {
-  const order = ["market", "inn", "bakery", "fields"];
+  const order = ["market", "inn", "bakery", "fields", ...[...v.places.values()].filter((p) => p.kind === "shop" && p.owner).map((p) => p.id)];
+  for (const id of order) { const p = v.places.get(id); if (!p) continue; const c = cheapestFood(p, v); if (c && a.coins >= c.price) return id; }
   for (const id of order) { const p = v.places.get(id); if (p && p.sells.some((s) => FOOD_ITEMS.has(s.item))) return id; }
   return null;
 }

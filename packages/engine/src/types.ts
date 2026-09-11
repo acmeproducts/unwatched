@@ -17,6 +17,10 @@ export interface Place {
   owner: AgentId | null;
   /** Coins the business holds when nobody owns it. Wages come out of here; takings and the mainland's payment for produce go in. */
   treasury: number;
+  /** What is on the shelves and in the store room. Nothing sells that is not here; shifts make more of it. */
+  stock: Record<string, number>;
+  /** The day a broken place works again, if a storm took its roof. */
+  brokenUntil?: number;
   /** An unfinished building on a plot. Work adds labor; at laborNeeded it becomes a place. */
   site: { what: "house" | "shop"; name: string; by: AgentId; labor: number; laborNeeded: number; startedDay: number } | null;
 }

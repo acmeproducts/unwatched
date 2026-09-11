@@ -8,7 +8,7 @@ export interface ValidatorView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   agents: Map<string, AgentState>;
-  hour: number;
+  hour: number; weekday?: number; day?: number;
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
 }
@@ -58,6 +58,8 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "use": return a.inventory.includes(action.item) ? { ok: true } : { ok: false, reason: "does not have it" };
     case "work": {
       if (a.starving >= 2) return { ok: false, reason: "too weak with hunger to work" };
+      if (v.weekday === 0 && !here.site) return { ok: false, reason: "it is Sunday; no shifts today" };
+      if (here.brokenUntil && here.brokenUntil > (v.day ?? 0)) return { ok: false, reason: `${here.name} is broken; nothing to do here for now` };
       if (here.site) return here.site.by === a.id || v.hour >= 6 && v.hour < 20 ? { ok: true } : { ok: false, reason: "not building hours" };
       if (!a.job) return { ok: false, reason: "no job" };
       const job = v.jobs.get(a.job);
@@ -103,6 +105,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       const kind = buildKind(action.what);
       if (!kind) return { ok: false, reason: "can build a house or a shop" };
       if (a.coins < BUILDS[kind].coins) return { ok: false, reason: `a ${kind} costs ${BUILDS[kind].coins} coins` };
+      const planks = v.places.get("sawpit")?.stock.planks ?? 0; if (planks < BUILDS[kind].planks) return { ok: false, reason: `the sawpit has only ${planks} planks; a ${kind} takes ${BUILDS[kind].planks}` };
       return { ok: true };
     }
     case "message_owner": return a.owner ? { ok: true } : { ok: false, reason: "nobody to write to" };

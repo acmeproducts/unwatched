@@ -77,7 +77,10 @@ by = {s["name"]: s for s in live.get("services", [])}
 merged = []
 for svc in want["services"]:
     if svc["name"] in by:
-        keep = by[svc["name"]]; svc = {**svc, "envs": keep.get("envs", svc.get("envs", []))}  # the live envs carry the secrets
+        # the live envs carry the secrets; the file's plain envs are added or updated, so a new setting reaches the app
+        keep = by[svc["name"]]; live_envs = {e["key"]: e for e in keep.get("envs", [])}
+        for e in svc.get("envs", []): live_envs[e["key"]] = {**live_envs.get(e["key"], {}), **e}
+        svc = {**svc, "envs": list(live_envs.values())}
     merged.append(svc)
 live["services"] = merged; live.pop("ingress", None)  # the file's per-service routes win over the ingress DigitalOcean derived from them
 yaml.safe_dump(live, open("/tmp/ft-live.yaml", "w"))

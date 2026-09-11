@@ -30,7 +30,9 @@ function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; 
     { sprite: "rock", x: q.x - 120, y: q.y + 90 }, { sprite: "rock", x: q.x + 140, y: q.y + 60 }, { sprite: "searocks", x: lh.x + 140, y: lh.y + 120 }, { sprite: "rock", x: lh.x - 100, y: lh.y + 60 },
   ];
   // the pinewood is a wood
-  for (let i = 0; i < 14; i++) out.push({ sprite: i % 3 === 0 ? "tree-small" : "tree-large", x: pw.x - 260 + (i * 173) % 520, y: pw.y - 140 + (i * 97) % 300, flip: i % 2 === 0 });
+  for (let i = 0; i < 22; i++) out.push({ sprite: i % 3 === 0 ? "tree-small" : "tree-large", x: pw.x - 340 + (i * 173) % 680, y: pw.y - 160 + (i * 97) % 340, flip: i % 2 === 0 });
+  // a few more trees where the land is empty, so the island is not bare between districts
+  for (const [x, y] of [[h.x + 420, h.y - 260], [m.x - 420, m.y + 260], [ln.x + 300, ln.y + 40], [o.x - 300, o.y - 160], [sh.x + 380, sh.y + 120], [q.x - 320, q.y + 220]] as const) out.push({ sprite: "tree-large", x, y }, { sprite: "tree-small", x: x + 70, y: y + 30 });
   return out;
 }
 

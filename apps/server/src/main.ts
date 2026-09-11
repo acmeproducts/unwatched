@@ -86,6 +86,7 @@ const REAL = process.env.FT_REAL_WORLD ? (PLACES[process.env.FT_REAL_WORLD] ?? P
 const real = REAL ? new RealWorld(town, REAL, log) : null;
 if (real) {
   const jumped = real.alignClock();
+  real.onUpdate = () => { realClock.temperatureC = real.state.temperatureC; realClock.sunrise = real.state.sunrise; realClock.sunset = real.state.sunset; broadcast({ type: "clock", clock: clockOf(town) }); };
   real.start(); realClock.place = REAL!.name;
   log(`the island keeps ${REAL!.name}'s time${jumped ? ` (moved the clock ${jumped} minutes forward to ${town.clock()})` : ""}; the sky is ${REAL!.name}'s, the ferry keeps the ${town.season} timetable`);
 }

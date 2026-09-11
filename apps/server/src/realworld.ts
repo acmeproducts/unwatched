@@ -43,6 +43,8 @@ export interface RealState { place: string; temperatureC: number | null; sunrise
 export class RealWorld {
   readonly state: RealState;
   private timer: NodeJS.Timeout | null = null;
+  /** Called after every fetch, so the clock the clients read carries the new sky at once. */
+  onUpdate: (() => void) | null = null;
   constructor(readonly town: Town, readonly place: RealPlace, private log: (l: string) => void) {
     this.state = { place: place.name, temperatureC: null, sunrise: null, sunset: null, code: null, wind: null, fetchedAt: null, ok: false };
     town.weatherSource = "real";
@@ -73,6 +75,7 @@ export class RealWorld {
       this.state.sunrise = d.daily?.sunrise?.[0]?.slice(11, 16) ?? null; this.state.sunset = d.daily?.sunset?.[0]?.slice(11, 16) ?? null;
       this.town.temperatureC = this.state.temperatureC;
       this.town.setWeather(word, `The sky over ${this.place.name} turned to ${word}${this.state.temperatureC !== null ? `, ${Math.round(this.state.temperatureC)} degrees` : ""}.`);
+      this.onUpdate?.();
     } catch (err) { this.state.ok = false; this.log(`real world: ${(err as Error).message}; the island keeps the last sky it saw`); }
   }
   start(everyMs = 15 * 60 * 1000): void { void this.fetchOnce(); this.timer = setInterval(() => { this.applyCalendar(); void this.fetchOnce(); }, everyMs); }

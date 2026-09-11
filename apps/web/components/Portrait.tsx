@@ -21,7 +21,7 @@ export function portraitFor(name: string, appearance: Partial<Look> | null | und
     p = (async () => {
       const a = await renderer(); const stage = new Container();
       const bg = new Graphics(); bg.circle(48, 48, 46).fill(CREAM_DARK).stroke({ width: 1.5, color: SAND }); stage.addChild(bg);
-      const c = new Citizen(aged(lookFor(name, appearance), age)); c.age(age); c.setPose("idle"); c.scale.set(2.6); c.position.set(48, 148); c.update(0.4); stage.addChild(c);
+      const c = new Citizen(aged(lookFor(name, appearance), age)); c.age(age); c.setPose("idle"); c.scale.set(2.6); c.position.set(48, 186); c.update(0.4); stage.addChild(c);
       const mask = new Graphics(); mask.circle(48, 48, 46).fill(0xffffff); stage.addChild(mask); stage.mask = mask;
       const canvas = a.renderer.extract.canvas(stage) as HTMLCanvasElement; const url = canvas.toDataURL("image/png"); stage.destroy({ children: true }); return url;
     })();

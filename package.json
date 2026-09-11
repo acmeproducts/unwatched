@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/kresogalic8/unwatched.git"
   },
-  "homepage": "https://unwatched-mic8w.ondigitalocean.app",
+  "homepage": "https://unwatched.world",
   "packageManager": "pnpm@10.10.0",
   "engines": {
     "node": ">=22"

@@ -63,7 +63,7 @@ export const Action = z.discriminatedUnion("kind", [
   /** Take someone into a house you own. They sleep free until you say otherwise. */
   z.object({ kind: z.literal("lodge"), who: AgentRef }),
   /** Board the ferry and leave the island for good. Only from the harbor, only when a ferry runs. */
-  z.object({ kind: z.literal("leave"), why: z.string().max(200).optional() }),
+  z.object({ kind: z.literal("leave"), why: z.string().max(200).optional(), to: z.string().max(80).optional() }),
 ]);
 export type Action = z.infer<typeof Action>;
 
@@ -92,6 +92,18 @@ export const Child = z.object({
 });
 export type Child = z.infer<typeof Child>;
 
+/** What crosses on the ferry between islands: a person, with what they carry and what they remember, and the news from home. */
+export const Passenger = z.object({
+  from: z.object({ id: z.string(), name: z.string(), url: z.string().optional() }),
+  persona: Persona, appearance: z.record(z.string(), z.unknown()).nullable(), owner: z.string().nullable(),
+  coins: z.number().int().min(0), inventory: z.array(z.string()),
+  memories: z.array(z.object({ t: z.number(), text: z.string(), importance: z.number(), kind: z.string() })).max(240),
+  opinions: z.array(z.object({ name: z.string(), trust: z.number(), opinion: z.string() })).max(40),
+  instructions: z.string(), why: z.string().nullable(),
+  news: z.array(z.string()).max(6),
+});
+export type Passenger = z.infer<typeof Passenger>;
+
 export const DigestText = z.object({ text: z.string().max(900), headline: z.string().max(90) });
 export type DigestText = z.infer<typeof DigestText>;
 
@@ -119,7 +131,9 @@ export const Perception = z.object({
   place: z.object({ id: PlaceId, name: z.string(), kind: z.string(), for_sale: z.array(z.object({ item: z.string(), price: z.number() })), jobs_open: z.array(z.string()), exits: z.array(PlaceId),
     owner: z.string().nullable().optional(),
     plot: z.object({ free: z.boolean(), house: z.object({ coins: z.number(), mornings: z.number() }), shop: z.object({ coins: z.number(), mornings: z.number() }) }).optional(),
-    site: z.object({ what: z.string(), name: z.string(), by: z.string(), done: z.number(), of: z.number() }).optional() }),
+    site: z.object({ what: z.string(), name: z.string(), by: z.string(), done: z.number(), of: z.number() }).optional(),
+    /** At the harbor: the other islands a ferry runs to. Leave with `to` to cross; you arrive there with what you carry and what you remember. */
+    ferries_to: z.array(z.object({ id: z.string(), name: z.string() })).optional() }),
   heard: z.array(z.object({ from: AgentId, name: z.string(), text: z.string() })),
   recent: z.array(z.string()),
   owner_letters: z.array(z.object({ id: z.number().int(), text: z.string() })),
@@ -137,7 +151,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit",
+  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

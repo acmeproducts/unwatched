@@ -1,4 +1,4 @@
-import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child } from "@ferrytown/protocol";
+import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext } from "./types.ts";
@@ -17,6 +17,11 @@ export interface TownOptions {
   pack?: WorldPack;
   /** Island days from birth to citizenship. */
   ageOfMajority?: number;
+  /** This island's name, printed on tickets and carried by passengers. */
+  name?: string;
+  /** Other islands a ferry runs to, and how to put someone on it. Resolves true when they arrived there. */
+  harbors?: { id: string; name: string }[];
+  onDepart?: (passenger: Passenger, to: string) => Promise<boolean>;
   /** Sim minutes per tick. 1 is the real town. Higher is coarser, not just faster. */
   minutesPerTick?: number;
   startDay?: number;
@@ -50,6 +55,11 @@ export class Town {
   weather: string = "clear";
   flourShortage = false;
   papers: Paper[] = [];
+  /** Other islands, by id, that a ferry crosses to. */
+  harbors: { id: string; name: string }[];
+  name: string;
+  private onDepart: ((passenger: Passenger, to: string) => Promise<boolean>) | null;
+  private sailing: { a: AgentState; to: string; why: string | null }[] = [];
   /** Children of the island, growing up in their parents' houses until they come of age. */
   readonly children: Child[] = [];
   /** Island days from birth to citizenship. Twenty by default; tests shorten it. */
@@ -74,6 +84,7 @@ export class Town {
     this.idPrefix = (opts.idPrefix ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
     this.pack = opts.pack ?? ISLAND; this.places = makePlaces(this.pack); this.jobs = makeJobs(this.pack);
     this.ageOfMajority = opts.ageOfMajority ?? 20;
+    this.harbors = opts.harbors ?? []; this.name = opts.name ?? "The island"; this.onDepart = opts.onDepart ?? null;
     this.rng = new Rng(opts.seed);
     this.brain = opts.brain;
     this.minutesPerTick = opts.minutesPerTick ?? 1;
@@ -241,6 +252,7 @@ export class Town {
     });
     // 4. conversations between co-located people
     await this.conversations();
+    await this.sail();
     // 5. clock
     this.t += this.minutesPerTick;
     if (this.hour !== prevHour) this.hourly();
@@ -263,7 +275,8 @@ export class Town {
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
         owner: here.owner ? (this.agents.get(here.owner)?.persona.name ?? here.owner) : null,
         ...(here.kind === "plot" && !here.site ? { plot: { free: true, house: { coins: BUILDS.house.coins, mornings: BUILDS.house.labor }, shop: { coins: BUILDS.shop.coins, mornings: BUILDS.shop.labor } } } : {}),
-        ...(here.site ? { site: { what: here.site.what, name: here.site.name, by: this.agents.get(here.site.by)?.persona.name ?? here.site.by, done: here.site.labor, of: here.site.laborNeeded } } : {}) },
+        ...(here.site ? { site: { what: here.site.what, name: here.site.name, by: this.agents.get(here.site.by)?.persona.name ?? here.site.by, done: here.site.labor, of: here.site.laborNeeded } } : {}),
+        ...(here.kind === "harbor" && this.harbors.length ? { ferries_to: this.harbors.map((h) => ({ id: h.id, name: h.name })) } : {}) },
       heard: a.heard.map((h) => ({ from: h.from, name: h.name, text: h.text })),
       recent: retrieve(a.memory, q, this.t, 8).map((m) => m.text),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
@@ -464,6 +477,8 @@ export class Town {
         break;
       }
       case "leave": {
+        const harbor = action.to ? this.harbors.find((h) => h.id === action.to || h.name.toLowerCase() === action.to!.toLowerCase() || h.name.toLowerCase().includes(action.to!.toLowerCase())) : null;
+        if (harbor && this.onDepart) { this.sailing.push({ a, to: harbor.id, why: action.why ?? null }); return true; } // the crossing happens at the end of the minute
         this.emit("agent.leave", [a.id], "harbor", `${name} boarded the ferry and left the island${action.why ? `: “${action.why}”` : "."}`, 0.9, { why: action.why ?? null });
         for (const w of this.nearby(a)) this.remember(w, `${name} left on the ferry${action.why ? `, saying "${action.why}"` : ""}.`, 0.7, "rumor");
         this.removeAgent(a.id, "left", action.why ?? "");
@@ -641,6 +656,48 @@ export class Town {
     const ta = a.relationships.get(b.id)?.trust ?? 0.3, tb = b.relationships.get(a.id)?.trust ?? 0.3;
     if (ta < 0.2 || tb < 0.2) return "There is bad blood between you.";
     return null;
+  }
+
+  /** What a person takes with them on the ferry: who they are, what they carry, what they remember, and the news from here. */
+  passengerOf(a: AgentState, why: string | null): Passenger {
+    const paper = this.papers[this.papers.length - 1];
+    return {
+      from: { id: this.idPrefix || "island", name: this.name },
+      persona: a.persona, appearance: a.appearance, owner: a.owner, coins: a.coins, inventory: a.inventory.filter((i) => i !== "suitcase"),
+      memories: compress(a.memory, 240).map((m) => ({ t: m.t, text: m.text, importance: m.importance, kind: m.kind })),
+      opinions: [...a.relationships.entries()].map(([id, r]) => ({ name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion })).slice(0, 40),
+      instructions: a.instructions, why,
+      news: paper ? [paper.lead.headline, ...paper.briefs.slice(0, 3).map((b) => b.headline)] : [],
+    };
+  }
+  /** Put the minute's leavers on the ferry. If the far harbor does not answer, they stay, and it is news. */
+  private async sail(): Promise<void> {
+    if (!this.sailing.length) return;
+    const queue = this.sailing.splice(0, this.sailing.length);
+    for (const { a, to, why } of queue) {
+      if (!this.agents.has(a.id)) continue;
+      const harbor = this.harbors.find((h) => h.id === to)!; const name = a.persona.name;
+      let ok = false;
+      try { ok = await this.onDepart!(this.passengerOf(a, why), to); } catch (err) { this.log(`ferry to ${to} failed: ${(err as Error).message}`); }
+      if (!ok) { this.emit("ferry.dock", [a.id], "harbor", `The ferry to ${harbor.name} did not sail today. ${name} stayed on the pier.`, 0.4); this.remember(a, `The ferry to ${harbor.name} did not sail. Tomorrow, maybe.`, 0.6); continue; }
+      this.emit("agent.leave", [a.id], "harbor", `${name} boarded the ferry for ${harbor.name}${why ? `: “${why}”` : "."}`, 0.9, { why, to });
+      for (const w of this.nearby(a)) this.remember(w, `${name} left on the ferry for ${harbor.name}${why ? `, saying "${why}"` : ""}.`, 0.7, "rumor");
+      this.removeAgent(a.id, "left", `For ${harbor.name}.${why ? ` ${why}` : ""}`);
+    }
+  }
+  /** Someone steps off the ferry from another island, with what they carry and what they remember. The news they bring becomes rumor. */
+  arrive(p: Passenger): AgentState {
+    const a = this.addAgent({ persona: p.persona, owner: p.owner, funded: true, coins: p.coins });
+    a.appearance = p.appearance; a.inventory.push(...p.inventory); a.instructions = p.instructions;
+    a.memory = p.memories.map((m) => ({ t: Math.min(m.t, this.t) - 1, text: m.text, importance: m.importance, kind: (m.kind as "obs") ?? "obs" }));
+    this.remember(a, `I came here from ${p.from.name} on the ferry${p.why ? ` because ${p.why}` : ""}. Nobody here knows me.`, 0.9);
+    for (const o of p.opinions.slice(0, 12)) if (o.opinion) this.remember(a, `${o.name}, back on ${p.from.name}: ${o.opinion}`, 0.4);
+    const arrival = this.events[this.events.length - 1]; if (arrival && arrival.kind === "agent.arrive") arrival.text = `${p.persona.name} arrived on the ferry from ${p.from.name}.`;
+    if (p.news.length) {
+      this.emit("ferry.news", [a.id], "harbor", `The ferry from ${p.from.name} brought news: ${p.news.join("; ")}.`, 0.5, { from: p.from.id, news: p.news });
+      for (const w of this.nearby(a)) for (const n of p.news.slice(0, 2)) this.remember(w, `News from ${p.from.name}, a day old: ${n}`, 0.45, "rumor");
+    }
+    return a;
   }
 
   /** The other adult who sleeps under the same owned roof, if any. */

@@ -5,9 +5,10 @@ import { Page, Label, Button, LinkButton } from "@/components/ui";
 import { api } from "@/lib/api";
 import { Loading, Offline } from "@/components/states";
 
-type TownRow = { id: string; name: string; live: boolean; day: number; weather: string; population: number; flourShortage: boolean; laws: number; openLaws: number; ferries: string; next: string | null; spaces: number };
+type TownRow = { id: string; name: string; live: boolean; far?: boolean; day: number; weather: string; population: number; flourShortage: boolean; laws: number; openLaws: number; ferries: string; next: string | null; spaces: number };
 
 function describe(t: TownRow): string {
+  if (t.far) return t.live ? `Another island, day ${t.day} there, ${t.weather}, ${t.population} people. A ferry crosses; you arrive with what you carry and what you remember.` : "Another island. No word from it today; the ferry waits for the line to clear.";
   if (!t.live) return `Day ${t.day}, ${t.weather}. Its record is kept, but no ferry sails there from this office yet.`;
   const bits: string[] = [];
   bits.push(t.day <= 3 ? "A new island, days old." : t.day < 30 ? `${t.day} days of history.` : `${Math.floor(t.day / 30)} months of history.`);
@@ -32,7 +33,7 @@ export default function Towns() {
             {towns.map((t) => {
               const on = t.id === (chosen?.id ?? "");
               return (
-                <button key={t.id} onClick={() => t.live && choose(t.id)} disabled={!t.live} className={`text-left rounded-card p-6 flex flex-col gap-2 transition ${on ? "bg-glass ring-2 ring-teal" : "bg-shell"} ${t.live ? "hover:-translate-y-0.5" : "opacity-70 cursor-default"}`}>
+                <button key={t.id} onClick={() => (t.live || t.far) && choose(t.id)} disabled={!t.live && !t.far} className={`text-left rounded-card p-6 flex flex-col gap-2 transition ${on ? "bg-glass ring-2 ring-teal" : "bg-shell"} ${t.live || t.far ? "hover:-translate-y-0.5" : "opacity-70 cursor-default"}`}>
                   <div className="flex items-baseline justify-between gap-3 flex-wrap"><div className="display text-[24px] font-semibold tracking-[-0.02em]">{t.name}</div><div className="text-sm text-drift tabular">{t.population} {t.population === 1 ? "person" : "people"}</div></div>
                   <p className="text-[15px] text-ink2">{describe(t)}</p>
                   <div className="text-sm font-bold" style={{ color: t.live ? "#1F5F5B" : "#6F7A78" }}>{t.ferries}{t.next ? ` · ${t.spaces} ${t.spaces === 1 ? "space" : "spaces"} on the ${t.next}` : ""}</div>
@@ -42,7 +43,7 @@ export default function Towns() {
             {towns.length === 1 && <p className="text-sm text-drift px-2">One island so far. A second appears here the day it is founded, and boarding will not change shape.</p>}
             <div className="flex items-center justify-between pt-2 flex-wrap gap-3">
               <Link href="/board" className="text-sm font-bold text-teal">Back to boarding</Link>
-              {chosen && (chosen.spaces > 0 ? <LinkButton href="/board" size={52}>Board the {chosen.next} to {chosen.name.toLowerCase()}</LinkButton> : <Button size={52} disabled>{chosen.live ? "No spaces on the next ferry" : "No ferry runs there yet"}</Button>)}
+              {chosen && (chosen.spaces > 0 ? <LinkButton href="/board" size={52}>Board the {chosen.next} to {chosen.far ? chosen.name : chosen.name.toLowerCase()}</LinkButton> : <Button size={52} disabled>{chosen.far ? "No word from that island today" : chosen.live ? "No spaces on the next ferry" : "No ferry runs there yet"}</Button>)}
             </div>
           </div>
           <div className="bg-shell rounded-card p-6 flex flex-col gap-4 self-start">

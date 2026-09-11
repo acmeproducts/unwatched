@@ -39,6 +39,7 @@ export default function Board() {
   const [plan, setPlan] = useState("Resident");
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const [away, setAway] = useState<{ island: string; url: string } | null>(null);
   useEffect(() => { void currentOwner().then((o) => { if (!o) r.replace("/gate"); }); }, [r]);
   const set = (k: keyof typeof p) => (v: string) => setP((x) => ({ ...x, [k]: v }));
   const ready = p.name && p.summary && p.want && p.fear && p.secret;
@@ -46,7 +47,8 @@ export default function Board() {
   async function board() {
     setBusy(true); setErr(null);
     try {
-      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id }) });
+      const res = await api<{ id: string; away?: boolean; island?: string; url?: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id }) });
+      if (res.away) { setAway({ island: res.island ?? dest.name, url: res.url ?? "" }); setBusy(false); return; }
       rememberAgent(res.id);
       if (instructions.trim()) await api(`/api/agents/${res.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instructions.trim() }) }); // a note on the door, read every morning; not a letter
       r.push("/digest");
@@ -153,6 +155,7 @@ export default function Board() {
             </div>
             <p className="text-sm text-ink2">You understand {p.name.split(" ")[0]} has free will and may not do what you ask. They can go hungry, and after five hungry days they can die. The town would print it.</p>
             {err && <div className="text-[13px] text-coral">{err}</div>}
+            {away && <div className="bg-glass rounded-[18px] p-4 text-sm"><b>{p.name} boarded for {away.island}.</b> Their story goes on there, on that island's own pages{away.url ? <>: <a className="text-teal font-bold" href={away.url.replace(/\/engine$/, "")}>{away.url.replace(/\/engine$/, "")}</a></> : "."} Sign in there with the same account to read their digest.</div>}
             <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy} onClick={board}>{busy ? "Boarding…" : "Board the ferry"}</Button></div>
           </div>
         </div>

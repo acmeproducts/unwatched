@@ -7,7 +7,7 @@ import { Container, Graphics } from "pixi.js";
  *
  * Proportions are in "units"; a citizen stands about 72 units tall. The origin is between the feet.
  */
-export type Pose = "idle" | "walk" | "run" | "sleep" | "sit" | "talk" | "work";
+export type Pose = "idle" | "walk" | "run" | "sleep" | "sit" | "talk" | "work" | "crouch";
 export type Facing = "left" | "right" | "front" | "back";
 export interface Look {
   build: "Slight" | "Average" | "Sturdy" | "Tall";
@@ -226,6 +226,9 @@ export class Citizen extends Container {
   mood(m: { hunger?: number; joy?: number; grief?: number }): void { const next = { hunger: m.hunger ?? 0, joy: m.joy ?? 0, grief: m.grief ?? 0 }; if (Math.abs(next.hunger - this.moodState.hunger) < 0.05 && Math.abs(next.joy - this.moodState.joy) < 0.05 && Math.abs(next.grief - this.moodState.grief) < 0.05) return; this.moodState = next; this.drawFace(); }
   /** Where they are looking, in local pixels to the side; the eyes follow a little. */
   lookAt(dx: number): void { this.gaze = Math.max(-2.5, Math.min(2.5, dx / 40)); }
+  private glanceTilt = 0; private glanceGaze = 0;
+  /** A look that fades on its own: the head tips (up is negative) and the eyes go to dx, then both settle back. */
+  glance(tilt: number, dx: number): void { this.glanceTilt = tilt; this.glanceGaze = Math.max(-2.5, Math.min(2.5, dx / 40)); }
   /** Which way they face: side on, toward you, or away. */
   facing4(f: Facing): void { if (f === this.facingMode) return; this.facingMode = f; this.facing = f === "left" ? -1 : 1; const back = f === "back"; this.eyes.visible = !back; this.mouth.visible = !back; this.brows.visible = !back; this.backHair.visible = back; this.carry.visible = !back; }
   setPose(p: Pose): void { if (this.pose === p) return; this.pose = p; this.tool.visible = p === "work" && this.look.carrying !== "Suitcase"; const talking = p === "talk"; if (talking !== this.talking) { this.talking = talking; this.drawFace(); } }
@@ -260,6 +263,8 @@ export class Citizen extends Container {
         break;
       }
       case "sit": { legL = -1.5; legR = -1.5; shinL = 1.45; shinR = 1.45; armL = 0.5; armR = 0.5; foreL = -0.6; foreR = -0.6; this.body.position.y = 8; bob = Math.sin(k * 0.3) * 0.5; break; }
+      // down on one knee to something small: a hand goes out and strokes, the head is bent to it
+      case "crouch": { legL = -1.35; legR = -0.7; shinL = 2.1; shinR = 1.5; this.body.position.y = 10; armR = 1.05 + Math.sin(k * 0.9) * 0.12; foreR = 0.35 + Math.sin(k * 0.9) * 0.25; armL = 0.55; foreL = -0.35; headTilt = 0.34; this.body.rotation = 0.14 * this.facing; bob = Math.sin(k * 0.3) * 0.4; break; }
       case "sleep": { this.body.rotation = (Math.PI / 2) * this.facing; this.body.position.set(0, -6); legL = -0.15; legR = 0.1; shinL = 0.3; shinR = 0.2; armL = 0.3; armR = 0.35; foreL = 0.4; foreR = 0.3; this.body.alpha = 0.92; this.torso.scale.y = 1 + Math.sin(k * 0.25) * 0.02; break; }
     }
     // age shows too: a stoop that the years put there
@@ -268,9 +273,10 @@ export class Citizen extends Container {
     if (this.moodState.hunger > 0.4 && this.pose !== "sleep") { const w = (this.moodState.hunger - 0.4) / 0.6; this.body.rotation += 0.1 * w * this.facing; headTilt += 0.18 * w; if (this.pose === "walk") bob *= 0.5; }
     this.legL.rotation = legL; this.legR.rotation = legR; this.shinL.rotation = shinL; this.shinR.rotation = shinR;
     this.armL.rotation = armL; this.armR.rotation = armR; this.foreL.rotation = foreL; this.foreR.rotation = foreR;
+    if (this.glanceTilt) { headTilt += this.glanceTilt; this.glanceTilt *= 0.984; if (Math.abs(this.glanceTilt) < 0.004) this.glanceTilt = 0; }
     this.head.rotation = headTilt; this.body.position.y += bob;
     // eyes: they follow a little where the person looks, and blink
-    const side = this.facingMode === "left" || this.facingMode === "right" ? 2.2 : 0; this.eyes.position.x = side + this.gaze; const blink = ((t * 0.9 + this.phase) % 4.3) < 0.13; this.eyes.scale.y = blink ? 0.15 : 1;
+    const side = this.facingMode === "left" || this.facingMode === "right" ? 2.2 : 0; this.eyes.position.x = side + (this.glanceTilt ? this.glanceGaze : this.gaze); const blink = ((t * 0.9 + this.phase) % 4.3) < 0.13; this.eyes.scale.y = blink ? 0.15 : 1;
     if (this.talking) this.mouth.scale.y = 0.6 + Math.abs(Math.sin(k * 2.4)) * 0.6;
     if (this.breath.visible && this.pose !== "sleep") { const c = (t * 0.6 + this.phase) % 1; this.breath.clear(); if (c < 0.6) this.breath.circle(11 + c * 10, 1 - c * 6, 2 + c * 4).fill({ color: 0xe6eeee, alpha: 0.45 * (1 - c / 0.6) }); }
   }

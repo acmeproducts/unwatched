@@ -25,12 +25,12 @@ export type LifePlaces = {
   meadows: (Pt & { r: number })[];
   roosts: Pt[];
 };
-export type LifeInput = { tick: number; hour: number; rise: number; set: number; night: number; season: string; weather: string; wind: number; people: Iterable<Pt>; /** the GPU night is on: the beam cuts the shade and the fireflies bloom */ effects: boolean };
+export type LifeInput = { tick: number; hour: number; rise: number; set: number; night: number; season: string; weather: string; wind: number; people: Iterable<Pt & { moving?: boolean }>; /** the GPU night is on: the beam cuts the shade and the fireflies bloom */ effects: boolean };
 
 /** A small seeded random, so the island's animals have habits and not a pattern. */
 function rnd(seed: number): () => number { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-type Critter = { kind: "cat" | "dog" | "hen"; g: Graphics; x: number; y: number; tx: number; ty: number; facing: 1 | -1; state: "walk" | "sit" | "peck" | "sleep" | "follow" | "hide"; until: number; seed: () => number; speed: number; who?: Pt };
+export type Critter = { kind: "cat" | "dog" | "hen"; g: Graphics; x: number; y: number; tx: number; ty: number; facing: 1 | -1; state: "walk" | "sit" | "peck" | "sleep" | "follow" | "hide"; until: number; seed: () => number; speed: number; who?: Pt; /** held by a hand until this tick: it stays, and is not startled */ pinned: number };
 type Gull = { perch: Pt & { dir: 1 | -1 }; away: boolean; t0: number; back: number; seed: number; turned: number };
 type Leaf = { x: number; y: number; y1: number; vy: number; ph: number; rot: number; color: number; landed: number; born: number; tree: number };
 
@@ -51,6 +51,8 @@ export class Life {
   lights: LightSource[] = [];
   /** What made a sound this tick, and where; the world hands them to the ambience with the camera's distance. */
   sounds: { name: LifeSound; x: number; y: number; level?: number }[] = [];
+  /** Gulls that just went up, for whoever is near enough to look. */
+  flushes: { x: number; y: number; at: number }[] = [];
   private gulls: Gull[];
   private leaves: Leaf[] = [];
   private bugs: { x: number; y: number; ph: number; speed: number; color: number; zone: number }[] = [];
@@ -66,7 +68,7 @@ export class Life {
     this.glow.blendMode = "add"; this.cut.blendMode = "erase";
     const r = rnd(4242);
     this.gulls = P.perches.map((perch, i) => ({ perch, away: r() < 0.35, t0: 0, back: Math.floor(r() * 600), seed: i * 37 + Math.floor(r() * 1000), turned: 0 }));
-    const mk = (kind: Critter["kind"], x: number, y: number, seed: number, speed: number): Critter => { const g = new Graphics(); g.position.set(x, y); g.zIndex = y; scene.addChild(g); const c: Critter = { kind, g, x, y, tx: x, ty: y, facing: 1, state: "sit", until: 0, seed: rnd(seed), speed }; this.critters.push(c); return c; };
+    const mk = (kind: Critter["kind"], x: number, y: number, seed: number, speed: number): Critter => { const g = new Graphics(); g.position.set(x, y); g.zIndex = y; scene.addChild(g); const c: Critter = { kind, g, x, y, tx: x, ty: y, facing: 1, state: "sit", until: 0, seed: rnd(seed), speed, pinned: 0 }; this.critters.push(c); return c; };
     mk("cat", P.catSpots[0]!.x + 18, P.catSpots[0]!.y + 6, 11, 0.75);
     mk("dog", P.dogHome.x, P.dogHome.y, 23, 1.5);
     for (let i = 0; i < 4; i++) mk("hen", P.yard.x + (r() - 0.5) * P.yard.r, P.yard.y + (r() - 0.5) * P.yard.r * 0.6, 100 + i, 0.5);
@@ -81,7 +83,8 @@ export class Life {
     const day = o.hour > o.rise - 0.5 && o.hour < o.set + 0.5, storm = o.weather === "storm", wet = storm || o.weather === "rain" || o.weather === "snow";
     const cold = o.season === "winter";
     const people = [...o.people];
-    const nearest = (x: number, y: number): number => { let d = 1e9; for (const p of people) { const dd = Math.hypot(p.x - x, p.y - y); if (dd < d) d = dd; } return d; };
+    const nearest = (x: number, y: number, movingOnly = false): number => { let d = 1e9; for (const p of people) { if (movingOnly && !p.moving) continue; const dd = Math.hypot(p.x - x, p.y - y); if (dd < d) d = dd; } return d; };
+    this.flushes = this.flushes.filter((f) => tick - f.at < 90);
     this.lights = []; this.sounds = [];
     // the pennant: it hangs in a calm, lifts and cracks in a blow, and always points where the wind is going
     if (tick % 2 === 0) {
@@ -107,16 +110,17 @@ export class Life {
       } }
     // the gulls: some wheel, some sit on the posts and the rocks, and a walker on the pier sends them up
     for (const gl of this.gulls) {
-      if (!gl.away && (nearest(gl.perch.x, gl.perch.y) < 72 || !day || storm)) { gl.away = true; gl.t0 = tick; gl.back = tick + 500 + ((gl.seed * 97) % 900); if (day) { this.sounds.push({ name: "flap", x: gl.perch.x, y: gl.perch.y }); if (gl.seed % 3 === 0) this.sounds.push({ name: "gull", x: gl.perch.x, y: gl.perch.y - 40, level: 0.7 }); } }
+      if (!gl.away && (nearest(gl.perch.x, gl.perch.y) < 72 || !day || storm)) { gl.away = true; gl.t0 = tick; gl.back = tick + 500 + ((gl.seed * 97) % 900); this.flushes.push({ x: gl.perch.x, y: gl.perch.y, at: tick }); if (day) { this.sounds.push({ name: "flap", x: gl.perch.x, y: gl.perch.y }); if (gl.seed % 3 === 0) this.sounds.push({ name: "gull", x: gl.perch.x, y: gl.perch.y - 40, level: 0.7 }); } }
       if (gl.away && tick > gl.back && day && !storm && nearest(gl.perch.x, gl.perch.y) > 120) { gl.away = false; gl.t0 = tick; }
       if (!gl.away && tick % 180 === gl.seed % 180) gl.turned = tick + 30;
     }
     // the animals: each keeps its own hours
     for (const c of this.critters) {
-      const r = c.seed; const near = nearest(c.x, c.y);
-      if (c.kind === "cat") {
+      const r = c.seed; const nearWalker = nearest(c.x, c.y, true); const held = c.pinned > tick;
+      if (held) { if (c.state === "walk" || c.state === "follow") { c.state = "sit"; c.tx = c.x; c.ty = c.y; } c.until = Math.max(c.until, c.pinned + 60); }
+      else if (c.kind === "cat") {
         if (wet || !day) { if (c.state !== "hide" && c.state !== "sleep") { const s = P.catSpots[0]!; c.tx = s.x + 18; c.ty = s.y + 6; c.state = "walk"; c.until = tick + 2000; } }
-        if (c.state === "sit" && near < 44) { const s = P.catSpots[1 + Math.floor(r() * (P.catSpots.length - 1))]!; c.tx = s.x + 14; c.ty = s.y + 6; c.state = "walk"; c.until = tick + 2000; if (r() < 0.6) this.sounds.push({ name: "meow", x: c.x, y: c.y, level: 0.8 }); }
+        if (c.state === "sit" && nearWalker < 44) { const s = P.catSpots[1 + Math.floor(r() * (P.catSpots.length - 1))]!; c.tx = s.x + 14; c.ty = s.y + 6; c.state = "walk"; c.until = tick + 2000; if (r() < 0.6) this.sounds.push({ name: "meow", x: c.x, y: c.y, level: 0.8 }); }
         if (tick > c.until && c.state !== "walk") { if (r() < 0.55 && day && !wet) { const s = P.catSpots[Math.floor(r() * P.catSpots.length)]!; c.tx = s.x + 14 + (r() - 0.5) * 20; c.ty = s.y + 6 + (r() - 0.5) * 10; c.state = "walk"; c.until = tick + 3000; } else { c.state = !day || wet ? (Math.hypot(c.x - P.catSpots[0]!.x - 18, c.y - P.catSpots[0]!.y - 6) < 30 ? "sleep" : "hide") : r() < 0.3 ? "sleep" : "sit"; c.until = tick + 300 + r() * 900; } }
       } else if (c.kind === "dog") {
         if (c.state === "sit" && day && tick % 900 === 0 && r() < 0.4) this.sounds.push({ name: "bark", x: c.x, y: c.y, level: 0.7 });
@@ -124,7 +128,7 @@ export class Life {
         else if (tick > c.until && c.state !== "walk") { if (day && !wet && r() < 0.5) { let pick: Pt | null = null; for (const p of people) if (Math.hypot(p.x - c.x, p.y - c.y) < 220) { pick = p; if (r() < 0.5) break; } if (pick) { c.who = pick; c.state = "follow"; c.until = tick + 500 + r() * 700; this.sounds.push({ name: "bark", x: c.x, y: c.y }); } else { c.state = "sit"; c.until = tick + 200 + r() * 400; } } else { c.state = !day || wet ? "sleep" : "sit"; c.until = tick + 300 + r() * 600; } }
       } else {
         if (!day || wet) { c.state = "hide"; c.until = tick + 60; }
-        else if (near < 40 && c.state !== "walk") { const ax = c.x - people.reduce((b, p) => (Math.hypot(p.x - c.x, p.y - c.y) < 40 ? p : b), { x: c.x + 1, y: c.y }).x; c.tx = Math.max(P.yard.x - P.yard.r, Math.min(P.yard.x + P.yard.r, c.x + Math.sign(ax || 1) * 50)); c.ty = c.y + (r() - 0.5) * 20; c.state = "walk"; c.until = tick + 400; c.speed = 1.6; this.sounds.push({ name: "cluck", x: c.x, y: c.y, level: 1 }); }
+        else if (nearWalker < 40 && c.state !== "walk") { const ax = c.x - people.reduce((b, p) => (Math.hypot(p.x - c.x, p.y - c.y) < 40 ? p : b), { x: c.x + 1, y: c.y }).x; c.tx = Math.max(P.yard.x - P.yard.r, Math.min(P.yard.x + P.yard.r, c.x + Math.sign(ax || 1) * 50)); c.ty = c.y + (r() - 0.5) * 20; c.state = "walk"; c.until = tick + 400; c.speed = 1.6; this.sounds.push({ name: "cluck", x: c.x, y: c.y, level: 1 }); }
         else if (c.state === "peck" && tick % 240 === 0 && r() < 0.5) this.sounds.push({ name: "cluck", x: c.x, y: c.y, level: 0.5 });
         else if (tick > c.until && c.state !== "walk") { if (r() < 0.4) { c.tx = P.yard.x + (r() - 0.5) * 2 * P.yard.r; c.ty = P.yard.y + (r() - 0.5) * 1.2 * P.yard.r; c.state = "walk"; c.until = tick + 600; c.speed = 0.5; } else { c.state = "peck"; c.until = tick + 60 + r() * 200; } }
       }
@@ -185,7 +189,7 @@ export class Life {
     } else if (c.kind === "dog") {
       g.ellipse(0, 0.5, 13, 3.5).fill({ color: KELP, alpha: 0.12 });
       if (c.state === "sleep") { g.ellipse(0, -4, 12, 5.5).fill(WOOD_DARK); g.circle(8, -6, 4.2).fill(WOOD_DARK); g.ellipse(6, -8, 2.2, 3.2).fill(0x8a7756); return; }
-      const sit = c.state === "sit"; const wag = c.state === "follow" ? Math.sin(tick / 2) * 4 : Math.sin(tick / 12) * 1.5;
+      const sit = c.state === "sit"; const wag = c.state === "follow" || c.pinned > tick ? Math.sin(tick / 2) * 4 : Math.sin(tick / 12) * 1.5;
       if (sit) { g.ellipse(0, -6.5, 7.5, 8).fill(WOOD_DARK); g.moveTo(-7, -2).quadraticCurveTo(-13, -1 + wag, -15, -6 + wag).stroke({ width: 2.2, color: WOOD_DARK, cap: "round" }); }
       else { for (let k = 0; k < 4; k++) leg(-8 + k * 5, k, 5, 2); g.ellipse(0, -7, 13, 5.5).fill(WOOD_DARK); g.moveTo(-12, -8).quadraticCurveTo(-16, -12 + wag, -17, -15 + wag).stroke({ width: 2.2, color: WOOD_DARK, cap: "round" }); }
       const hx = sit ? 3 : 11, hy = sit ? -16 : -11; g.circle(hx, hy, 4.6).fill(WOOD_DARK); g.circle(hx + 4, hy + 1, 2.2).fill(0x8a7756); g.circle(hx + 5.5, hy + 0.6, 0.9).fill(KELP); g.ellipse(hx - 2, hy - 1, 2.2, 3.6).fill(0x8a7756); g.circle(hx + 1.5, hy - 1.2, 0.7).fill(KELP);

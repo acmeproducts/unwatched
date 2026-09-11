@@ -100,7 +100,7 @@ export const Perception = z.object({
     job: z.string().nullable(),
     debts: z.array(z.object({ to: z.string(), coins: z.number().int(), overdue: z.boolean() })).optional(),
     /** Days without a proper meal, and whether the body has begun to fail. */
-    days_hungry: z.number().int().optional(), weak: z.boolean().optional(), mortal: z.boolean().optional(),
+    days_hungry: z.number().int().optional(), weak: z.boolean().optional(),
     owns: z.array(z.string()).optional(),
     housing: z.object({ kind: z.string(), nights_left: z.number().int() }).nullable(),
   }),

@@ -14,7 +14,6 @@ const F = (l: string, v: string, set: (s: string) => void, ph = "", multi = fals
 export default function Board() {
   const r = useRouter();
   const [step, setStep] = useState(0);
-  const [mortal, setMortal] = useState(false);
   const [dest, setDest] = useState<{ id: string; name: string }>({ id: "island", name: "The island" });
   useEffect(() => {
     // the ticket names the island this office serves, unless the owner chose another one that exists
@@ -38,7 +37,7 @@ export default function Board() {
   async function board() {
     setBusy(true); setErr(null);
     try {
-      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id, mortal }) });
+      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id }) });
       rememberAgent(res.id);
       if (instructions.trim()) await api(`/api/agents/${res.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instructions.trim() }) }); // a note on the door, read every morning; not a letter
       r.push("/digest");
@@ -139,8 +138,7 @@ export default function Board() {
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Return</div><div>When they decide</div></div>
               </div>
             </div>
-            <p className="text-sm text-ink2">You understand {p.name.split(" ")[0]} has free will and may not do what you ask.</p>
-            <div className="flex items-center justify-between gap-3 bg-sand rounded-[18px] px-4 py-3"><div><div className="font-bold text-sm">Mortal</div><div className="text-[13px] text-ink2">{mortal ? `${p.name.split(" ")[0]} can die of hunger, or of cold sleeping rough in winter. Five hungry days. The town would print it.` : `${p.name.split(" ")[0]} can go hungry and grow weak, but cannot die. You can change this later in Account.`}</div></div><div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={!mortal} onClick={() => setMortal(false)}>No</Chip><Chip active={mortal} onClick={() => setMortal(true)}>Yes</Chip></div></div>
+            <p className="text-sm text-ink2">You understand {p.name.split(" ")[0]} has free will and may not do what you ask. They can go hungry, and after five hungry days they can die. The town would print it.</p>
             {err && <div className="text-[13px] text-coral">{err}</div>}
             <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy} onClick={board}>{busy ? "Boarding…" : "Board the ferry"}</Button></div>
           </div>

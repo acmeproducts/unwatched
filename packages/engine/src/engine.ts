@@ -30,8 +30,6 @@ export interface AddAgentOptions {
   owner?: string | null;
   budget?: Partial<Budget>;
   coins?: number;
-  /** Can this person die of hunger and cold. Defaults to true for house citizens, false for owned ones. */
-  mortal?: boolean;
 }
 
 const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "fog", "storm"] as const;
@@ -99,7 +97,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null, debts: [], hint: null, mortal: o.mortal ?? o.owner === null, starving: 0, roofless: 0,
+      plan: null, debts: [], hint: null, starving: 0, roofless: 0,
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -133,7 +131,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, mortal: sa.state.mortal ?? sa.owner === null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0,
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -153,7 +151,7 @@ export class Town {
       jobs: [...this.jobs.values()].filter((j) => this.places.get(j.place)?.owner).map(({ holders: _h, ...j }) => j),
       agents: [...this.agents.values()].map((a): AgentSnapshot => ({
         id: a.id, persona: a.persona, owner: a.owner, funded: a.funded, appearance: a.appearance, arrivedAt: a.arrivedAt,
-        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan, debts: a.debts, mortal: a.mortal, starving: a.starving, roofless: a.roofless },
+        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan, debts: a.debts, starving: a.starving, roofless: a.roofless },
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
@@ -250,7 +248,7 @@ export class Town {
     return {
       type: "perceive", agent_id: a.id,
       time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather },
-      self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, mortal: a.mortal, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
+      self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
       nearby,
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
         owner: here.owner ? (this.agents.get(here.owner)?.persona.name ?? here.owner) : null,
@@ -573,9 +571,9 @@ export class Town {
       const wasWeak = a.starving >= 2;
       a.starving = hungry ? a.starving + 1 : 0; a.roofless = roof ? 0 : a.roofless + 1;
       if (a.starving >= 2 && !wasWeak) { this.emit("agent.weak", [a.id], a.location, `${a.persona.name} is weak with hunger and cannot work.`, 0.6); this.remember(a, "I have not eaten properly in two days. I am too weak to work.", 0.9); for (const w of this.nearby(a)) this.remember(w, `${a.persona.name} looks weak with hunger.`, 0.6, "rumor"); }
-      if (a.starving === 3) a.hint = `You have not eaten in three days${a.mortal ? " and you will not survive many more" : ""}. Something must change today: ask for help, steal, sell something, write home, or take the ferry.`;
+      if (a.starving === 3) a.hint = "You have not eaten in three days and you will not survive many more. Something must change today: ask for help, steal, sell something, write home, or take the ferry.";
       const winterRough = this.season === "winter" && a.roofless >= 3 && a.starving >= 3;
-      if (a.mortal && (a.starving >= 5 || winterRough)) {
+      if (a.starving >= 5 || winterRough) {
         const how = winterRough ? "of hunger and cold, sleeping rough in winter" : "of hunger";
         this.emit("agent.died", [a.id], a.location, `${a.persona.name} died in the night, ${how}, at ${this.places.get(a.location)?.name ?? "the island"}. ${a.coins} coins were found on them.`, 1);
         this.removeAgent(a.id, "died", `Of hunger${winterRough ? " and cold" : ""}, at ${this.places.get(a.location)?.name ?? "the island"}.`);

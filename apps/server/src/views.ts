@@ -9,7 +9,7 @@ export function publicAgent(town: Town, a: AgentState) {
     location: a.location, place: town.places.get(a.location)?.name ?? a.location, asleep: a.asleep,
     job, home: a.home?.place ?? null, arrivedDay: Math.floor(a.arrivedAt / 1440) + 1, funded: a.funded,
     ownerId: a.owner, appearance: a.appearance ?? null,
-    pose: poseOf(town, a), weak: a.starving >= 2, mortal: a.mortal, daysHungry: a.starving,
+    pose: poseOf(town, a), weak: a.starving >= 2, daysHungry: a.starving,
   };
 }
 

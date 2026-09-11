@@ -182,13 +182,6 @@ app.get("/api/agents/:id/perception", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
   return c.json(town.perceive(a));
 });
-app.put("/api/agents/:id/mortal", async (c) => {
-  const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
-  const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
-  const body = z.object({ mortal: z.boolean() }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "yes or no" }, 400);
-  a.mortal = body.data.mortal; if (store) await store.snapshot(town);
-  return c.json({ ok: true, mortal: a.mortal });
-});
 app.put("/api/agents/:id/instructions", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
   const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
@@ -336,14 +329,14 @@ app.get("/api/events", (c) => {
 });
 app.post("/api/board", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the ferry office first" }, 401);
-  const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted"), town: z.string().optional(), mortal: z.boolean().default(false) }).safeParse(await c.req.json());
+  const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted"), town: z.string().optional() }).safeParse(await c.req.json());
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "the manifest is incomplete" }, 400);
   if (body.data.town && body.data.town !== (store?.townId ?? "island")) {
     const known = store ? (await store.towns().catch(() => [])).some((t) => t.id === body.data.town) : false;
     if (known) return c.json({ error: "no ferry runs to that island from here yet" }, 400); // a real island this office does not serve; an unknown id just boards here
   }
   if (!town.ferryRunning) return c.json({ error: town.ferryHeld ? "the ferry is held at the mainland; try again later" : "no ferry crosses in a storm; try again when it clears" }, 503);
-  const a = town.addAgent({ persona: body.data.persona, owner, funded: true, mortal: body.data.mortal });
+  const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
   a.appearance = body.data.appearance ?? null; billing.applyPlan(a);
   if (store) await store.snapshot(town);
   return c.json({ id: a.id, arrived: town.clock() });

@@ -3,14 +3,17 @@
  * weather, the hour, and where the camera is; a synthesized stand-in for any layer that has no file yet, so the
  * world is never silent in a fresh clone. It starts muted, because browsers require a gesture, and a toggle turns it on.
  *
- * Files: /sound/manifest.json maps a layer or one-shot name to a file. `scripts/gen-sounds.mjs` fills the folder.
+ * Files: /sound/manifest.json maps a layer, a one-shot, or a music bed (music-<scene>) to a file.
+ * `scripts/gen-music.mjs` makes the beds with Lyria; effects can be recordings or generated any way, by the same names.
  */
 export type Scene = { weather: string; hour: number; district: string; place: string; crowd: number; season: string };
 
 export const LAYERS = ["sea", "rain", "wind", "murmur", "work", "forest", "night", "market"] as const;
 export const ONESHOTS = ["gull", "bell", "horn", "creak", "thunder"] as const;
+export const MUSIC = ["day", "rain", "night", "tavern", "storm", "fog", "winter"] as const;
+export type MusicScene = (typeof MUSIC)[number];
 export type LayerName = (typeof LAYERS)[number]; export type ShotName = (typeof ONESHOTS)[number];
-type Manifest = Partial<Record<LayerName | ShotName, string>>;
+type Manifest = Partial<Record<LayerName | ShotName | `music-${MusicScene}`, string>>;
 
 function noiseBuffer(ctx: AudioContext, seconds = 4): AudioBuffer {
   const buf = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate); const d = buf.getChannelData(0);
@@ -29,6 +32,7 @@ class Layer {
 export class Ambience {
   private ctx: AudioContext | null = null; private master: GainNode | null = null;
   private layers = new Map<LayerName, Layer>();
+  private beds = new Map<MusicScene, Layer>(); private bed: MusicScene | null = null;
   private files = new Map<string, AudioBuffer>(); private manifest: Manifest = {};
   private lastBellHour = -1; private lastGull = 0; private lastCreak = 0; private lastThunder = 0;
   muted = true;
@@ -45,9 +49,9 @@ export class Ambience {
   }
   async disable(): Promise<void> { this.muted = true; await this.ctx?.suspend(); }
   /** Which layers play from files, for the ops room and the toggle's title. */
-  sources(): Record<string, "file" | "synth"> { const out: Record<string, "file" | "synth"> = {}; for (const n of [...LAYERS, ...ONESHOTS]) out[n] = this.files.has(n) ? "file" : "synth"; return out; }
+  sources(): Record<string, "file" | "synth" | "none"> { const out: Record<string, "file" | "synth" | "none"> = {}; for (const n of [...LAYERS, ...ONESHOTS]) out[n] = this.files.has(n) ? "file" : "synth"; for (const m of MUSIC) out[`music-${m}`] = this.files.has(`music-${m}`) ? "file" : "none"; return out; }
 
-  private loopFile(name: LayerName, dest: AudioNode): boolean {
+  private loopFile(name: string, dest: AudioNode): boolean {
     const buf = this.files.get(name); if (!buf || !this.ctx) return false;
     // two overlapping copies so the loop seam never clicks
     for (const offset of [0, buf.duration / 2]) { const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true; const g = this.ctx.createGain(); g.gain.value = 0.7; src.connect(g); g.connect(dest); src.start(this.ctx.currentTime + 0.01, offset % buf.duration); }
@@ -65,6 +69,8 @@ export class Ambience {
     make("market", (d) => { const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 600; n.Q.value = 1.1; }); lfo(f.frequency, 3.3, 220); });
     make("forest", (d) => { const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 900; n.Q.value = 4; }); lfo(f.frequency, 0.05, 500); });
     make("night", (d) => { const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 3800; n.Q.value = 12; }); lfo(f.frequency, 5.5, 60, "square"); });
+    // music beds: only from files, one per scene, crossfaded in tick(); Lyria writes them, the world never synthesizes music
+    for (const m of MUSIC) { if (!this.files.has(`music-${m}`)) continue; const L = new Layer(ctx, out); this.loopFile(`music-${m}`, L.gain); this.beds.set(m, L); }
     make("work", (d) => { const g = ctx.createGain(); g.gain.value = 0; g.connect(d); looped(g, (n) => { n.type = "lowpass"; n.frequency.value = 240; }); const tick = () => { if (!this.ctx) return; const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.02, t + 0.18); setTimeout(tick, 900 + Math.random() * 500); }; tick(); });
   }
 
@@ -92,6 +98,9 @@ export class Ambience {
     L("murmur").set(social && s.crowd > 1 && !night ? Math.min(0.4, 0.1 + s.crowd * 0.05) : 0);
     L("market").set(s.place === "market" && s.crowd > 2 && s.hour >= 7 && s.hour < 19 ? Math.min(0.4, 0.1 + s.crowd * 0.04) : 0);
     L("work").set((s.place === "smithy" || s.place === "mill" || s.place === "sawpit" || s.place === "quarry") && s.hour >= 7 && s.hour < 17 ? 0.3 : 0);
+    // the bed for this scene, crossfaded over a few seconds; a missing bed means silence under the effects, never a substitute
+    const scene: MusicScene = s.weather === "storm" ? "storm" : s.weather === "fog" ? "fog" : (s.place === "tavern" || s.place === "inn") && s.hour >= 17 && s.crowd > 1 ? "tavern" : night ? "night" : rain > 0 ? "rain" : s.season === "winter" ? "winter" : "day";
+    if (scene !== this.bed) { this.bed = scene; for (const [m, L] of this.beds) L.set(m === scene ? 0.32 : 0, 4); }
     const now = performance.now();
     if (!night && rain < 0.7 && coast && now - this.lastGull > 4000 + Math.random() * 9000) { this.lastGull = now; this.gull(); if (Math.random() < 0.4) setTimeout(() => !this.muted && this.gull(), 300 + Math.random() * 400); }
     if (s.district === "harbor" && now - this.lastCreak > 6000 + Math.random() * 8000) { this.lastCreak = now; this.creak(); }

@@ -54,6 +54,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
   const clockRef = useRef<Clock | null>(null);
   const ambienceRef = useRef<Ambience | null>(null);
   const [sound, setSound] = useState(false);
+  const [placeInfo, setPlaceInfo] = useState<{ id: string; name: string; district: string; kind: string; owner: string | null; site: PlaceView["site"]; people: { name: string; asleep: boolean; job: string | null }[] } | null>(null);
+  const [mini, setMini] = useState<{ w: number; h: number; places: { id: string; x: number; y: number; kind: string; crowd: number }[]; view: { x: number; y: number; w: number; h: number }; people: { x: number; y: number; mine: boolean }[] } | null>(null);
 
   useEffect(() => {
     let app: Application | null = null; let ws: WebSocket | null = null; let alive = true; let inited = false; let poll: ReturnType<typeof setInterval> | null = null;
@@ -104,7 +106,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         else if (near(x, y, ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern"], 260)) color = C.sand;
         const onRoad = segs.some((sg) => distToSeg(x, y, sg) < 22);
         if (onRoad) color = C.shell;
-        const shade = alt ? 0 : -0x040404;
+        const shade = alt ? 0 : -0x020202;
         ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(Math.max(0, color + shade));
         if (color === FIELD && alt) ground.moveTo(x - 20, y).lineTo(x + 20, y).stroke({ width: 1.5, color: 0xb9d9c6, alpha: 0.9 });
         if (color === FOREST && (i * 7 + j * 3) % 5 === 0) ground.circle(x, y, 4).fill({ color: 0x9fbfa8, alpha: 0.8 });
@@ -133,10 +135,14 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           r.rect(-80, -60, 160, 70).fill({ color: C.sage, alpha: 0.35 }); g.addChild(r);
         } else if (p.site) {
           // a site: timber frame, a crates pile, and how many mornings are done
-          const r = new Graphics(); r.rect(-70, -70, 140, 70).fill({ color: C.sand, alpha: 0.9 });
+          const r = new Graphics(); const done = Math.min(1, p.site.done / Math.max(1, p.site.of));
+          r.rect(-70, -70, 140, 70).fill({ color: C.sand, alpha: 0.9 });
           for (let x = -70; x <= 70; x += 35) r.moveTo(x, 0).lineTo(x, -70).stroke({ width: 5, color: 0xc9b58f });
-          r.moveTo(-70, -70).lineTo(70, -70).stroke({ width: 6, color: 0xc9b58f }); r.moveTo(-70, -35).lineTo(70, -35).stroke({ width: 4, color: 0xc9b58f });
+          r.moveTo(-70, -70).lineTo(70, -70).stroke({ width: 6, color: 0xc9b58f });
+          // walls go up a plank per morning worked
+          const planks = Math.round(done * 8); for (let k = 0; k < planks; k++) r.rect(-68, -8 - k * 8, 136, 7).fill(0xf7f5ee).stroke({ width: 1.2, color: C.kelp });
           if (p.site.what === "house") r.moveTo(-76, -70).lineTo(0, -120).lineTo(76, -70).stroke({ width: 6, color: 0xc9b58f });
+          if (done >= 0.8) r.moveTo(-76, -70).lineTo(0, -120).lineTo(76, -70).closePath().fill(C.teal);
           g.addChild(r); const c = local("crates", 60); if (c) c.position.set(95, 4);
           const t = new Text({ text: `${p.site.name} · ${p.site.done} of ${p.site.of}`, style: smallStyle }); t.anchor.set(0.5, 0); t.position.set(0, 6); g.addChild(t);
         } else {
@@ -144,6 +150,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         }
         const t = new Text({ text: p.name.replace(/^the /, "").replace(/^an? /, "").toUpperCase(), style: nameStyle }); t.anchor.set(0.5, 0); t.position.set(0, p.site ? 22 : 6); t.zIndex = 100000; g.addChild(t);
         g.position.set(p.x, p.y);
+        g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -90 && x < 90 && y > -170 && y < 30 } as never;
+        g.on("pointertap", () => { const here = [...agents.current.values()].filter((a) => a.location === p.id); setPlaceInfo({ id: p.id, name: p.name, district: p.district, kind: p.kind, owner: p.owner, site: p.site, people: here.map((a) => ({ name: a.name, asleep: a.asleep, job: a.job })) }); });
       };
       for (const p of places.values()) drawPlace(p);
       const decor = decorFor([...places.values()]);
@@ -203,7 +211,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
           if (e.kind === "ferry.dock") { if (/docked/.test(e.text)) { ferry.position.x = awayX; ferryTarget = dockX; ambience.horn(); } }
           if (e.kind === "ferry.depart") ferryTarget = awayX;
-          if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) ensure(a); }); }
+          if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) { const f = ensure(a); f.x = ferry.position.x + 40; f.y = ferry.position.y - 10; f.g.position.set(f.x, f.y); } }); }
           if (e.kind === "agent.build" || e.kind === "town.built" || (e.kind === "agent.work" && /mornings done/.test(e.text))) void refreshPlaces();
           if (e.importance >= 0.1 && e.kind !== "agent.move") setFeed((f) => [e, ...f].slice(0, 12));
         }
@@ -278,6 +286,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 78) * cam.zoom + cam.y, mine: f.mine, ...(b ? { bubble: b.text } : {}) });
         }
         if (tick % 2 === 0) setLabels(next);
+        if (tick % 20 === 0) setMini({ w: W, h: H, places: [...places.values()].map((p) => ({ id: p.id, x: p.x, y: p.y, kind: p.kind, crowd: p.crowd })), view: { x: -cam.x / cam.zoom, y: -cam.y / cam.zoom, w: Wd / cam.zoom, h: Hd / cam.zoom }, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, mine: f.mine })) });
       });
     })();
     return () => { alive = false; ws?.close(); if (poll) clearInterval(poll); void ambienceRef.current?.disable(); if (inited) { try { app?.destroy(true); } catch {} } figs.current.clear(); seatOf.current.clear(); };
@@ -301,6 +310,18 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           </div>
         ))}
       </div>
+      {mini && <svg className="absolute right-3 bottom-3 sm:right-6 sm:bottom-6 hidden sm:block rounded-2xl bg-shell/90 pointer-events-none" width={180} height={Math.round(180 * mini.h / mini.w)} viewBox={`0 0 ${mini.w} ${mini.h}`} aria-hidden>
+        {mini.places.filter((p) => p.kind !== "public" && p.kind !== "wild").map((p) => <circle key={p.id} cx={p.x} cy={p.y} r={p.kind === "plot" ? 22 : 34} fill={p.kind === "plot" ? "#B9CFC8" : "#1F5F5B"} opacity={0.55} />)}
+        {mini.people.map((pp, i) => <circle key={i} cx={pp.x} cy={pp.y} r={pp.mine ? 30 : 16} fill={pp.mine ? "#E8735A" : "#1E2A2B"} />)}
+        <rect x={mini.view.x} y={mini.view.y} width={mini.view.w} height={mini.view.h} fill="none" stroke="#1F5F5B" strokeWidth={18} rx={40} />
+      </svg>}
+      {placeInfo && <div className="absolute right-3 top-14 sm:right-6 sm:top-16 w-[min(320px,calc(100%-24px))] bg-shell rounded-card p-4 flex flex-col gap-2 pointer-events-auto rise">
+        <div className="flex justify-between items-baseline gap-2"><div><div className="label">{placeInfo.district}</div><div className="display text-[20px] font-semibold">{placeInfo.name}</div></div><button onClick={() => setPlaceInfo(null)} className="text-sm text-drift">Close</button></div>
+        {placeInfo.owner && <div className="text-sm text-ink2">Owned by {placeInfo.owner}.</div>}
+        {placeInfo.site && <div className="text-sm text-ink2">{placeInfo.site.by} is building {placeInfo.site.name}: {placeInfo.site.done} of {placeInfo.site.of} mornings done.</div>}
+        {placeInfo.kind === "plot" && !placeInfo.site && <div className="text-sm text-ink2">Empty land. A house costs 15 coins and six mornings; a shop 30 and ten.</div>}
+        <div className="text-sm">{placeInfo.people.length === 0 ? <span className="text-drift">Nobody here right now.</span> : placeInfo.people.map((pp) => <div key={pp.name}>{pp.name}{pp.asleep ? ", asleep" : pp.job ? `, ${pp.job}` : ""}</div>)}</div>
+      </div>}
       <div className="absolute left-3 bottom-3 sm:left-6 sm:bottom-6 bg-shell rounded-card p-3 sm:p-4 w-[calc(100%-24px)] sm:w-[330px] flex flex-col gap-1.5 pointer-events-auto max-h-[38%] sm:max-h-none overflow-hidden">
         <div className="label">Just now{clock ? ` · day ${clock.day} ${String(clock.hour).padStart(2, "0")}:${String(clock.minute % 60).padStart(2, "0")} · ${clock.weather}` : ""}</div>
         {feed.slice(0, 6).map((e) => <div key={e.id} className="grid gap-x-2.5 items-center" style={{ gridTemplateColumns: "44px 14px 1fr" }}><span className="text-[12px] text-drift tabular">{String(Math.floor((e.t % 1440) / 60)).padStart(2, "0")}:{String(e.t % 60).padStart(2, "0")}</span><span className="rounded-full" style={{ width: e.importance >= 0.45 ? 10 : 7, height: e.importance >= 0.45 ? 10 : 7, background: e.importance >= 0.45 ? "#E8735A" : "#1F5F5B" }} /><span className={`text-[13px] leading-tight line-clamp-2 ${e.importance >= 0.45 ? "font-semibold" : ""}`}>{e.text}</span></div>)}

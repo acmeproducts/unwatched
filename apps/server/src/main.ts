@@ -67,7 +67,11 @@ async function loop() {
     if (!ticking) {
       ticking = true;
       try {
+        const plannedBefore = [...town.agents.values()].filter((a) => a.plan?.day === town.day).length;
         const t0 = Date.now(); await town.tick(); metrics.tickMs.push(Date.now() - t0); if (metrics.tickMs.length > 200) metrics.tickMs.shift();
+        // morning plans are worth a thought each; write them down as soon as they exist so a restart does not ask twice
+        const plannedAfter = [...town.agents.values()].filter((a) => a.plan?.day === town.day).length;
+        if (store && plannedAfter > plannedBefore) void store.snapshot(town).catch((e: Error) => log(`plan snapshot failed: ${e.message}`));
         if (town.hour !== lastHour) { lastHour = town.hour; broadcast({ type: "clock", clock: clockOf(town) }); await hourly(); }
       } catch (err) { log(`tick failed: ${(err as Error).message}`); }
       ticking = false;
@@ -129,7 +133,7 @@ app.get("/api/agents/:id", async (c) => {
 });
 app.get("/api/agents/:id/digest", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
-  const since = Number(c.req.query("since") ?? town.t - 3 * MINUTES_PER_DAY);
+  const since = Math.max(Number(c.req.query("since") ?? town.t - 3 * MINUTES_PER_DAY), a.arrivedAt); // nothing before the ferry counts as "away"
   const d = town.digest(a.id, since);
   const owner = await ownerOf(c.req.raw);
   return c.json({ ...d, since, now: town.t, agent: owns(a, owner) ? ownerAgent(town, a) : publicAgent(town, a), letters: owns(a, owner) ? town.events.filter((e) => e.kind === "agent.letter" && e.actors[0] === a.id && e.t >= since).map((e) => ({ t: e.t, text: String(e.payload?.text ?? e.text) })) : [] });
@@ -309,7 +313,10 @@ app.post("/api/board", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the ferry office first" }, 401);
   const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted"), town: z.string().optional() }).safeParse(await c.req.json());
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "the manifest is incomplete" }, 400);
-  if (body.data.town && body.data.town !== (store?.townId ?? "island")) return c.json({ error: "no ferry runs to that island from here yet" }, 400);
+  if (body.data.town && body.data.town !== (store?.townId ?? "island")) {
+    const known = store ? (await store.towns().catch(() => [])).some((t) => t.id === body.data.town) : false;
+    if (known) return c.json({ error: "no ferry runs to that island from here yet" }, 400); // a real island this office does not serve; an unknown id just boards here
+  }
   if (town.ferryHeld) return c.json({ error: "the ferry is held at the mainland; try again later" }, 503);
   const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
   a.appearance = body.data.appearance ?? null; billing.applyPlan(a);

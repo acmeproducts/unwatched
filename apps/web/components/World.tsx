@@ -20,8 +20,26 @@ const STAND_IN: Record<string, string> = { fishhouse: "boatshed", chapel: "counc
 
 const CHARS = ["char-mira", "char-innkeeper", "char-baker", "char-farmer", "char-elder", "char-young", "char-banker", "char-constable", "char-teen", "char-fisherman", "char-painter", "char-priest"];
 const ROLE: [RegExp, string][] = [[/rosa|dora/i, "char-innkeeper"], [/petar/i, "char-baker"], [/luka|franjo|goran/i, "char-farmer"], [/mara|vesna/i, "char-elder"], [/marko|jure|bruno/i, "char-young"], [/davor|ivana|teodor/i, "char-banker"], [/katarina/i, "char-constable"], [/iva /i, "char-teen"], [/nikola/i, "char-fisherman"], [/ana/i, "char-painter"], [/stjepan/i, "char-priest"]];
+/** An owner's person looks like what they chose at boarding, from the parts the atlas has. */
+function charFromLook(look: Record<string, unknown> | null): string | null {
+  if (!look) return null;
+  const hat = String(look.hat ?? ""), hair = String(look.hair ?? ""), carry = String(look.carrying ?? ""), build = String(look.build ?? "");
+  if (/baker/i.test(hat)) return "char-baker";
+  if (/knit/i.test(hat)) return "char-fisherman";
+  if (/wide/i.test(hat)) return "char-farmer";
+  if (/headscarf/i.test(hat)) return "char-elder";
+  if (/grey/i.test(hair)) return "char-elder";
+  if (/basket/i.test(carry)) return "char-innkeeper";
+  if (/tool/i.test(carry)) return build === "Sturdy" ? "char-farmer" : "char-fisherman";
+  if (/satchel/i.test(carry)) return "char-banker";
+  if (/suitcase/i.test(carry)) return "char-mira";
+  if (/curls/i.test(hair)) return "char-painter";
+  if (/bun/i.test(hair)) return "char-innkeeper";
+  if (/short/i.test(hair)) return "char-young";
+  return null;
+}
 function charFor(a: PublicAgent): string {
-  if (a.ownerId) return "char-mira";
+  if (a.ownerId) return charFromLook(a.appearance) ?? "char-mira";
   for (const [re, s] of ROLE) if (re.test(a.name + " ")) return s;
   let h = 0; for (const ch of a.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return CHARS[1 + (h % (CHARS.length - 1))]!;

@@ -196,7 +196,7 @@ export class TownStore {
   }
 
   async saveLetter(agentId: string, ownerId: string | null, direction: "to_agent" | "to_owner", text: string, t: number): Promise<void> {
-    const { error } = await this.sb.from("letters").insert({ agent_id: agentId, owner_id: ownerId, direction, text, t });
+    const { error } = await this.sb.from("letters").insert({ agent_id: agentId, owner_id: ownerId && /^[0-9a-f-]{36}$/.test(ownerId) ? ownerId : null, direction, text, t }); // dev owners are names, not ids
     if (error) console.error("letter insert failed:", error.message);
   }
 
@@ -221,6 +221,7 @@ export class TownStore {
   private agentRow(a: AgentState) {
     return {
       id: a.id, town_id: this.townId, owner_id: a.owner && /^[0-9a-f-]{36}$/.test(a.owner) ? a.owner : null, name: a.persona.name, persona: a.persona,
+      appearance: a.appearance ?? {},
       brain: "hosted", funded: a.funded, arrived_t: a.arrivedAt,
       state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, owner: a.owner, brainKind: a.brainKind, thinkEvery: a.thinkEvery },
     };

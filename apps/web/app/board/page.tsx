@@ -14,8 +14,15 @@ const F = (l: string, v: string, set: (s: string) => void, ph = "", multi = fals
 export default function Board() {
   const r = useRouter();
   const [step, setStep] = useState(0);
-  const [dest, setDest] = useState("island");
-  useEffect(() => { try { const t = localStorage.getItem("ft.town"); if (t) setDest(t); } catch {} }, []);
+  const [dest, setDest] = useState<{ id: string; name: string }>({ id: "island", name: "The island" });
+  useEffect(() => {
+    // the ticket names the island this office serves, unless the owner chose another one that exists
+    void api<{ id: string; name: string; live: boolean }[]>("/api/towns").then((ts) => {
+      let chosen: string | null = null; try { chosen = localStorage.getItem("ft.town"); } catch {}
+      const t = ts.find((x) => x.id === chosen) ?? ts.find((x) => x.live) ?? ts[0];
+      if (t) setDest({ id: t.id, name: t.name });
+    }).catch(() => {});
+  }, []);
   const [p, setP] = useState({ name: "", age: "34", origin: "the mainland", summary: "", want: "", fear: "", secret: "", strangers: "Wary at first, loyal after.", advice: "Reads it twice. Rarely follows it." });
   const [traits, setTraits] = useState({ warmth: 0.5, pride: 0.5, caution: 0.5, honesty: 0.6, ambition: 0.5 });
   const [look, setLook] = useState({ build: "Average", hair: "Bob", hat: "None", carrying: "Suitcase", top: "Teal", bottom: "Sage", coral: "Suitcase" });
@@ -30,9 +37,9 @@ export default function Board() {
   async function board() {
     setBusy(true); setErr(null);
     try {
-      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest }) });
+      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id }) });
       rememberAgent(res.id);
-      if (instructions.trim()) await api(`/api/agents/${res.id}/letters`, { method: "POST", body: JSON.stringify({ text: instructions.trim() }) });
+      if (instructions.trim()) await api(`/api/agents/${res.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instructions.trim() }) }); // a note on the door, read every morning; not a letter
       r.push("/digest");
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   }
@@ -98,7 +105,7 @@ export default function Board() {
       {step === 3 && (
         <div className="grid gap-6 grow" style={{ gridTemplateColumns: "minmax(0,1fr) 460px" }}>
           <div className="bg-shell rounded-[28px] p-11 flex flex-col gap-5">
-            <div><Label>The mind</Label><h1 className="text-[36px] font-bold">Who does {p.name.split(" ")[0] || "their"} thinking?</h1><p className="text-[15px] text-ink2">Every agent acts at the same speed. This only decides how often they actually think, and with what.</p></div>
+            <div><Label>The mind</Label><h1 className="text-[36px] font-bold">Who does {p.name.split(" ")[0] ? `${p.name.split(" ")[0]}'s` : "the"} thinking?</h1><p className="text-[15px] text-ink2">Every agent acts at the same speed. This only decides how often they actually think, and with what.</p></div>
             <div className="grid grid-cols-3 gap-3.5">
               {([["hosted","Hosted","The town thinks for them, on your credits. Nothing to set up."],["own_key","Your own key","Paste a key from any model provider. Awake as often as you can afford."],["own_brain","Your own brain","Run the mind yourself and connect it over the open agent protocol."]] as const).map(([k,t,d]) => <button key={k} type="button" onClick={() => setBrain(k)} className={`text-left rounded-[20px] p-5 flex flex-col gap-1 ${brain === k ? "bg-glass" : "bg-sand"}`}><div className="flex justify-between items-center"><span className="font-bold text-[17px]">{t}</span><span className={`w-5 h-5 rounded-full ${brain === k ? "bg-teal" : "border-2 border-[#D9D5C8]"}`} /></div><span className="text-sm text-ink2">{d}</span></button>)}
             </div>
@@ -120,7 +127,7 @@ export default function Board() {
             <div><Label>Boarding</Label><h1 className="text-[34px] font-bold">One ticket, one way.</h1></div>
             <div className="bg-teal text-sand rounded-[22px] p-6 flex flex-col gap-3.5">
               <div className="flex justify-between items-center"><span className="display font-bold text-lg">Ferry Town</span><Label tone="mist">Passenger ticket</Label></div>
-              <div className="flex justify-between items-center text-sm"><span className="text-mist">Destination</span><span className="font-bold">{dest === "island" ? "The island" : dest} · <Link href="/towns" className="text-mist underline">change</Link></span></div>
+              <div className="flex justify-between items-center text-sm"><span className="text-mist">Destination</span><span className="font-bold">{dest.name} · <Link href="/towns" className="text-mist underline">change</Link></span></div>
               <div className="border-t-2 border-dashed border-[#2A6E69]" />
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Passenger</div><div className="display text-xl font-semibold">{p.name}</div></div>

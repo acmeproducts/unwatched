@@ -24,6 +24,7 @@ export function ownerAgent(town: Town, a: AgentState) {
     memories: a.memory.slice(-60).reverse(),
     letters: a.letters,
     instructions: a.instructions,
+    brainKind: a.brainKind,
   };
 }
 

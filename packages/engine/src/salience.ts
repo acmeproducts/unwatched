@@ -8,6 +8,8 @@ export interface SalienceView { hour: number; t: number; nearby: AgentState[]; j
  */
 export function salience(a: AgentState, v: SalienceView): { tier: Tier; why: string } | null {
   if (a.asleep) return null;
+  if (a.thinkEvery !== null && v.t - a.lastThought >= a.thinkEvery) return { tier: 1, why: "cadence" };
+  if (a.brainKind === "own_brain" && v.t - a.lastThought >= 1) return { tier: 1, why: "own brain, every minute" };
   if (a.letters.some((l) => !l.read) && v.hour >= 6 && v.hour < 9) return { tier: 1, why: "letter" };
   if (a.coins <= 3 && a.job === null && v.hour >= 8 && v.hour < 18 && v.t - a.lastThought > 90) return { tier: 2, why: "broke" };
   if (a.job === null && v.jobsOpenHere > 0 && v.hour >= 6 && v.hour < 18 && v.t - a.lastThought > 45) return { tier: 1, why: "job here" };

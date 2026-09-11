@@ -14,6 +14,8 @@ import { Action, Persona, type TownEvent } from "@ferrytown/protocol";
 import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferrytown/cognition";
 import { TownStore } from "@ferrytown/store";
 import { publicAgent, ownerAgent, clockOf } from "./views.ts";
+import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
+import type { BrainRow } from "@ferrytown/store";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const envFile = resolve(here, "../../../.env");
@@ -26,7 +28,8 @@ const BRAIN = process.env.FT_BRAIN ?? "mock";
 const CITIZENS = Number(process.env.FT_CITIZENS ?? 20);
 const log = (l: string) => console.log(`[town] ${l}`);
 
-const brain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) : BRAIN === "anthropic" ? new AnthropicBrain({ log }) : new MockBrain(SEED);
+const townBrain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) : BRAIN === "anthropic" ? new AnthropicBrain({ log }) : new MockBrain(SEED);
+const brain = new BrainRouter(townBrain, log);
 let store = TownStore.fromEnv("island");
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
 const clients = new Set<WebSocket>();
@@ -37,6 +40,7 @@ const saved = store ? await store.loadSnapshot() : null;
 if (saved) {
   town.restore(saved);
   town.events.push(...(await store!.recentEvents(300)));
+  for (const row of await store!.loadBrains()) { const a = town.agents.get(row.agent_id); if (!a) continue; brain.set(row.agent_id, row); a.brainKind = row.kind; a.thinkEvery = row.kind === "own_key" ? row.think_every : null; }
   log(`restored the island from its record: ${town.clock()}, ${town.agents.size} citizens, ${saved.papers.length} editions`);
 } else {
   for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });
@@ -176,6 +180,49 @@ app.post("/api/me/delete", async (c) => {
   if (store) { await store.snapshot(town); await store.deleteOwner(owner); }
   return c.json({ ok: true });
 });
+// ---- who thinks: own key, own brain ----
+const brainView = (a: { id: string; brainKind: string }, row: BrainRow | undefined) => {
+  const b = brain.perAgent.get(a.id);
+  return {
+    kind: a.brainKind, provider: row?.provider ?? "openrouter", models: row?.models ?? { routine: "anthropic/claude-haiku-4.5", stakes: "anthropic/claude-sonnet-5", reflect: "anthropic/claude-opus-5" },
+    keyMasked: row?.api_key ? `${row.api_key.slice(0, 10)}…${row.api_key.slice(-4)}` : null, thinkEvery: row?.think_every ?? 5, dailyCapUsd: row?.daily_cap_usd ?? 2, memory: row?.memory ?? "lease",
+    tokenMasked: row?.token ? `${row.token.slice(0, 12)}…` : null,
+    status: b instanceof OwnBrain ? b.status() : b instanceof OwnKeyBrain ? b.status() : null,
+    streamUrl: `ws://localhost:${PORT}/agent-stream`,
+  };
+};
+const brainRows = new Map<string, BrainRow>();
+if (store) for (const row of await store.loadBrains()) brainRows.set(row.agent_id, row);
+app.get("/api/agents/:id/brain", async (c) => {
+  const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
+  const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
+  return c.json(brainView(a, brainRows.get(a.id)));
+});
+app.put("/api/agents/:id/brain", async (c) => {
+  const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
+  const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
+  const body = z.object({ kind: z.enum(["hosted", "own_key", "own_brain"]), apiKey: z.string().min(8).optional(), models: z.object({ routine: z.string(), stakes: z.string(), reflect: z.string() }).optional(), thinkEvery: z.number().int().min(1).max(240).optional(), dailyCapUsd: z.number().min(0).max(100).optional(), memory: z.enum(["lease", "own"]).optional() }).safeParse(await c.req.json());
+  if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "that setting does not exist" }, 400);
+  const prev = brainRows.get(a.id);
+  const row: BrainRow = { agent_id: a.id, kind: body.data.kind, provider: "openrouter", api_key: body.data.apiKey ?? prev?.api_key ?? null, models: body.data.models ?? prev?.models ?? null, think_every: body.data.thinkEvery ?? prev?.think_every ?? 5, daily_cap_usd: body.data.dailyCapUsd ?? prev?.daily_cap_usd ?? 2, token: body.data.kind === "own_brain" ? (prev?.token ?? newToken()) : (prev?.token ?? null), memory: body.data.memory ?? prev?.memory ?? "lease" };
+  if (row.kind === "own_key") {
+    if (!row.api_key) return c.json({ error: "an own key needs a key" }, 400);
+    // one cheap test call before we keep it
+    const test = await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { Authorization: `Bearer ${row.api_key}` } });
+    if (!test.ok) return c.json({ error: "OpenRouter says this key is not valid. Nothing was saved." }, 400);
+  }
+  brainRows.set(a.id, row); brain.set(a.id, row);
+  a.brainKind = row.kind; a.thinkEvery = row.kind === "own_key" ? row.think_every : null;
+  if (store) await store.saveBrain(row);
+  return c.json({ ...brainView(a, row), ...(body.data.kind === "own_brain" && !prev?.token ? { token: row.token } : {}) });
+});
+app.post("/api/agents/:id/brain/token", async (c) => {
+  const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
+  const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
+  const prev = brainRows.get(a.id); if (!prev || prev.kind !== "own_brain") return c.json({ error: "this agent is not on an own brain" }, 400);
+  const row = { ...prev, token: newToken() }; brainRows.set(a.id, row); brain.set(a.id, row); if (store) await store.saveBrain(row);
+  return c.json({ token: row.token });
+});
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
 app.get("/api/papers/latest", (c) => { const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "the first edition prints at midnight" }, 404); });
 app.get("/api/events", (c) => {
@@ -199,7 +246,17 @@ app.get("/api/health", (c) => c.json({ ok: true, clock: clockOf(town), brain: br
 
 // ---- WebSocket stream ----
 const server = serve({ fetch: app.fetch, port: PORT, createServer }, () => log(`listening on http://localhost:${PORT}`));
-const wss = new WebSocketServer({ server: server as unknown as import("node:http").Server, path: "/stream" });
+const wss = new WebSocketServer({ noServer: true });
+const agentWss = new WebSocketServer({ noServer: true });
+(server as unknown as import("node:http").Server).on("upgrade", (req, socket, head) => {
+  const url = new URL(req.url ?? "/", "http://x");
+  if (url.pathname === "/stream") wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+  else if (url.pathname === "/agent-stream") {
+    const b = brain.ownBrainByToken(url.searchParams.get("token") ?? "");
+    if (!b) { socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n"); socket.destroy(); return; }
+    agentWss.handleUpgrade(req, socket, head, (ws) => { b.attach(ws); const a = town.agents.get(b.row.agent_id); log(`own brain connected for ${a?.persona.name ?? b.row.agent_id}`); ws.send(JSON.stringify({ type: "hello", agent_id: b.row.agent_id, name: a?.persona.name, clock: clockOf(town), rules: "One action per sim minute. Answer each perceive within deadline_ms with {type:'act', action, intent?, remember?}. Answer reflect within 30 s or the town reflects for you." })); });
+  } else socket.destroy();
+});
 wss.on("connection", (ws) => {
   clients.add(ws);
   ws.send(JSON.stringify({ type: "hello", clock: clockOf(town), agents: [...town.agents.values()].map((a) => publicAgent(town, a)), recent: town.events.slice(-80) }));

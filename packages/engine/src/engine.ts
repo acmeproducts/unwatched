@@ -82,7 +82,7 @@ export class Town {
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
-      lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "",
+      lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
     const inn = this.places.get("inn")!; inn.freeBeds = Math.max(0, (inn.freeBeds ?? 0) - 1);
     this.agents.set(id, a);
@@ -108,7 +108,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "",
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -126,7 +126,7 @@ export class Town {
       t: this.t, day: this.day, weather: this.weather, flourShortage: this.flourShortage,
       agents: [...this.agents.values()].map((a): AgentSnapshot => ({
         id: a.id, persona: a.persona, owner: a.owner, funded: a.funded, appearance: a.appearance, arrivedAt: a.arrivedAt,
-        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions },
+        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery },
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
@@ -368,6 +368,7 @@ export class Town {
       const g = this.rng.shuffle([...group]);
       for (let i = 0; i + 1 < g.length; i += 2) {
         const a = g[i]!, b = g[i + 1]!;
+        if (a.brainKind === "own_brain" || b.brainKind === "own_brain") continue;
         if (!wantsConversation(a, b, this.t) && !wantsConversation(b, a, this.t)) continue;
         if (!(this.spend(a, 1) || this.spend(b, 1))) continue;
         const place = this.places.get(placeId)!;
@@ -476,6 +477,7 @@ export class Town {
   }
   private spend(a: AgentState, tier: Tier): boolean {
     if (!a.funded) return false;
+    if (a.brainKind !== "hosted") return true; // their compute, their bill; the router applies their own caps
     if (tier === 1 && a.budget.tier1Left > 0) { a.budget.tier1Left--; return true; }
     if (tier === 2 && a.budget.tier2Left > 0) { a.budget.tier2Left--; return true; }
     if (tier === 2 && a.budget.tier1Left > 0) { a.budget.tier1Left--; return true; }

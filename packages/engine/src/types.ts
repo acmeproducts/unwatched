@@ -71,6 +71,10 @@ export interface AgentState {
   appearance: Record<string, unknown> | null;
   /** Read every morning. Advice, not orders. */
   instructions: string;
+  /** Who thinks for this person. The engine only cares for two things: own-brains talk turn by turn, and cadence adds thoughts. */
+  brainKind: "hosted" | "own_key" | "own_brain";
+  /** For own-key agents: think at least this often, in sim minutes, while awake. */
+  thinkEvery: number | null;
 }
 
 export type Tier = 1 | 2 | 3;
@@ -115,7 +119,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

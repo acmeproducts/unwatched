@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { TownEvent, Paper } from "@ferrytown/protocol";
 import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@ferrytown/engine";
+
+export interface BrainRow { agent_id: string; kind: "hosted" | "own_key" | "own_brain"; provider: string | null; api_key: string | null; models: { routine: string; stakes: string; reflect: string } | null; think_every: number | null; daily_cap_usd: number | null; token: string | null; memory: "lease" | "own" }
 import { compress } from "@ferrytown/engine";
 
 /**
@@ -144,6 +146,17 @@ export class TownStore {
     await this.sb.auth.admin.deleteUser(ownerId);
   }
 
+  /** Per-agent minds. The key column is readable by the service role only; there are no RLS policies on this table. */
+  async loadBrains(): Promise<BrainRow[]> {
+    const { data, error } = await this.sb.from("agent_brains").select("agent_id, kind, provider, api_key, models, think_every, daily_cap_usd, token, memory");
+    if (error) { console.error("brains read failed:", error.message); return []; }
+    return (data ?? []) as BrainRow[];
+  }
+  async saveBrain(row: BrainRow): Promise<void> {
+    const { error } = await this.sb.from("agent_brains").upsert(row, { onConflict: "agent_id" });
+    if (error) console.error("brain save failed:", error.message);
+  }
+
   async savePaper(paper: Paper): Promise<void> {
     const { error } = await this.sb.from("papers").upsert({ town_id: this.townId, edition: paper.edition, paper }, { onConflict: "town_id,edition" });
     if (error) console.error("paper upsert failed:", error.message);
@@ -176,7 +189,7 @@ export class TownStore {
     return {
       id: a.id, town_id: this.townId, owner_id: a.owner && /^[0-9a-f-]{36}$/.test(a.owner) ? a.owner : null, name: a.persona.name, persona: a.persona,
       brain: "hosted", funded: a.funded, arrived_t: a.arrivedAt,
-      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, owner: a.owner },
+      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, owner: a.owner, brainKind: a.brainKind, thinkEvery: a.thinkEvery },
     };
   }
 }

@@ -122,7 +122,7 @@ const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p
 app.get("/api/town", (c) => c.json({ ...clockOf(town), size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws }));
 const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
 const nextFerry = () => { const h = town.hour < 6 ? 6 : town.hour >= 20 ? 6 : town.hour + 1; return `${String(h).padStart(2, "0")}:00${town.hour >= 20 ? " tomorrow" : ""}`; };
-const liveTown = () => ({ id: store?.townId ?? "island", name: "The island", live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : "Ferries hourly, 06:00 to 20:00", next: town.ferryHeld ? null : nextFerry(), spaces: town.ferryHeld ? 0 : Math.max(0, FERRY_SPACES - town.pendingArrivals()) });
+const liveTown = () => ({ id: store?.townId ?? "island", name: "The island", live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : "Ferries hourly, 06:00 to 20:00", next: town.ferryRunning ? nextFerry() : null, spaces: town.ferryRunning ? Math.max(0, FERRY_SPACES - town.pendingArrivals()) : 0 });
 app.get("/api/towns", async (c) => {
   const rows = store ? await store.towns().catch(() => []) : [];
   const live = liveTown();
@@ -335,7 +335,7 @@ app.post("/api/board", async (c) => {
     const known = store ? (await store.towns().catch(() => [])).some((t) => t.id === body.data.town) : false;
     if (known) return c.json({ error: "no ferry runs to that island from here yet" }, 400); // a real island this office does not serve; an unknown id just boards here
   }
-  if (town.ferryHeld) return c.json({ error: "the ferry is held at the mainland; try again later" }, 503);
+  if (!town.ferryRunning) return c.json({ error: town.ferryHeld ? "the ferry is held at the mainland; try again later" : "no ferry crosses in a storm; try again when it clears" }, 503);
   const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
   a.appearance = body.data.appearance ?? null; billing.applyPlan(a);
   if (store) await store.snapshot(town);

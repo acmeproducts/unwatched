@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Application, Assets, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
 import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
+import { Ambience } from "./world/ambience";
 
 /**
  * The island, drawn by PixiJS from the live event stream, in the Tide style.
@@ -51,9 +52,11 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
   const seatOf = useRef(new Map<string, number>());
   const viewRef = useRef(view); viewRef.current = view;
   const clockRef = useRef<Clock | null>(null);
+  const ambienceRef = useRef<Ambience | null>(null);
+  const [sound, setSound] = useState(false);
 
   useEffect(() => {
-    let app: Application | null = null; let ws: WebSocket | null = null; let alive = true; let inited = false;
+    let app: Application | null = null; let ws: WebSocket | null = null; let alive = true; let inited = false; let poll: ReturnType<typeof setInterval> | null = null;
     (async () => {
       const el = host.current!;
       const [manifest, townView] = await Promise.all([
@@ -128,15 +131,24 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       };
       for (const p of places.values()) drawPlace(p);
       const decor = decorFor([...places.values()]);
-      for (const d of decor) put(d.sprite, d.x, d.y, d.w, d.flip);
+      const trees: Sprite[] = [];
+      for (const d of decor) { const sp = put(d.sprite, d.x, d.y, d.w, d.flip); if (sp && /tree|bush/.test(d.sprite)) trees.push(sp); }
+      const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
       const dockX = harbor.x - 420, awayX = -300;
       const ferry = put("ferry", dockX, harbor.y + 20)!; ferry.zIndex = harbor.y - 30; let ferryTarget = dockX;
 
       // weather and time
       const rain = new Graphics(); rain.zIndex = 200000; scene.addChild(rain);
+      const puddles = new Graphics(); puddles.zIndex = 1; scene.addChild(puddles); let wetness = 0;
+      const smoke = new Graphics(); smoke.zIndex = 190000; scene.addChild(smoke);
+      const fog = new Graphics(); fog.zIndex = 210000; scene.addChild(fog);
+      const flash = new Graphics(); flash.rect(-3000, -3000, W + 6000, H + 6000).fill(0xffffff); flash.alpha = 0; world.addChild(flash); let nextBolt = 0;
       const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(C.kelp); night.alpha = 0; world.addChild(night);
+      const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(0xe8735a); dusk.alpha = 0; world.addChild(dusk);
       const lamps = new Graphics(); lamps.zIndex = 150000; scene.addChild(lamps);
+      const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
+      const ambience = new Ambience(); ambienceRef.current = ambience;
 
       const spot = (place: string, seat: number) => { const p = places.get(place) ?? places.get("market")!; const g = gather(p); const cols = 5; return { x: g.x + 20 + (seat % cols) * ((g.w - 40) / (cols - 1)), y: g.y + Math.floor(seat / cols) * 26 }; };
       const ensure = (a: PublicAgent) => {
@@ -158,7 +170,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
       const refreshPlaces = async () => { try { const t = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView; for (const p of t.places) { const old = places.get(p.id); places.set(p.id, p); if (!old || old.kind !== p.kind || old.name !== p.name || JSON.stringify(old.site) !== JSON.stringify(p.site)) drawPlace(p); } } catch {} };
 
-      const poll = setInterval(() => { void fetch(`${API}/api/agents`, { cache: "no-store" }).then((r) => r.json()).then((list: PublicAgent[]) => { for (const a of list) ensure(a); }).catch(() => {}); }, 30000);
+      poll = setInterval(() => { void fetch(`${API}/api/agents`, { cache: "no-store" }).then((r) => r.json()).then((list: PublicAgent[]) => { for (const a of list) ensure(a); }).catch(() => {}); void refreshPlaces(); }, 30000);
       ws = new WebSocket(WS);
       ws.onmessage = (m) => {
         const msg = JSON.parse(m.data as string) as { type: string; agents?: PublicAgent[]; recent?: TownEvent[]; event?: TownEvent; clock?: Clock };
@@ -173,7 +185,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.g.destroy({ children: true }); figs.current.delete(e.actors[0]!); } }
           if (e.kind === "agent.say") { const q = /“([^”]+)”/.exec(e.text)?.[1]; if (q) bubbles.current.set(e.actors[0]!, { text: q, until: Date.now() + 7000 }); }
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
-          if (e.kind === "ferry.dock") { ferry.position.x = awayX; ferryTarget = dockX; }
+          if (e.kind === "ferry.dock") { if (/docked/.test(e.text)) { ferry.position.x = awayX; ferryTarget = dockX; ambience.horn(); } }
           if (e.kind === "ferry.depart") ferryTarget = awayX;
           if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) ensure(a); }); }
           if (e.kind === "agent.build" || e.kind === "town.built" || (e.kind === "agent.work" && /mornings done/.test(e.text))) void refreshPlaces();
@@ -197,13 +209,44 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (tick % 6 === 0) { ripples.clear(); for (let i = 0; i < 48; i++) { const yy = ((i * 97 + tick * 0.4) % (H + 600)) - 300; const xx = ((i * 331) % (W + 800)) - 400 + Math.sin(tick / 90 + i) * 12; ripples.moveTo(xx, yy).lineTo(xx + 60 + (i % 3) * 20, yy).stroke({ width: 3, color: C.waterDeep, cap: "round" }); } }
         // ferry
         ferry.position.x += (ferryTarget - ferry.position.x) * 0.02;
-        // weather
-        const c = clockRef.current;
-        if (tick % 2 === 0) { rain.clear(); if (c && (c.weather === "rain" || c.weather === "storm")) { const n = c.weather === "storm" ? 360 : 180; for (let i = 0; i < n; i++) { const xx = ((i * 137 + tick * 9) % (W + 200)) - 100; const yy = ((i * 251 + tick * 14) % (H + 200)) - 100; rain.moveTo(xx, yy).lineTo(xx - 3, yy + 14).stroke({ width: 1.5, color: C.teal, alpha: 0.35 }); } } }
+        // weather: what falls, what lingers, what blows
+        const c = clockRef.current; const weather = c?.weather ?? "clear"; const winter = c?.season === "winter";
+        const wet = weather === "rain" || weather === "storm"; const snowing = wet && winter;
+        const wind = weather === "storm" ? 1 : weather === "wind" ? 0.8 : weather === "rain" ? 0.45 : weather === "fog" ? 0.1 : 0.2;
+        if (tick % 2 === 0) {
+          rain.clear();
+          if (wet) {
+            const n = weather === "storm" ? 420 : 200;
+            for (let i = 0; i < n; i++) {
+              const xx = ((i * 137 + tick * (snowing ? 2 : 9)) % (W + 400)) - 200 + Math.sin(tick / 40 + i) * wind * 6; const yy = ((i * 251 + tick * (snowing ? 4 : 16)) % (H + 200)) - 100;
+              if (snowing) rain.circle(xx, yy, 2.2).fill({ color: 0xffffff, alpha: 0.8 }); else rain.moveTo(xx, yy).lineTo(xx - 3 - wind * 6, yy + 14).stroke({ width: 1.5, color: C.teal, alpha: 0.35 });
+            }
+            // splashes on the ground
+            if (!snowing) for (let i = 0; i < 40; i++) { const xx = ((i * 419 + tick * 23) % W); const yy = ((i * 733 + tick * 31) % H); rain.circle(xx, yy, 2 + (tick + i) % 3).stroke({ width: 1, color: C.shell, alpha: 0.5 }); }
+          }
+        }
+        wetness += ((wet && !snowing ? 1 : 0) - wetness) * (wet ? 0.002 : 0.0006);
+        if (tick % 15 === 0) { puddles.clear(); if (wetness > 0.02) for (let i = 0; i < 26; i++) { const xx = ((i * 587) % (W - 400)) + 200, yy = ((i * 911) % (H - 400)) + 200; puddles.ellipse(xx, yy, 26 + (i % 4) * 8, 9 + (i % 3) * 3).fill({ color: C.waterDeep, alpha: 0.55 * wetness }); } }
+        for (let i = 0; i < trees.length; i++) { const tr = trees[i]!; tr.skew.x = Math.sin(tick / 22 + i) * 0.035 * wind + Math.sin(tick / 7 + i * 2) * 0.012 * wind; }
+        if (tick % 3 === 0) { fog.clear(); if (weather === "fog") for (let i = 0; i < 18; i++) { const xx = ((i * 431 + tick * 0.6) % (W + 800)) - 400, yy = ((i * 277) % (H + 200)) - 100; fog.ellipse(xx, yy, 340 + (i % 3) * 120, 110 + (i % 2) * 50).fill({ color: C.shell, alpha: 0.16 }); } }
+        if (weather === "storm") { if (tick > nextBolt) { flash.alpha = 0.55; nextBolt = tick + 300 + Math.random() * 900; } flash.alpha *= 0.82; } else flash.alpha = 0;
+        // light: a warm dawn, a coral dusk, kelp at night
         const hour = c ? c.hour + (c.minute % 60) / 60 : 12;
-        const nightAmt = hour < 5 ? 0.38 : hour < 7 ? 0.38 * (7 - hour) / 2 : hour < 19 ? 0 : hour < 21 ? 0.38 * (hour - 19) / 2 : 0.38;
-        night.alpha += (nightAmt - night.alpha) * 0.05;
-        if (tick % 10 === 0) { lamps.clear(); if (night.alpha > 0.05) for (const d of decor) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.38) }); }
+        const nightAmt = (hour < 5 ? 0.42 : hour < 7 ? 0.42 * (7 - hour) / 2 : hour < 19 ? 0 : hour < 21 ? 0.42 * (hour - 19) / 2 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
+        const duskAmt = hour >= 5.5 && hour < 7.5 ? 0.16 * (1 - Math.abs(hour - 6.5)) : hour >= 18.5 && hour < 20.5 ? 0.2 * (1 - Math.abs(hour - 19.5)) : 0;
+        night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
+        if (tick % 10 === 0) {
+          lamps.clear(); windows.clear();
+          if (night.alpha > 0.05) {
+            for (const d of decor) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.42) });
+            // a lit window where someone is inside
+            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") windows.roundRect(p.x - 14, p.y - 70, 28, 18, 4).fill({ color: 0xffe3a3, alpha: 0.5 * (night.alpha / 0.42) });
+          }
+        }
+        // smoke from a chimney where someone works
+        if (tick % 2 === 0) { smoke.clear(); for (const [id, [ox, oy]] of Object.entries(CHIMNEYS)) { const p = places.get(id); if (!p || p.crowd === 0 || hour < 6 || hour > 20) continue; for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
+        // sound follows the camera
+        if (tick % 30 === 0 && c) { const f = cam.follow ? figs.current.get(cam.follow) : null; const p = places.get(f?.place ?? "market"); ambience.tick({ weather, hour: c.hour, season: c.season, district: p?.district ?? "old town", place: p?.id ?? "market", crowd: p?.crowd ?? 0 }); }
         // people
         const now = Date.now(); const next: typeof labels = []; const secs = now / 1000;
         for (const f of figs.current.values()) {
@@ -221,7 +264,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (tick % 2 === 0) setLabels(next);
       });
     })();
-    return () => { alive = false; ws?.close(); if (inited) { try { app?.destroy(true); } catch {} } figs.current.clear(); seatOf.current.clear(); };
+    return () => { alive = false; ws?.close(); if (poll) clearInterval(poll); void ambienceRef.current?.disable(); if (inited) { try { app?.destroy(true); } catch {} } figs.current.clear(); seatOf.current.clear(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mineId]);
 
@@ -233,6 +276,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
     <div className="absolute inset-0 overflow-hidden rounded-[28px] bg-glass">
       <div ref={host} className="absolute inset-0" />
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-teal font-bold">Crossing to the island…</div>}
+      <button onClick={() => { const a = ambienceRef.current; if (!a) return; if (sound) { void a.disable(); setSound(false); } else { void a.enable().then(() => setSound(true)); } }} className="absolute right-3 top-3 sm:right-6 sm:top-6 h-9 px-3.5 rounded-full bg-shell text-teal text-[13px] font-bold pointer-events-auto transition-colors" aria-pressed={sound}>{sound ? "Sound on" : "Sound off"}</button>
       <div className="absolute inset-0 pointer-events-none">
         {labels.map((l) => (
           <div key={l.id} className="absolute flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-full" style={{ left: l.x, top: l.y }}>

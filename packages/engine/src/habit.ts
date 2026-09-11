@@ -6,6 +6,7 @@ export interface HabitView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   hour: number;
+  weather?: string; season?: string;
   crowd(placeId: string): number;
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
@@ -73,9 +74,19 @@ export function habit(a: AgentState, v: HabitView): Action {
     }
   }
 
+  // Rain sends the idle indoors; a storm sends everyone.
+  const wet = v.weather === "rain" || v.weather === "storm";
+  if (wet && (v.weather === "storm" || a.needs.social < 0.7)) {
+    const here = v.places.get(a.location)!;
+    const indoors = here.kind === "inn" || here.kind === "home" || here.kind === "shop" || here.kind === "workplace" || here.kind === "civic" || here.id === "tavern" || here.id === "chapel";
+    if (!indoors) {
+      const shelter = ["inn", "tavern", "chapel", "market"].map((id) => v.places.get(id)).filter((p): p is Place => !!p).sort((x, y) => (v.path(a.location, x.id) ? 0 : 1) - (v.path(a.location, y.id) ? 0 : 1))[0];
+      if (shelter && shelter.id !== a.location) { const next = v.path(a.location, shelter.id); if (next) return { kind: "move", to: next }; }
+    }
+  }
   // Social: drift toward people in public places.
   if (a.needs.social > 0.5 && v.hour >= 8 && v.hour < 22) {
-    const candidates = ["market", "inn", "tavern", "harbor"].filter((p) => p !== a.location);
+    const candidates = (wet ? ["inn", "tavern"] : ["market", "inn", "tavern", "harbor"]).filter((p) => p !== a.location);
     let best: string | null = null; let bestCrowd = v.crowd(a.location);
     for (const c of candidates) { const n = v.crowd(c); if (n > bestCrowd) { best = c; bestCrowd = n; } }
     if (best) { const next = v.path(a.location, best); if (next) return { kind: "move", to: next }; }

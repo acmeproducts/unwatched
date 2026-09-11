@@ -32,7 +32,7 @@ export interface AddAgentOptions {
   coins?: number;
 }
 
-const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "storm"] as const;
+const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "fog", "storm"] as const;
 
 export class Town {
   readonly rng: Rng;
@@ -517,6 +517,7 @@ export class Town {
     const h = this.hour;
     if (h >= 6 && h <= 20) {
       if (this.ferryHeld) this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not come.`, 0.2);
+      else if (this.weather === "storm") this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not cross; the sea was too high.`, 0.25);
       else this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry docked.`, 0.03);
     }
     if (this.economyFrozen) return;
@@ -647,6 +648,9 @@ export class Town {
     if (plan.goals[0]) { this.remember(a, `What I meant to do today: ${plan.goals.join("; ")}`, 0.35, "plan"); this.emit("agent.plan", [a.id], a.location, `${a.persona.name} set out to ${lower(plan.goals[0])}`, 0.15, { goals: plan.goals, mood: plan.mood }); }
   }
 
+  /** No ferry runs in a storm, or when the ops room holds it. */
+  get ferryRunning(): boolean { return !this.ferryHeld && this.weather !== "storm"; }
+
   /** People who boarded today and have not yet stepped off. */
   pendingArrivals(): number { return this.arrivalsToday; }
 
@@ -701,7 +705,7 @@ export class Town {
     let cur = to; while (prev.get(cur) !== from) cur = prev.get(cur)!;
     return cur;
   }
-  private habitView() { return { places: this.places, jobs: this.jobs, hour: this.hour, crowd: (p: string) => this.crowd(p), price: (pl: Place, i: string) => this.price(pl, i), path: (f: string, t: string) => this.path(f, t) }; }
+  private habitView() { return { places: this.places, jobs: this.jobs, hour: this.hour, weather: this.weather, season: this.season, crowd: (p: string) => this.crowd(p), price: (pl: Place, i: string) => this.price(pl, i), path: (f: string, t: string) => this.path(f, t) }; }
   rel(a: AgentState, other: AgentId) {
     let r = a.relationships.get(other);
     if (!r) { r = { trust: 0.3, affection: 0.3, lastSeen: this.t, opinion: "" }; a.relationships.set(other, r); }

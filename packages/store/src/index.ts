@@ -119,6 +119,31 @@ export class TownStore {
     return data.reverse().map((r) => ({ id: Number(r.id), t: Number(r.t), day: r.day, kind: r.kind as TownEvent["kind"], actors: r.actors, text: r.text, importance: r.importance, ...(r.place ? { place: r.place } : {}), ...(r.payload ? { payload: r.payload as Record<string, unknown> } : {}) }));
   }
 
+  async markLeft(agentId: string, t: number): Promise<void> {
+    await this.sb.from("agents").update({ left_t: t }).eq("id", agentId);
+  }
+  async saveInstructions(agentId: string, text: string): Promise<void> {
+    await this.sb.from("standing_instructions").upsert({ agent_id: agentId, text, updated_at: new Date().toISOString() }, { onConflict: "agent_id" });
+  }
+  /** Everything on the record about one person: for the book after they leave, and for the owner's profile. */
+  async lifeOf(agentId: string): Promise<{ events: TownEvent[]; memories: { t: number; kind: string; text: string; importance: number }[]; letters: { direction: string; text: string; t: number }[] }> {
+    const [{ data: ev }, { data: mem }, { data: let_ }] = await Promise.all([
+      this.sb.from("events").select("id, t, day, kind, actors, place, text, importance, payload").eq("town_id", this.townId).contains("actors", [agentId]).order("t", { ascending: true }).limit(2000),
+      this.sb.from("memories").select("t, kind, text, importance").eq("agent_id", agentId).order("t", { ascending: true }).limit(3000),
+      this.sb.from("letters").select("direction, text, t").eq("agent_id", agentId).order("t", { ascending: true }),
+    ]);
+    return {
+      events: (ev ?? []).map((r) => ({ id: Number(r.id), t: Number(r.t), day: r.day, kind: r.kind as TownEvent["kind"], actors: r.actors, text: r.text, importance: r.importance, ...(r.place ? { place: r.place } : {}), ...(r.payload ? { payload: r.payload as Record<string, unknown> } : {}) })),
+      memories: (mem ?? []).map((m) => ({ t: Number(m.t), kind: m.kind, text: m.text, importance: m.importance })),
+      letters: (let_ ?? []).map((l) => ({ direction: l.direction, text: l.text, t: Number(l.t) })),
+    };
+  }
+  async deleteOwner(ownerId: string): Promise<void> {
+    await this.sb.from("letters").delete().eq("owner_id", ownerId);
+    await this.sb.from("agents").update({ owner_id: null }).eq("owner_id", ownerId);
+    await this.sb.auth.admin.deleteUser(ownerId);
+  }
+
   async savePaper(paper: Paper): Promise<void> {
     const { error } = await this.sb.from("papers").upsert({ town_id: this.townId, edition: paper.edition, paper }, { onConflict: "town_id,edition" });
     if (error) console.error("paper upsert failed:", error.message);
@@ -151,7 +176,7 @@ export class TownStore {
     return {
       id: a.id, town_id: this.townId, owner_id: a.owner && /^[0-9a-f-]{36}$/.test(a.owner) ? a.owner : null, name: a.persona.name, persona: a.persona,
       brain: "hosted", funded: a.funded, arrived_t: a.arrivedAt,
-      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought },
+      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions },
     };
   }
 }

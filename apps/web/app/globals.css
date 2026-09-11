@@ -21,6 +21,13 @@
 }
 
 html, body { background: var(--color-sand); color: var(--color-kelp); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+/* Dark: the same relationships on a kelp ground. Sea glass becomes the pressable color, coral warms up a step. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --color-sand: #12181A; --color-shell: #1E2A2B; --color-glass: #243A38; --color-teal: #DCEBE3; --color-teal-deep: #C2DACD; --color-coral: #F08A72; --color-kelp: #E6E9E3; --color-ink2: #B9C4BF; --color-drift: #8E9A95; --color-line: #2C3A3B; --color-sage: #3E5F55; --color-mist: #8E9A95; }
+  :root:not([data-theme="light"]) .bg-teal { color: #12403D; }
+  :root:not([data-theme="light"]) img[src="/logo-ferry-teal.svg"] { content: url("/logo-ferry-sand.svg"); }
+}
+:root[data-theme="dark"] { --color-sand: #12181A; --color-shell: #1E2A2B; --color-glass: #243A38; --color-teal: #DCEBE3; --color-teal-deep: #C2DACD; --color-coral: #F08A72; --color-kelp: #E6E9E3; --color-ink2: #B9C4BF; --color-drift: #8E9A95; --color-line: #2C3A3B; --color-sage: #3E5F55; --color-mist: #8E9A95; }
 h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.03em; line-height: 1.05; }
 .label { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--color-drift); }
 .tabular { font-variant-numeric: tabular-nums; }

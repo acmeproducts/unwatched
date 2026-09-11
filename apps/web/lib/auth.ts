@@ -6,7 +6,8 @@ import { createBrowserClient } from "@supabase/ssr";
  * sent to the server as X-Owner, so the whole app works before the project exists.
  */
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-export const hasSupabase = !!(url && key);
+const devOwner = process.env.NEXT_PUBLIC_DEV_OWNER === "1";
+export const hasSupabase = !!(url && key) && !devOwner;
 export const supabase = hasSupabase ? createBrowserClient(url!, key!) : null;
 
 export async function authHeaders(): Promise<Record<string, string>> {

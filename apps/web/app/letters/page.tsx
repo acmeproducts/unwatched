@@ -9,6 +9,8 @@ export default function Letters() {
   const { agent, reason } = useMyAgent();
   const [thread, setThread] = useState<{ t: number; mine: boolean; text: string }[]>([]);
   const [draft, setDraft] = useState(""); const [busy, setBusy] = useState(false); const [toast, setToast] = useState<string | null>(null);
+  const [instr, setInstr] = useState<string | null>(null); const [savedInstr, setSavedInstr] = useState<string | null>(null);
+  async function saveInstr() { if (!agent || instr === null) return; try { await api(`/api/agents/${agent.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instr }) }); setSavedInstr("Saved. Read tomorrow morning."); setTimeout(() => setSavedInstr(null), 3000); } catch (e) { setSavedInstr((e as Error).message); } }
   async function load() {
     if (!agent) return;
     const evs = await api<TownEvent[]>(`/api/agents/${agent.id}/events?since=0`);
@@ -38,7 +40,10 @@ export default function Letters() {
           </div>
           <div className="flex flex-col gap-2 mt-auto"><textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={`Write to ${first}. Advice, not orders.`} className="rounded-[20px] bg-sand px-[18px] py-3.5 min-h-[88px] text-[15px]" /><div className="flex justify-between items-center"><span className="text-xs text-drift">{toast ?? `Advice, not orders. ${first} decides.`}</span><Button disabled={busy || !draft.trim()} onClick={send}>Send the letter</Button></div></div>
         </div>
+        <div className="flex flex-col gap-4">
+        <Card><div className="flex justify-between items-baseline"><Label>Standing instructions</Label><span className="text-xs text-drift">Read every morning</span></div><textarea value={instr ?? String((agent as unknown as { instructions?: string }).instructions ?? "")} onChange={(e) => setInstr(e.target.value)} placeholder="Find honest work first. Don't borrow. Write to me before any big decision." className="rounded-[18px] bg-sand px-4 py-3 min-h-[100px] text-[15px]" /><p className="text-[13px] text-drift">Whether {first} follows these depends on who they are. Changing them often makes them trust you less.</p><div className="flex items-center justify-between"><span className="text-xs text-drift">{savedInstr ?? ""}</span><Button kind="secondary" size={36} disabled={instr === null} onClick={saveInstr}>Save instructions</Button></div></Card>
         <Card><div className="flex justify-between items-baseline"><Label>What {first} intends</Label><span className="text-xs text-drift">from last night</span></div>{agent.intentions.length ? agent.intentions.map((i, k) => <div key={k} className="flex items-center gap-2.5 text-[15px]"><Dot />{i}</div>) : <p className="text-sm text-drift">No intentions yet. The first reflection is written after midnight.</p>}<Label>Recent memories</Label><div className="flex flex-col gap-1.5 text-sm text-ink2 max-h-[420px] overflow-auto">{agent.memories.slice(0, 20).map((m, k) => <div key={k}><span className="text-drift tabular">{clock(m.t)}</span> · {m.text}</div>)}</div></Card>
+        </div>
       </div>
     </Page>
   );

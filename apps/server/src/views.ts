@@ -23,6 +23,7 @@ export function ownerAgent(town: Town, a: AgentState) {
     people: [...a.relationships.entries()].map(([id, r]) => ({ id, name: town.agents.get(id)?.persona.name ?? id, trust: r.trust, affection: r.affection, opinion: r.opinion, lastSeen: r.lastSeen, tide: tideWord(r.trust, r.affection) })),
     memories: a.memory.slice(-60).reverse(),
     letters: a.letters,
+    instructions: a.instructions,
   };
 }
 

@@ -90,7 +90,8 @@ const sb = process.env.SUPABASE_URL && authKey ? createClient(process.env.SUPABA
 async function ownerOf(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization");
   if (sb && auth?.startsWith("Bearer ")) { const { data } = await sb.auth.getUser(auth.slice(7)); return data.user?.id ?? null; }
-  if (!sb) return req.headers.get("x-owner");
+  // Local development only: a name in X-Owner counts as a person. Never set FT_DEV_OWNER where strangers can reach the server.
+  if (!sb || process.env.FT_DEV_OWNER === "1") return req.headers.get("x-owner");
   return null;
 }
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
@@ -133,6 +134,47 @@ app.get("/api/agents/:id/perception", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
   const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
   return c.json(town.perceive(a));
+});
+app.put("/api/agents/:id/instructions", async (c) => {
+  const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
+  const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
+  const body = z.object({ text: z.string().max(1200) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "too long for a note on the door" }, 400);
+  a.instructions = body.data.text.trim();
+  if (store) await store.saveInstructions(a.id, a.instructions);
+  return c.json({ ok: true, readsAt: "tomorrow morning" });
+});
+app.post("/api/agents/:id/leave", async (c) => {
+  const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
+  const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
+  const body = z.object({ note: z.string().max(300).optional() }).safeParse(await c.req.json().catch(() => ({})));
+  const gone = town.removeAgent(a.id, "left", body.success ? body.data.note ?? "" : "");
+  if (store) { await store.snapshot(town); await store.markLeft(a.id, town.t); }
+  broadcast({ type: "left", id: a.id });
+  return c.json({ ok: true, name: gone?.persona.name, at: town.clock() });
+});
+app.get("/api/agents/:id/book", async (c) => {
+  const id = c.req.param("id");
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  const live = town.agents.get(id);
+  if (live && !owns(live, owner)) return c.json({ error: "not your agent" }, 403);
+  if (!live && store) { const { data } = await (await import("@supabase/supabase-js")).createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } }).from("agents").select("owner_id, name, persona, arrived_t, left_t").eq("id", id).maybeSingle(); if (!data || data.owner_id !== owner) return c.json({ error: "not your agent" }, 403);
+    const life = await store.lifeOf(id); return c.json({ id, name: data.name, persona: data.persona, arrivedT: Number(data.arrived_t), leftT: data.left_t ? Number(data.left_t) : null, ...life }); }
+  if (!live) return c.json({ error: "nobody by that name" }, 404);
+  const life = store ? await store.lifeOf(id) : { events: town.events.filter((e) => e.actors.includes(id)), memories: live.memory, letters: [] };
+  return c.json({ id, name: live.persona.name, persona: live.persona, arrivedT: live.arrivedAt, leftT: null, ...life });
+});
+app.get("/api/moments/:id", (c) => {
+  const id = Number(c.req.param("id")); const e = town.events.find((x) => x.id === id);
+  if (!e) return c.json({ error: "that moment is not in the street's memory anymore" }, 404);
+  const around = town.events.filter((x) => x.place === e.place && Math.abs(x.t - e.t) <= 15 && x.kind !== "agent.move").slice(0, 20);
+  return c.json({ moment: e, around, place: town.places.get(e.place ?? "")?.name ?? null, people: e.actors.map((id2) => ({ id: id2, name: town.agents.get(id2)?.persona.name ?? id2 })) });
+});
+app.get("/api/hall", (c) => c.json({ laws: town.laws, council: { mayor: null, members: [], nextSession: "when the first proposal is made" }, population: town.agents.size, day: town.day }));
+app.post("/api/me/delete", async (c) => {
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  for (const a of [...town.agents.values()]) if (a.owner === owner) { town.removeAgent(a.id, "left", "Their owner closed the account."); if (store) await store.markLeft(a.id, town.t); }
+  if (store) { await store.snapshot(town); await store.deleteOwner(owner); }
+  return c.json({ ok: true });
 });
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
 app.get("/api/papers/latest", (c) => { const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "the first edition prints at midnight" }, 404); });

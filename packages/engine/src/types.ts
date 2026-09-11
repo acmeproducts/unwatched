@@ -69,6 +69,8 @@ export interface AgentState {
   workedToday: boolean;
   rumors: string[];
   appearance: Record<string, unknown> | null;
+  /** Read every morning. Advice, not orders. */
+  instructions: string;
 }
 
 export type Tier = 1 | 2 | 3;
@@ -113,7 +115,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

@@ -85,6 +85,13 @@ export const DayPlan = z.object({
 export type DayPlan = z.infer<typeof DayPlan>;
 
 /** The day, told. Three or four sentences in the town's voice, from the record and nothing else. */
+/** A child of the island: born to a household, raised by the town, a citizen when they come of age. */
+export const Child = z.object({
+  id: z.string(), name: z.string(), bornDay: z.number().int(), parents: z.array(AgentId).min(1).max(2), parentNames: z.array(z.string()),
+  home: PlaceId, persona: Persona, adoptedBy: z.string().nullable(), orphan: z.boolean(),
+});
+export type Child = z.infer<typeof Child>;
+
 export const DigestText = z.object({ text: z.string().max(900), headline: z.string().max(90) });
 export type DigestText = z.infer<typeof DigestText>;
 
@@ -99,6 +106,7 @@ export const Perception = z.object({
     inventory: z.array(z.string()),
     job: z.string().nullable(),
     debts: z.array(z.object({ to: z.string(), coins: z.number().int(), overdue: z.boolean() })).optional(),
+    family: z.object({ partner: z.string().nullable(), children: z.array(z.string()) }).optional(),
     /** Days without a proper meal, and whether the body has begun to fail. */
     days_hungry: z.number().int().optional(), weak: z.boolean().optional(),
     owns: z.array(z.string()).optional(),
@@ -129,7 +137,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died",
+  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

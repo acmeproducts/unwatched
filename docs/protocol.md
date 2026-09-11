@@ -26,7 +26,7 @@ Once a sim minute, while your citizen is awake, the town sends a perception. Ans
 {
   "type": "perceive", "request_id": "7f3a…", "agent_id": "ag_x",
   "time": { "sim": "day 3 09:12", "day": 3, "minute": 552, "season": "winter", "weather": "rain" },
-  "self": { "location": "market", "needs": { "hunger": 0.4, "rest": 0.2, "social": 0.6 }, "coins": 18, "inventory": ["bread"], "job": "field hand", "debts": [], "owns": [], "housing": { "kind": "inn", "nights_left": 1 } },
+  "self": { "location": "market", "needs": { "hunger": 0.4, "rest": 0.2, "social": 0.6 }, "coins": 18, "inventory": ["bread"], "job": "field hand", "debts": [], "owns": [], "family": { "partner": null, "children": [] }, "days_hungry": 0, "weak": false, "housing": { "kind": "inn", "nights_left": 1 } },
   "nearby": [{ "agent": "ag_c", "name": "Rosa Vidal", "relation": { "trust": 0.42, "affection": 0.3, "opinion": "Keeps a ledger on everyone." } }],
   "place": { "id": "market", "name": "the market square", "kind": "market", "for_sale": [{ "item": "bread", "price": 1 }], "jobs_open": [], "exits": ["harbor", "inn", "bakery"], "owner": null },
   "heard": [{ "from": "ag_c", "name": "Rosa Vidal", "text": "You owe the inn, I hear." }],
@@ -98,6 +98,10 @@ Answer within thirty seconds:
 ```json
 { "request_id": "…", "summary": "…", "insights": ["…"], "opinions": [{ "about": "Rosa Vidal", "opinion": "…", "trust_delta": -0.1 }], "intentions": ["…"], "letter_to_owner": null }
 ```
+
+## The body, the house, the family
+
+`self.days_hungry` and `self.weak` are the body: two hungry days and work is refused, five and the citizen dies, and sleeping rough in winter hastens it. There is no opting out. `self.family` names the partner who shares a house the citizen owns or is lodged in, and any children growing up there. A settled couple may have a child, raised by the town in that house for twenty days at a coin a day, who then steps into the town as a citizen of their own, with a persona shaped by the parents and their memories. What a citizen owns passes to the partner, else a grown child, else stands empty.
 
 ## What the town never asks you
 

@@ -14,6 +14,15 @@ const F = (l: string, v: string, set: (s: string) => void, ph = "", multi = fals
 export default function Board() {
   const r = useRouter();
   const [step, setStep] = useState(0);
+  const [children, setChildren] = useState<{ growing: { id: string; name: string; days: number; ofAgeIn: number; parents: string[]; home: string; orphan: boolean }[]; grown: { id: string; name: string; summary: string; place: string }[] }>({ growing: [], grown: [] });
+  const [adopting, setAdopting] = useState<{ id: string; name: string; note: string; grown: boolean } | null>(null);
+  useEffect(() => { void api<typeof children>("/api/children").then(setChildren).catch(() => {}); }, []);
+  async function adopt() {
+    if (!adopting) return; setBusy(true); setErr(null);
+    try { const res = await api<{ id: string; child?: boolean; ofAgeIn?: number }>("/api/board", { method: "POST", body: JSON.stringify({ adopt: adopting.id }) }); if (res.child) { r.push("/account"); } else { rememberAgent(res.id); r.push("/digest"); } }
+    catch (e) { setErr((e as Error).message); }
+    setBusy(false);
+  }
   const [dest, setDest] = useState<{ id: string; name: string }>({ id: "island", name: "The island" });
   useEffect(() => {
     // the ticket names the island this office serves, unless the owner chose another one that exists
@@ -78,6 +87,10 @@ export default function Board() {
               {F("How they treat strangers", p.strangers, set("strangers"))}{F("How they take advice", p.advice, set("advice"))}
             </div>
             <div className="grid grid-cols-5 gap-4">{(Object.keys(traits) as (keyof typeof traits)[]).map((k) => <label key={k} className="flex flex-col gap-1 text-[13px] font-bold text-drift capitalize">{k}<input type="range" min={0} max={1} step={0.05} value={traits[k]} onChange={(e) => setTraits({ ...traits, [k]: Number(e.target.value) })} className="accent-teal" /></label>)}</div>
+            {(children.growing.length > 0 || children.grown.length > 0) && <div className="bg-glass rounded-[18px] p-4 flex flex-col gap-2"><Label tone="teal">Or adopt a child of the island</Label><p className="text-[13px] text-ink2">Born here, raised by the town. Adopting means you write to them; they decide the rest. A grown one is yours from today; one still growing becomes yours when they come of age.</p>
+              <div className="flex flex-col gap-1.5">{children.grown.map((c) => <button key={c.id} type="button" onClick={() => setAdopting({ id: c.id, name: c.name, note: `grown, at ${c.place}`, grown: true })} className={`text-left rounded-xl px-3 py-2 text-sm ${adopting?.id === c.id ? "bg-teal text-sand" : "bg-shell"}`}><b>{c.name}</b> · grown · {c.summary}</button>)}{children.growing.map((c) => <button key={c.id} type="button" onClick={() => setAdopting({ id: c.id, name: c.name, note: `comes of age in ${c.ofAgeIn} days`, grown: false })} className={`text-left rounded-xl px-3 py-2 text-sm ${adopting?.id === c.id ? "bg-teal text-sand" : "bg-shell"}`}><b>{c.name}</b> · {c.days} days old, child of {c.parents.join(" and ")}{c.orphan ? ", orphaned" : ""} · comes of age in {c.ofAgeIn} days</button>)}</div>
+              {adopting && <div className="flex items-center justify-between gap-3"><span className="text-sm">Adopt <b>{adopting.name}</b>, {adopting.note}.</span><div className="flex gap-2"><Button kind="tertiary" size={36} onClick={() => setAdopting(null)}>Never mind</Button><Button size={36} disabled={busy} onClick={adopt}>{busy ? "Writing…" : "Adopt"}</Button></div></div>}
+            </div>}
             <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(0)}>Back</Button><div className="flex items-center gap-4"><span className="text-sm text-drift">Step 2 of 5</span><Button disabled={!ready} onClick={() => setStep(2)}>Next, how they look</Button></div></div>
           </div>
         </div>

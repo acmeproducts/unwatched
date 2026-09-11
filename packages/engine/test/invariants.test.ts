@@ -9,7 +9,7 @@ const none: Brain = {
   name: "none",
   async decide(_p: Perception, _a: AgentState, _t: Tier): Promise<ActionProposal> { return { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async reflect() { throw new Error("no"); }, async plan() { throw new Error("no"); },
-  async digest() { return { text: "", headline: "" }; }, async writePaper() { throw new Error("no"); },
+  async digest() { return { text: "", headline: "" }; }, async child() { throw new Error("no"); }, async writePaper() { throw new Error("no"); },
 };
 function coinsOnIsland(town: Town): number {
   let s = 0; for (const a of town.agents.values()) s += a.coins; for (const p of town.places.values()) s += p.treasury; return s;

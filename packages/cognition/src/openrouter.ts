@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
 export interface OpenRouterBrainOptions {
   apiKey?: string;
@@ -92,6 +92,10 @@ export class OpenRouterBrain implements Brain {
   async digest(ctx: DigestContext): Promise<DigestText> {
     const out = await this.call(this.routine, digestSystem, digestPrompt(ctx), DigestText, "digest", 600);
     return out ?? this.fallback.digest(ctx);
+  }
+  async child(ctx: ChildContext): Promise<Persona> {
+    const out = await this.call(this.stakes, childSystem, childPrompt(ctx), Persona, "child", 900);
+    return out ?? this.fallback.child(ctx);
   }
   async writePaper(ctx: PaperContext): Promise<Paper> {
     const out = await this.call(this.reflectModel, paperSystem, paperPrompt(ctx), Paper, "paper", 3000);

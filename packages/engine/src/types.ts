@@ -1,4 +1,4 @@
-import type { DayPlan, DigestText } from "@ferrytown/protocol";
+import type { DayPlan, DigestText, Child } from "@ferrytown/protocol";
 import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@ferrytown/protocol";
 
 export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic" | "plot" | "wild";
@@ -127,6 +127,12 @@ export interface DigestContext {
   coins: number; job: string | null; home: string | null;
 }
 
+/** What the town's mind is told when a child is born: who the parents are, what shaped them. It answers with who the child will be. */
+export interface ChildContext {
+  parents: { persona: Persona; keyMemories: string[]; coins: number; job: string | null }[];
+  home: string; day: number; siblings: string[];
+}
+
 export interface PaperContext {
   edition: number; date: string; weather: string;
   events: { text: string; importance: number; actors: string[] }[];
@@ -143,6 +149,8 @@ export interface Brain {
   plan(ctx: PlanContext, tier: Tier): Promise<DayPlan>;
   /** The owner's daily reading, written from the record. Always the town's mind, never a private one. */
   digest(ctx: DigestContext): Promise<DigestText>;
+  /** A newborn's persona, from the parents. The town's mind, never a private one. */
+  child(ctx: ChildContext): Promise<Persona>;
   writePaper(ctx: PaperContext): Promise<Paper>;
 }
 
@@ -172,4 +180,5 @@ export interface TownSnapshot {
   agents: AgentSnapshot[];
   papers: Paper[];
   laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[];
+  children?: Child[];
 }

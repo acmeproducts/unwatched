@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import type { WebSocket } from "ws";
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
 import { ActionProposal as ActionProposalSchema, DayPlan as DayPlanSchema, Reflection as ReflectionSchema } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
 import { MockBrain, OpenRouterBrain } from "@ferrytown/cognition";
 import type { BrainRow } from "@ferrytown/store";
 
@@ -30,6 +30,7 @@ export class OwnKeyBrain implements Brain {
   async reflect(ctx: ReflectContext): Promise<Reflection> { if (this.capped(ctx.day)) return new MockBrain(3).reflect(ctx); const out = await this.inner.reflect(ctx); this.meter(this.row.models?.reflect ?? "anthropic/claude-opus-5"); return out; }
   async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> { if (this.capped(ctx.day)) return new MockBrain(3).plan(ctx, tier); const out = await this.inner.plan(ctx, tier); this.meter(tier >= 2 ? (this.row.models?.stakes ?? "anthropic/claude-sonnet-5") : (this.row.models?.routine ?? "anthropic/claude-haiku-4.5")); return out; }
   async digest(ctx: DigestContext): Promise<DigestText> { return this.inner.digest(ctx); } // the telling is the town's; never metered to the owner
+  async child(ctx: ChildContext): Promise<Persona> { return this.inner.child(ctx); }
   async writePaper(ctx: PaperContext): Promise<Paper> { return this.inner.writePaper(ctx); }
   status() { return { spentToday: Math.round(this.spentToday * 100) / 100, calls: this.last.calls }; }
 }
@@ -91,6 +92,7 @@ export class OwnBrain implements Brain {
     return parsed?.success ? parsed.data : this.fallback.plan(ctx, tier);
   }
   async digest(ctx: DigestContext): Promise<DigestText> { return this.fallback.digest(ctx); } // replaced by the town's mind in the router
+  async child(ctx: ChildContext): Promise<Persona> { return this.fallback.child(ctx); }
   async writePaper(ctx: PaperContext): Promise<Paper> { return this.fallback.writePaper(ctx); } // the paper is the town's, never one brain's
   status() {
     const sorted = [...this.latencies].sort((a, b) => a - b);
@@ -116,6 +118,7 @@ export class BrainRouter implements Brain {
   reflect(ctx: ReflectContext) { return (this.perAgent.get(ctx.agent.id) ?? this.town).reflect(ctx); }
   plan(ctx: PlanContext, tier: Tier) { return (this.perAgent.get(ctx.agent.id) ?? this.town).plan(ctx, tier); }
   digest(ctx: DigestContext) { return this.town.digest(ctx); }
+  child(ctx: ChildContext) { return this.town.child(ctx); }
   writePaper(ctx: PaperContext) { return this.town.writePaper(ctx); }
 }
 

@@ -15,6 +15,7 @@ const builder: Brain = {
   async reflect() { return { summary: "a day", insights: [], opinions: [], intentions: [], letter_to_owner: null }; },
   async plan() { return { mood: "set", goals: ["build"], steps: [{ hour: 9, do: "build", place: "shore-1" }] }; },
   async digest() { return { text: "a day", headline: "A day" }; },
+  async child() { throw new Error("no"); },
   async writePaper() { throw new Error("no"); },
 };
 

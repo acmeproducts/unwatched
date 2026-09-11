@@ -11,6 +11,7 @@ const none: Brain = {
   async reflect() { throw new Error("no"); },
   async plan() { throw new Error("no"); },
   async digest() { return { text: "a day", headline: "A day" }; },
+  async child() { throw new Error("no"); },
   async writePaper() { throw new Error("no"); },
 };
 

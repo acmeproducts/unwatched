@@ -1,5 +1,5 @@
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext } from "@ferrytown/engine";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext } from "@ferrytown/engine";
 import { Rng } from "@ferrytown/engine";
 
 /**
@@ -130,6 +130,13 @@ export class MockBrain implements Brain {
     const top = ctx.events.slice(0, 3).map((e) => e.replace(/^day \d+ \d\d:\d\d: /, ""));
     const text = top.length ? `${top.join(" ")} ${ctx.name} has ${ctx.coins} coins and ${ctx.job ? `works as ${ctx.job}` : "no work"}.` : `A quiet ${ctx.daysAway > 1 ? "few days" : "day"} for ${ctx.name}: ${ctx.coins} coins, ${ctx.job ? `still working as ${ctx.job}` : "still no work"}.`;
     return { text: text.slice(0, 880), headline: (top[0] ?? `Nothing changed for ${ctx.name}`).replace(/[.!?].*$/, "").slice(0, 88) };
+  }
+
+  async child(ctx: ChildContext): Promise<Persona> {
+    const [a, b] = ctx.parents; const p = a!.persona, q = (b ?? a)!.persona;
+    const first = this.rng.pick(["Nikola", "Lucija", "Ivan", "Marta", "Ante", "Klara", "Jakov", "Tea", "Filip", "Dunja"]); const family = p.name.split(" ").pop() ?? "Otok";
+    const mix = (x: number, y: number) => Math.max(0, Math.min(1, (x + y) / 2 + (this.rng.next() - 0.5) * 0.3));
+    return { name: `${first} ${family}`, age: 16, origin: "born on the island", summary: `The child of ${p.name} and ${q.name}, raised at ${ctx.home}, restless to be someone the island does not already know.`, want: this.rng.chance(0.5) ? p.want : q.want, fear: `Becoming ${this.rng.chance(0.5) ? p.name : q.name}.`, secret: "Has read every letter that ever came to the house.", strangers: this.rng.chance(0.5) ? p.strangers : q.strangers, advice: "Takes it from anyone but a parent.", traits: { warmth: mix(p.traits.warmth, q.traits.warmth), pride: mix(p.traits.pride, q.traits.pride), caution: mix(p.traits.caution, q.traits.caution), honesty: mix(p.traits.honesty, q.traits.honesty), ambition: mix(p.traits.ambition, q.traits.ambition) } };
   }
 
   async writePaper(ctx: PaperContext): Promise<Paper> {

@@ -1,4 +1,4 @@
-import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan } from "@ferrytown/protocol";
+import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext } from "./types.ts";
@@ -15,6 +15,8 @@ export interface TownOptions {
   idPrefix?: string;
   /** The island itself: places, roads, jobs. The default pack is the island; a fork can be another. */
   pack?: WorldPack;
+  /** Island days from birth to citizenship. */
+  ageOfMajority?: number;
   /** Sim minutes per tick. 1 is the real town. Higher is coarser, not just faster. */
   minutesPerTick?: number;
   startDay?: number;
@@ -48,6 +50,10 @@ export class Town {
   weather: string = "clear";
   flourShortage = false;
   papers: Paper[] = [];
+  /** Children of the island, growing up in their parents' houses until they come of age. */
+  readonly children: Child[] = [];
+  /** Island days from birth to citizenship. Twenty by default; tests shorten it. */
+  ageOfMajority: number;
   /** Ops switches. Each flip is an act of God and gets printed. */
   paused = false; economyFrozen = false; ferryHeld = false;
   /** Coins that entered the island (arrivals, the mainland paying for produce) and left it (departures), so the books can be checked. */
@@ -67,6 +73,7 @@ export class Town {
   constructor(opts: TownOptions) {
     this.idPrefix = (opts.idPrefix ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
     this.pack = opts.pack ?? ISLAND; this.places = makePlaces(this.pack); this.jobs = makeJobs(this.pack);
+    this.ageOfMajority = opts.ageOfMajority ?? 20;
     this.rng = new Rng(opts.seed);
     this.brain = opts.brain;
     this.minutesPerTick = opts.minutesPerTick ?? 1;
@@ -141,6 +148,7 @@ export class Town {
     this.nextId = maxId + 1;
     this.papers = [...snap.papers];
     this.laws.splice(0, this.laws.length, ...snap.laws);
+    this.children.splice(0, this.children.length, ...(snap.children ?? []));
     this.nextLetterId = 1 + Math.max(0, ...[...this.agents.values()].flatMap((a) => a.letters.map((l) => l.id)));
   }
 
@@ -155,7 +163,7 @@ export class Town {
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
-      papers: this.papers.slice(-14), laws: this.laws,
+      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })),
     };
   }
 
@@ -165,6 +173,8 @@ export class Town {
     if (a.job) { const j = this.jobs.get(a.job); if (j) j.holders = j.holders.filter((h) => h !== a.id); }
     if (a.asleep) { const p = this.places.get(a.location); if (p?.beds) p.freeBeds = Math.min(p.beds.capacity, (p.freeBeds ?? 0) + 1); }
     this.agents.delete(agentId);
+    if (reason === "died") this.inherit(a);
+    for (const c of this.children) if (c.parents.includes(agentId) && !c.parents.some((pid) => this.agents.has(pid))) c.orphan = true;
     for (const b of this.agents.values()) { const r = b.relationships.get(agentId); if (r) this.remember(b, `${a.persona.name} ${reason === "left" ? "left on the ferry" : reason === "died" ? "died" : "was sent away"}. ${r.trust > 0.5 ? "I will miss them." : ""}`.trim(), 0.6 + r.trust * 0.3); }
     const text = reason === "left" ? `${a.persona.name} left on the ferry.${note ? ` ${note}` : ""}` : reason === "died" ? `${a.persona.name} died.${note ? ` ${note}` : ""}` : `${a.persona.name} was sent away from the island.${note ? ` ${note}` : ""}`;
     this.emit("agent.leave", [agentId], "harbor", text, 0.9, { reason, note });
@@ -248,7 +258,7 @@ export class Town {
     return {
       type: "perceive", agent_id: a.id,
       time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather },
-      self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
+      self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, family: { partner: this.partnerOf(a)?.persona.name ?? null, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => `${c.name}, ${this.day - c.bornDay} days old`) }, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
       nearby,
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
         owner: here.owner ? (this.agents.get(here.owner)?.persona.name ?? here.owner) : null,
@@ -579,6 +589,7 @@ export class Town {
         this.removeAgent(a.id, "died", `Of hunger${winterRough ? " and cold" : ""}, at ${this.places.get(a.location)?.name ?? "the island"}.`);
       }
     }
+    await this.generations();
     // debts come due
     for (const a of this.agents.values()) for (const d of a.debts) if (this.t >= d.due && !(d as { nagged?: boolean }).nagged) {
       const lender = this.agents.get(d.to); (d as { nagged?: boolean }).nagged = true; if (!lender) continue;
@@ -630,6 +641,75 @@ export class Town {
     const ta = a.relationships.get(b.id)?.trust ?? 0.3, tb = b.relationships.get(a.id)?.trust ?? 0.3;
     if (ta < 0.2 || tb < 0.2) return "There is bad blood between you.";
     return null;
+  }
+
+  /** The other adult who sleeps under the same owned roof, if any. */
+  partnerOf(a: AgentState): AgentState | null {
+    if (!a.home) return null; const p = this.places.get(a.home.place); if (!p || p.kind !== "home" || !p.owner) return null;
+    for (const b of this.agents.values()) if (b.id !== a.id && b.home?.place === a.home.place) return b;
+    return null;
+  }
+  /** What the dead leave: coins and places to the partner, else to a grown child, else the house stands empty and the coins go to the council. */
+  private inherit(a: AgentState): void {
+    const partner = this.partnerOf(a) ?? null;
+    const names = new Set(this.children.filter((c) => c.parents.includes(a.id)).map((c) => c.name));
+    const grown = [...this.agents.values()].find((x) => x.persona.origin.startsWith("born on the island") && x.memory.some((m) => m.text.includes(`to ${a.persona.name}`) || m.text.includes(`${a.persona.name} and`)) && !names.has(x.persona.name)) ?? null;
+    const heir = partner ?? grown;
+    const owned = [...this.places.values()].filter((p) => p.owner === a.id);
+    for (const b of this.agents.values()) b.debts = b.debts.filter((d) => d.to !== a.id); // debts to the dead are forgiven
+    if (heir) {
+      heir.coins += a.coins; for (const p of owned) p.owner = heir.id; if (owned.length && !heir.home) heir.home = { place: owned[0]!.id, nightsPaid: 36500 };
+      this.emit("agent.inherit", [heir.id, a.id], heir.location, `${heir.persona.name} inherited ${a.coins} coins${owned.length ? ` and ${owned.map((p) => p.name).join(", ")}` : ""} from ${a.persona.name}.`, 0.7);
+      this.remember(heir, `${a.persona.name} is dead. What was theirs is mine now: ${a.coins} coins${owned.length ? ` and ${owned.map((p) => p.name).join(", ")}` : ""}.`, 0.95);
+    } else {
+      const council = this.places.get("council"); if (council) council.treasury += a.coins;
+      for (const p of owned) { p.owner = null; if (p.beds) p.beds.price = 2; }
+      if (a.coins > 0 || owned.length) this.emit("agent.inherit", [a.id], a.location, `Nobody came for what ${a.persona.name} left. ${a.coins} coins went to the council${owned.length ? ` and ${owned.map((p) => p.name).join(", ")} stands empty` : ""}.`, 0.5);
+    }
+    a.coins = 0;
+  }
+  /** Nights make families. A couple under their own roof, who trust each other, may have a child; children cost a coin a day; at the age of majority they step into the town. */
+  private async generations(): Promise<void> {
+    if (this.brain.name === "none" || this.paused) return;
+    const seen = new Set<string>();
+    for (const a of this.agents.values()) {
+      const b = this.partnerOf(a); if (!b || seen.has(b.id)) continue; seen.add(a.id);
+      const ra = a.relationships.get(b.id), rb = b.relationships.get(a.id); if (!ra || !rb) continue;
+      const youngest = this.children.filter((c) => c.parents.includes(a.id) || c.parents.includes(b.id)).reduce((m, c) => Math.max(m, c.bornDay), -999);
+      if (ra.affection < 0.6 || rb.affection < 0.6 || ra.trust < 0.5 || rb.trust < 0.5 || a.coins + b.coins < 20 || this.day - youngest < 30 || a.starving || b.starving) continue;
+      if (!this.rng.chance(0.06)) continue;
+      const home = this.places.get(a.home!.place)!;
+      const ctx = { parents: [a, b].map((x) => ({ persona: x.persona, keyMemories: retrieve(x.memory, x.persona.want, this.t, 4).map((m) => m.text), coins: x.coins, job: x.job ? (this.jobs.get(x.job)?.title ?? x.job) : null })), home: home.name, day: this.day, siblings: this.children.filter((c) => c.parents.includes(a.id)).map((c) => c.name) };
+      let persona: Persona;
+      try { persona = await this.brain.child(ctx); } catch (err) { this.log(`child failed: ${(err as Error).message}`); continue; }
+      const child: Child = { id: `ch_${this.idPrefix}${(this.children.length + 1).toString(36)}${this.day}`, name: persona.name, bornDay: this.day, parents: [a.id, b.id], parentNames: [a.persona.name, b.persona.name], home: home.id, persona, adoptedBy: null, orphan: false };
+      this.children.push(child);
+      this.emit("town.born", [a.id, b.id], home.id, `A child was born at ${home.name} to ${a.persona.name} and ${b.persona.name}: ${persona.name}.`, 0.9, { child: child.id });
+      this.remember(a, `${persona.name} was born. Ours.`, 1); this.remember(b, `${persona.name} was born. Ours.`, 1);
+      for (const w of this.agents.values()) if (w !== a && w !== b && this.rng.chance(0.5)) this.remember(w, `${a.persona.name} and ${b.persona.name} have a child, ${persona.name}.`, 0.5, "rumor");
+      break; // one birth a night
+    }
+    // children eat
+    for (const c of this.children) {
+      const payer = c.parents.map((id) => this.agents.get(id)).filter((x): x is AgentState => !!x).sort((x, y) => y.coins - x.coins)[0];
+      if (payer && payer.coins > 0) payer.coins -= 1;
+      else if (payer) this.remember(payer, `We could not feed ${c.name} today.`, 0.8);
+    }
+    // coming of age
+    for (const c of [...this.children]) {
+      if (this.day - c.bornDay < this.ageOfMajority) continue;
+      this.children.splice(this.children.indexOf(c), 1);
+      const parents = c.parents.map((id) => this.agents.get(id)).filter((x): x is AgentState => !!x);
+      const home = this.places.get(c.home);
+      const a = this.addAgent({ persona: { ...c.persona, age: 16, origin: `born on the island, at ${home?.name ?? c.home}` }, owner: c.adoptedBy, funded: true, coins: 5 });
+      const inn = this.places.get("inn"); if (inn) inn.freeBeds = Math.min(inn.beds?.capacity ?? 6, (inn.freeBeds ?? 0) + 1); // addAgent booked an inn bed; give it back
+      a.location = home?.id ?? "harbor"; a.home = home && home.beds ? { place: home.id, nightsPaid: 30 } : null;
+      a.memory = [];
+      this.remember(a, `I was born at ${home?.name ?? c.home} to ${c.parentNames.join(" and ")}. I grew up on this island; I know every road on it.`, 1);
+      for (const pr of parents) { this.remember(a, `${pr.persona.name} raised me. ${pr.persona.summary}`, 0.8); this.remember(pr, `${c.name} is grown now, and out in the town.`, 0.9); const r = this.rel(a, pr.id); r.trust = 0.75; r.affection = 0.8; const r2 = this.rel(pr, a.id); r2.trust = 0.8; r2.affection = 0.9; }
+      if (c.orphan) this.remember(a, "My parents are gone. I have their name and nothing else.", 0.9);
+      this.emit("town.of_age", [a.id, ...parents.map((p) => p.id)], a.location, `${c.name}, born on the island ${this.ageOfMajority} days ago to ${c.parentNames.join(" and ")}, came of age today${c.adoptedBy ? " and has someone on the mainland who writes" : ""}.`, 0.9, { child: c.id });
+    }
   }
 
   /** The plan step whose hour has come and which has not had its thought yet. */

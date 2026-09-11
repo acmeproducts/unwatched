@@ -119,7 +119,13 @@ async function ownerOf(req: Request): Promise<string | null> {
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
 const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
-app.get("/api/town", (c) => c.json({ ...clockOf(town), size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws }));
+const childView = (ch: import("@ferrytown/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
+app.get("/api/town", (c) => c.json({ ...clockOf(town), size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws, children: town.children.map(childView) }));
+/** Children of the island who could be adopted: unowned, growing up or already grown. Adopting means writing to them; nothing more. */
+app.get("/api/children", (c) => c.json({
+  growing: town.children.filter((ch) => !ch.adoptedBy).map(childView),
+  grown: [...town.agents.values()].filter((a) => !a.owner && a.persona.origin.startsWith("born on the island")).map((a) => publicAgent(town, a)),
+}));
 const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
 const nextFerry = () => { const h = town.hour < 6 ? 6 : town.hour >= 20 ? 6 : town.hour + 1; return `${String(h).padStart(2, "0")}:00${town.hour >= 20 ? " tomorrow" : ""}`; };
 const liveTown = () => ({ id: store?.townId ?? "island", name: "The island", live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : "Ferries hourly, 06:00 to 20:00", next: town.ferryRunning ? nextFerry() : null, spaces: town.ferryRunning ? Math.max(0, FERRY_SPACES - town.pendingArrivals()) : 0 });
@@ -329,7 +335,18 @@ app.get("/api/events", (c) => {
 });
 app.post("/api/board", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the ferry office first" }, 401);
-  const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted"), town: z.string().optional() }).safeParse(await c.req.json());
+  const raw = await c.req.json().catch(() => ({}));
+  const adopt = z.object({ adopt: z.string() }).safeParse(raw);
+  if (adopt.success) {
+    // adopting a child of the island: a grown one becomes yours now; a growing one becomes yours when they come of age
+    const grown = town.agents.get(adopt.data.adopt);
+    if (grown && !grown.owner && grown.persona.origin.startsWith("born on the island")) { grown.owner = owner; billing.applyPlan(grown); if (store) await store.snapshot(town); town.emit("town.notice", [grown.id], grown.location, `Someone on the mainland has taken an interest in ${grown.persona.name}, and will write.`, 0.4); return c.json({ id: grown.id, arrived: town.clock(), adopted: true }); }
+    const ch = town.children.find((x) => x.id === adopt.data.adopt && !x.adoptedBy);
+    if (!ch) return c.json({ error: "no such child of the island, or someone already writes to them" }, 404);
+    ch.adoptedBy = owner; if (store) await store.snapshot(town);
+    return c.json({ id: ch.id, child: true, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)) });
+  }
+  const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted"), town: z.string().optional() }).safeParse(raw);
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "the manifest is incomplete" }, 400);
   if (body.data.town && body.data.town !== (store?.townId ?? "island")) {
     const known = store ? (await store.towns().catch(() => [])).some((t) => t.id === body.data.town) : false;

@@ -9,7 +9,7 @@ import type { BrainRow, Wallet, TownStore } from "./index.ts";
 export type Store = Pick<TownStore, keyof TownStore>;
 
 interface Data {
-  town: { id: string; name: string; seed: number; sim_t: number; day: number; weather: string; flour_shortage: boolean; places: unknown[]; jobs: unknown[]; created_at: string } | null;
+  town: { id: string; name: string; seed: number; sim_t: number; day: number; weather: string; flour_shortage: boolean; places: unknown[]; jobs: unknown[]; children?: unknown[]; created_at: string } | null;
   agents: { id: string; owner_id: string | null; name: string; persona: unknown; appearance: unknown; brain: string; funded: boolean; arrived_t: number | null; left_t: number | null; state: Record<string, unknown> }[];
   events: TownEvent[];
   memories: { agent_id: string; t: number; kind: string; text: string; importance: number }[];
@@ -48,7 +48,7 @@ export class FileStore {
     const rows = new Map(this.d.agents.map((a) => [a.id, a]));
     for (const a of town.agents.values()) { const sa = snap.agents.find((x) => x.id === a.id)!; const prev = rows.get(a.id); rows.set(a.id, { id: a.id, owner_id: a.owner, name: a.persona.name, persona: a.persona, appearance: a.appearance ?? {}, brain: prev?.brain ?? "hosted", funded: a.funded, arrived_t: a.arrivedAt, left_t: prev?.left_t ?? null, state: { ...sa.state, owner: a.owner } }); }
     this.d.agents = [...rows.values()];
-    this.d.town = { ...(this.d.town ?? { id: this.townId, name: "The island", seed: 0, created_at: new Date().toISOString() }), sim_t: town.t, day: town.day, weather: town.weather, flour_shortage: town.flourShortage, places: snap.places ?? [], jobs: snap.jobs ?? [] };
+    this.d.town = { ...(this.d.town ?? { id: this.townId, name: "The island", seed: 0, created_at: new Date().toISOString() }), sim_t: town.t, day: town.day, weather: town.weather, flour_shortage: town.flourShortage, places: snap.places ?? [], jobs: snap.jobs ?? [], children: snap.children ?? [] };
     const ids = new Set(town.agents.keys());
     this.d.relationships = this.d.relationships.filter((r) => !ids.has(r.agent_id));
     for (const a of town.agents.values()) for (const [other, r] of a.relationships) this.d.relationships.push({ agent_id: a.id, other_id: other, trust: r.trust, affection: r.affection, last_seen: r.lastSeen, opinion: r.opinion });
@@ -64,7 +64,7 @@ export class FileStore {
       const memory = this.d.memories.filter((m) => m.agent_id === r.id).map((m) => ({ t: m.t, kind: m.kind as "obs", text: m.text, importance: m.importance }));
       return { id: r.id, persona: r.persona as AgentSnapshot["persona"], owner: r.owner_id ?? st.owner ?? null, funded: r.funded, appearance: (r.appearance as Record<string, unknown>) ?? null, arrivedAt: r.arrived_t ?? 0, state: st, relationships: this.d.relationships.filter((x) => x.agent_id === r.id).map((x) => ({ other: x.other_id, trust: x.trust, affection: x.affection, lastSeen: x.last_seen, opinion: x.opinion })), memory: compress(memory) };
     });
-    return { t: t.sim_t, day: t.day, weather: t.weather, flourShortage: t.flour_shortage, places: (t.places ?? []) as NonNullable<TownSnapshot["places"]>, jobs: (t.jobs ?? []) as NonNullable<TownSnapshot["jobs"]>, agents, papers: this.d.papers, laws: this.d.laws };
+    return { t: t.sim_t, day: t.day, weather: t.weather, flourShortage: t.flour_shortage, places: (t.places ?? []) as NonNullable<TownSnapshot["places"]>, jobs: (t.jobs ?? []) as NonNullable<TownSnapshot["jobs"]>, children: (t.children ?? []) as NonNullable<TownSnapshot["children"]>, agents, papers: this.d.papers, laws: this.d.laws };
   }
   async recentEvents(n = 300): Promise<TownEvent[]> { return this.d.events.slice(-n); }
   async markLeft(agentId: string, t: number): Promise<void> { const r = this.d.agents.find((a) => a.id === agentId); if (r) { r.left_t = t; this.dirty = true; } }

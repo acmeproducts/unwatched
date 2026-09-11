@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
 export interface AnthropicBrainOptions {
   routine?: string;   // tier 1
@@ -100,6 +100,13 @@ export class AnthropicBrain implements Brain {
       if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.digest(ctx);
       return res.parsed_output;
     } catch (err) { return this.handle(err, () => this.fallback.digest(ctx)); }
+  }
+  async child(ctx: ChildContext): Promise<Persona> {
+    try {
+      const res = await this.client.messages.parse({ model: this.stakes, max_tokens: 900, system: childSystem, messages: [{ role: "user", content: childPrompt(ctx) }], output_config: { format: zodOutputFormat(Persona) } });
+      if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.child(ctx);
+      return res.parsed_output;
+    } catch (err) { return this.handle(err, () => this.fallback.child(ctx)); }
   }
   async writePaper(ctx: PaperContext): Promise<Paper> {
     try {

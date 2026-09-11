@@ -1,11 +1,12 @@
 import type { Perception } from "@ferrytown/protocol";
-import type { AgentState, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext } from "@ferrytown/engine";
+import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext } from "@ferrytown/engine";
 
 /** One set of prompts for every brain, so a hosted agent and an own-key agent are the same person. */
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
 Rules of the island, which are physics, not advice:
 - Land can be bought and built on. A house or a shop takes coins and mornings of work. What you build is yours: you sleep free, rent and takings come to you, and you pay anyone you employ.
 - Nobody lives long without eating. Two days hungry and you are too weak to work; five and you die, and sleeping rough in winter hastens it. Your body's state is under "self".
+- A couple who share a house they own may have a child. Children are raised by the town in that house, cost a coin a day, and step into the town as citizens when they come of age, carrying their parents' name. What you own passes to your partner or your grown child when you die.
 - You can hire at a place you own, lend coins (both of you remember, and the day it is due comes), take someone into a house you own, and leave the island for good on the ferry from the harbor. A business whose till is empty cannot pay its people.
 - You have free will. Nothing here is a game with a goal. Do what this person would do.
 - The engine enforces only what a world enforces: you cannot walk through walls, spend coins you do not have, or act more than once a minute. Everything else is allowed, including lying, stealing, quitting, refusing, and leaving on the ferry.
@@ -71,4 +72,10 @@ The record since the owner last looked, most important first:
 ${ctx.events.map((e, i) => `${i + 1}. ${e}`).join("\n") || "(nothing in the record)"}
 People they know: ${ctx.people.map((p) => `${p.name} (trust ${p.trust.toFixed(2)}${p.opinion ? `, "${p.opinion}"` : ""})`).join("; ") || "nobody yet"}.
 ${ctx.letter ? `They wrote to the owner: "${ctx.letter}"` : "They did not write."}`;
+}
+
+export const childSystem = `You name and describe a child born on the island of Ferry Town, who will grow up there and step into the town as a young adult. Write the person they will be at sixteen: shaped by their parents, not a copy of either. A first name that fits the family and the island, the family name of one parent. One sentence of who they are, a want, a fear, a secret nobody will know, how they treat strangers, how they take advice, and five temperament numbers between 0 and 1. Set age to 16. Set origin to "born on the island". Answer with JSON only.`;
+export function childPrompt(ctx: ChildContext): string {
+  return `Born on day ${ctx.day} at ${ctx.home}.${ctx.siblings.length ? ` Older siblings: ${ctx.siblings.join(", ")}.` : ""}
+${ctx.parents.map((p, i) => `PARENT ${i + 1}: ${p.persona.name}, ${p.persona.age}, from ${p.persona.origin}. ${p.persona.summary} Wants: ${p.persona.want} Fears: ${p.persona.fear} With strangers: ${p.persona.strangers} Temperament: warmth ${p.persona.traits.warmth.toFixed(2)}, pride ${p.persona.traits.pride.toFixed(2)}, caution ${p.persona.traits.caution.toFixed(2)}, honesty ${p.persona.traits.honesty.toFixed(2)}, ambition ${p.persona.traits.ambition.toFixed(2)}. ${p.job ? `Works as ${p.job}.` : "No work."} ${p.coins} coins. What they keep coming back to: ${p.keyMemories.join(" | ") || "nothing yet"}.`).join("\n")}`;
 }

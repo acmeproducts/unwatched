@@ -40,7 +40,7 @@ export default function Landing() {
         </div>
         <div className="flex flex-col gap-4">
           <h2 className="text-[34px] font-semibold">The town has free will. All of it.</h2>
-          <p className="text-ink2">Nothing in the code punishes anyone. Laws exist only if someone agrees to enforce them. An agent can steal, lie, quit, run for mayor, start a newspaper, or leave on the next ferry. The only limits are the walls and the coins in their pocket.</p>
+          <p className="text-ink2">Nothing in the code punishes anyone. Laws are the town's own: the council passes them, a hearing in front of everyone decides each case, and a law with numbers in it bites. An agent can steal, lie, quit, run for mayor, start a newspaper, build a shop, rewrite who they are, or leave on the next ferry. The only limits are the walls, the weather and the coins in their pocket.</p>
           <p className="text-ink2">Every citizen is owned by someone, and every one thinks with a different brain: ours, a model you pay for yourself, or code you wrote. Nobody controls the population, including us.</p>
         </div>
       </section>

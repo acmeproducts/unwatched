@@ -4,7 +4,7 @@ import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
 import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
-import { drawThing } from "./world/buildings";
+import { drawThing, setSeason } from "./world/buildings";
 import { Interior, type InteriorPerson } from "./Interior";
 
 /**
@@ -129,7 +129,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const put = (name: string, x: number, y: number, w?: number, flip = false) => {
         const d = drawThing(name); if (!d) return null;
         const c = d.c; if (w) c.scale.set(w / d.w); if (flip) c.scale.x *= -1; c.position.set(x, y); c.zIndex = y; scene.addChild(c);
-        if (!/^(lamp|fence|field|pier)$/.test(name)) shadowUnder(x, y, w ?? d.w);
+        if (!/^(lamp|fence|field|pier|tree-small|tree-large|bush)$/.test(name)) shadowUnder(x, y, w ?? d.w);
         return c;
       };
       const nameStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
@@ -168,8 +168,18 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       };
       for (const p of places.values()) drawPlace(p);
       const decor = decorFor([...places.values()]);
-      const trees: Container[] = [];
-      for (const d of decor) { const sp = put(d.sprite, d.x, d.y, d.w, d.flip); if (sp && /tree|bush/.test(d.sprite)) trees.push(sp); }
+      let trees: Container[] = [];
+      const plantTrees = () => {
+        for (const t of trees) t.destroy({ children: true }); trees = [];
+        for (const d of decor) { if (!/tree|bush/.test(d.sprite)) continue; const sp = put(d.sprite, d.x, d.y, d.w, d.flip); if (!sp) continue; const sh = new Graphics(); sh.ellipse(d.w ? d.w * 0.12 : 8, 3, d.sprite === "tree-large" ? 40 : d.sprite === "bush" ? 12 : 26, d.sprite === "tree-large" ? 12 : d.sprite === "bush" ? 4 : 8).fill({ color: C.kelp, alpha: 0.09 }); sp.addChildAt(sh, 0); trees.push(sp); }
+      };
+      setSeason(clockRef.current?.season ?? "summer");
+      for (const d of decor) { if (/tree|bush/.test(d.sprite)) continue; put(d.sprite, d.x, d.y, d.w, d.flip); }
+      plantTrees();
+      const SEASON_CAST: Record<string, number> = { winter: 0xeaf0f0, spring: 0xffffff, summer: 0xfbf2dc, autumn: 0xf7e9d2 };
+      // wet ground darkens the island under the rain; snow settles on it and melts again
+      const wetGround = new Graphics(); poly(wetGround, outline(0.99)).fill(C.kelp); wetGround.alpha = 0; world.addChild(wetGround);
+      const snowGround = new Graphics(); poly(snowGround, outline(0.99)).fill(0xffffff); snowGround.alpha = 0; world.addChild(snowGround); let snowiness = 0;
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
       const dockX = harbor.x - 420, awayX = -300;
@@ -264,6 +274,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           }
         }
         wetness += ((wet && !snowing ? 1 : 0) - wetness) * (wet ? 0.002 : 0.0006);
+        snowiness += ((snowing ? 1 : 0) - snowiness) * (snowing ? 0.0015 : winter ? 0.0002 : 0.001);
+        wetGround.alpha = 0.12 * wetness; snowGround.alpha = 0.6 * snowiness;
+        if (tick % 60 === 0 && c && setSeason(c.season)) { plantTrees(); }
+        if (tick % 60 === 0) ground.tint = SEASON_CAST[c?.season ?? "summer"] ?? 0xffffff;
         if (tick % 15 === 0) { puddles.clear(); if (wetness > 0.02) for (let i = 0; i < 26; i++) { const xx = ((i * 587) % (W - 400)) + 200, yy = ((i * 911) % (H - 400)) + 200; puddles.ellipse(xx, yy, 26 + (i % 4) * 8, 9 + (i % 3) * 3).fill({ color: C.waterDeep, alpha: 0.55 * wetness }); } }
         for (let i = 0; i < trees.length; i++) { const tr = trees[i]!; tr.skew.x = Math.sin(tick / 22 + i) * 0.035 * wind + Math.sin(tick / 7 + i * 2) * 0.012 * wind; }
         if (tick % 3 === 0) { fog.clear(); if (weather === "fog") for (let i = 0; i < 18; i++) { const xx = ((i * 431 + tick * 0.6) % (W + 800)) - 400, yy = ((i * 277) % (H + 200)) - 100; fog.ellipse(xx, yy, 340 + (i % 3) * 120, 110 + (i % 2) * 50).fill({ color: C.shell, alpha: 0.16 }); } }

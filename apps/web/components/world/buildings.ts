@@ -45,6 +45,20 @@ function sign(g: Graphics, P: ReturnType<typeof proj>, d: number, i: number, k: 
 function post(g: Graphics, P: ReturnType<typeof proj>, i: number, j: number, h: number) { const b = P(i, j, 0), t = P(i, j, h); g.moveTo(b[0], b[1]).lineTo(t[0], t[1]).stroke({ width: 3.5, color: WOOD_DARK }); g.moveTo(b[0], b[1]).lineTo(t[0], t[1]).stroke({ width: 1.2, color: KELP, alpha: 0.5 }); }
 function treeBall(g: Graphics, x: number, y: number, r: number, color: number) { g.circle(x, y, r).fill(color).stroke(S); }
 
+/** The foliage follows the calendar. Set once per season; the world redraws its trees after. */
+export type Season = "winter" | "spring" | "summer" | "autumn";
+const FOLIAGE: Record<Season, { a: number; b: number; c: number; d: number; bare: boolean }> = {
+  spring: { a: 0x8fc4a8, b: 0x6fae91, c: 0xb9d9c6, d: 0x9fc2ad, bare: false },
+  summer: { a: TEAL, b: TEAL_DARK, c: SAGE, d: SAGE_DARK, bare: false },
+  autumn: { a: 0xc98a4b, b: 0xa8652f, c: 0xd9b26a, d: 0xb98a45, bare: false },
+  winter: { a: 0x8ea3a0, b: 0x6f8683, c: 0xb4c3bd, d: 0x9aada7, bare: true },
+};
+let season: Season = "summer";
+export function setSeason(s: string): boolean { const next = (s in FOLIAGE ? s : "summer") as Season; const changed = next !== season; season = next; return changed; }
+/** A bare crown: a few branches instead of leaves. */
+function bareCrown(g: Graphics, x: number, y: number, r: number) { for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (k - 2) * 0.5; g.moveTo(x, y + r * 0.6).lineTo(x + Math.cos(a) * r * 1.2, y + Math.sin(a) * r * 1.2).stroke({ width: 2.2, color: WOOD_DARK, cap: "round" }); g.moveTo(x + Math.cos(a) * r * 0.7, y + Math.sin(a) * r * 0.7).lineTo(x + Math.cos(a + 0.45) * r * 1.1, y + Math.sin(a + 0.45) * r * 1.1).stroke({ width: 1.4, color: WOOD_DARK, cap: "round" }); } }
+function crown(g: Graphics, x: number, y: number, r: number, which: "a" | "b" | "c" | "d") { const f = FOLIAGE[season]; if (f.bare) bareCrown(g, x, y, r); else treeBall(g, x, y, r, f[which]); }
+
 type Drawn = { c: Container; w: number };
 const D: Record<string, () => Drawn> = {
   house: () => { const g = new Graphics(); const w = 60, d = 44, h = 34; const P = box(g, w, d, h); door(g, P, d, 8); windowL(g, P, d, 34, 14); windowR(g, P, w, 12, 14); gable(g, w, d, h, 20); g.roundRect(P(35, d, 12)[0] - 1, P(35, d, 12)[1] - 4, 12, 4, 1).fill(CORAL); return { c: g, w: w + d }; },
@@ -106,8 +120,8 @@ const D: Record<string, () => Drawn> = {
   orchard: () => { const g = new Graphics(); const w = 100, d = 70; const P = proj(w, d); poly(g, [P(0, 0, 0), P(w, 0, 0), P(w, d, 0), P(0, d, 0)], 0xcfe0c6, false); for (const [i, j] of [[18, 18], [50, 18], [82, 18], [18, 52], [50, 52], [82, 52]] as const) { const b = P(i, j, 0); g.moveTo(b[0], b[1]).lineTo(b[0], b[1] - 12).stroke({ width: 3, color: WOOD_DARK }); treeBall(g, b[0], b[1] - 20, 11, SAGE); for (let k = 0; k < 3; k++) g.circle(b[0] - 6 + k * 6, b[1] - 22 + (k % 2) * 5, 1.8).fill(CORAL); } for (let s = 0; s < 6; s++) { const a = P(s * 20, d, 0), b = P(s * 20 + 20, d, 0); g.moveTo(a[0], a[1] - 6).lineTo(b[0], b[1] - 6).stroke({ width: 2, color: WOOD }); g.moveTo(a[0], a[1]).lineTo(a[0], a[1] - 9).stroke({ width: 2, color: WOOD_DARK }); } return { c: g, w: w + d }; },
   field: () => { const g = new Graphics(); const w = 110, d = 70; const P = proj(w, d); poly(g, [P(0, 0, 0), P(w, 0, 0), P(w, d, 0), P(0, d, 0)], 0xcfe0c6); for (let j = 8; j < d; j += 10) { const a = P(4, j, 0), b = P(w - 4, j, 0); g.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 3, color: SAGE_DARK }); for (let i = 10; i < w; i += 14) { const p = P(i, j, 0); g.circle(p[0], p[1] - 3, 2.2).fill(SAGE); } } return { c: g, w: w + d }; },
   // props
-  "tree-large": () => { const g = new Graphics(); g.moveTo(0, 0).lineTo(0, -34).stroke({ width: 9, color: WOOD_DARK }); g.moveTo(0, 0).lineTo(0, -34).stroke({ width: 1.2, color: KELP, alpha: 0.5 }); treeBall(g, -24, -52, 26, TEAL); treeBall(g, 24, -55, 25, TEAL_DARK); treeBall(g, -6, -46, 18, SAGE_DARK); treeBall(g, 0, -78, 30, TEAL); treeBall(g, 14, -62, 16, TEAL_DARK); return { c: g, w: 110 }; },
-  "tree-small": () => { const g = new Graphics(); g.moveTo(0, 0).lineTo(0, -22).stroke({ width: 6, color: WOOD_DARK }); g.moveTo(0, 0).lineTo(0, -22).stroke({ width: 1.2, color: KELP, alpha: 0.5 }); treeBall(g, -13, -34, 16, SAGE); treeBall(g, 13, -37, 15, SAGE_DARK); treeBall(g, 0, -50, 18, SAGE); return { c: g, w: 66 }; },
+  "tree-large": () => { const g = new Graphics(); g.moveTo(0, 0).lineTo(0, -34).stroke({ width: 9, color: WOOD_DARK }); g.moveTo(0, 0).lineTo(0, -34).stroke({ width: 1.2, color: KELP, alpha: 0.5 }); crown(g, -24, -52, 26, "a"); crown(g, 24, -55, 25, "b"); crown(g, -6, -46, 18, "d"); crown(g, 0, -78, 30, "a"); crown(g, 14, -62, 16, "b"); return { c: g, w: 110 }; },
+  "tree-small": () => { const g = new Graphics(); g.moveTo(0, 0).lineTo(0, -22).stroke({ width: 6, color: WOOD_DARK }); g.moveTo(0, 0).lineTo(0, -22).stroke({ width: 1.2, color: KELP, alpha: 0.5 }); crown(g, -13, -34, 16, "c"); crown(g, 13, -37, 15, "d"); crown(g, 0, -50, 18, "c"); return { c: g, w: 66 }; },
   bush: () => { const g = new Graphics(); treeBall(g, -7, -6, 8, SAGE); treeBall(g, 7, -7, 8, SAGE_DARK); treeBall(g, 0, -11, 9, SAGE); return { c: g, w: 34 }; },
   rock: () => { const g = new Graphics(); poly(g, [[-14, 0], [14, 0], [16, -8], [6, -18], [-8, -16], [-16, -6]], STONE); poly(g, [[-2, -18], [6, -18], [16, -8], [8, -6]], STONE_DARK, false); return { c: g, w: 34 }; },
   searocks: () => { const g = new Graphics(); poly(g, [[-30, 0], [-6, 0], [-4, -10], [-16, -16], [-30, -8]], STONE); poly(g, [[-8, 0], [26, 0], [28, -8], [14, -20], [0, -14]], STONE); poly(g, [[0, -14], [14, -20], [28, -8], [14, -6]], STONE_DARK, false); return { c: g, w: 60 }; },

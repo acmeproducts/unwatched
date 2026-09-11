@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import type { Action, Perception, Reflection } from "@ferrytown/protocol";
+import type { Action, DayPlan, Perception, Reflection } from "@ferrytown/protocol";
 
 /**
  * The smallest possible own-brain client. Give it a token and two functions.
@@ -8,8 +8,11 @@ import type { Action, Perception, Reflection } from "@ferrytown/protocol";
 export interface Handlers {
   perceive: (p: Perception) => Promise<Action | { action: Action; intent?: string; remember?: string[] }> | Action | { action: Action; intent?: string; remember?: string[] };
   reflect?: (ctx: ReflectRequest) => Promise<Reflection> | Reflection;
+  /** Each morning the town asks what your agent means to do today. Answer with a DayPlan, or leave it out and the town plans a plain day. */
+  plan?: (ctx: PlanRequest) => Promise<DayPlan> | DayPlan;
   hello?: (h: { agent_id: string; name: string; rules: string }) => void;
 }
+export interface PlanRequest { agent_id: string; day: number; hour: number; weather: string; yesterday: string | null; intentions: string[]; key_memories: string[]; relationships: { id: string; name: string; trust: number; opinion: string }[]; places: { id: string; name: string; kind: string }[]; jobs_open: string[]; letters: string[]; coins: number; job: string | null }
 export interface ReflectRequest { agent_id: string; day: number; day_memories: string[]; key_memories: string[]; relationships: { id: string; name: string; trust: number; opinion: string }[]; coins: number; job: string | null }
 
 export function connect(token: string, handlers: Handlers, url = process.env.FT_STREAM_URL ?? "ws://localhost:4000/agent-stream"): { close: () => void } {
@@ -24,6 +27,10 @@ export function connect(token: string, handlers: Handlers, url = process.env.FT_
         const out = await handlers.perceive(msg as unknown as Perception);
         const body = "action" in out ? out : { action: out };
         ws?.send(JSON.stringify({ type: "act", request_id: msg.request_id, remember: [], ...body }));
+      }
+      if (msg.type === "plan" && handlers.plan) {
+        const r = await handlers.plan(msg as unknown as PlanRequest);
+        ws!.send(JSON.stringify({ ...r, request_id: msg.request_id })); return;
       }
       if (msg.type === "reflect" && handlers.reflect) {
         const r = await handlers.reflect(msg as unknown as ReflectRequest);

@@ -1,5 +1,5 @@
-import type { ActionProposal, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { ActionProposal, DayPlan, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext } from "@ferrytown/engine";
 import { Rng } from "@ferrytown/engine";
 
 /**
@@ -110,6 +110,16 @@ export class MockBrain implements Brain {
     if (a.persona.traits.ambition > 0.7 && a.persona.traits.pride > 0.6 && this.rng.chance(0.25)) intentions.push("Go to the council and propose something.");
     const letter = a.owner && (a.coins < 8 || this.rng.chance(0.15)) ? `${top[0] ?? "Nothing much happened."} ${a.coins < 8 ? `I have ${a.coins} coins. I am not asking you for coins. I am asking whether you think I should ${a.job ? "stay" : "keep looking here"}.` : "Tell me what you would do."}`.slice(0, 590) : null;
     return { summary, insights: insights.slice(0, 3), opinions, intentions: intentions.slice(0, 3), letter_to_owner: letter };
+  }
+
+  async plan(ctx: PlanContext, _tier: Tier): Promise<DayPlan> {
+    const a = ctx.agent;
+    const goals: string[] = []; const steps: DayPlan["steps"] = [];
+    if (!a.job) { goals.push("Find work before the coins run out."); steps.push({ hour: 8, do: "Ask for work wherever it is going.", place: "market" }); }
+    else { goals.push("Do the day's work and keep the bed."); }
+    if (a.needs.social > 0.5 || a.persona.traits.warmth > 0.6) { goals.push("Talk to someone properly."); steps.push({ hour: 18, do: "Go where people are and talk.", place: this.rng.chance(0.5) ? "tavern" : "market" }); }
+    for (const i of ctx.intentions.slice(0, 2)) steps.push({ hour: 10 + steps.length * 3, do: i, place: null });
+    return { mood: a.coins < 6 ? "worried about money" : "steady", goals: goals.slice(0, 3), steps: steps.slice(0, 6) };
   }
 
   async writePaper(ctx: PaperContext): Promise<Paper> {

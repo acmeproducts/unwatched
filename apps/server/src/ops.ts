@@ -1,5 +1,5 @@
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier } from "@ferrytown/engine";
-import type { ActionProposal, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { ActionProposal, DayPlan, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
 import { OpenRouterBrain } from "@ferrytown/cognition";
 
 const PRICE: Record<string, [number, number]> = { "anthropic/claude-haiku-4.5": [1, 5], "anthropic/claude-sonnet-5": [2, 10], "anthropic/claude-opus-5": [5, 25], "claude-haiku-4-5": [1, 5], "claude-sonnet-5": [2, 10], "claude-opus-5": [5, 25] };
@@ -29,6 +29,7 @@ export class Metrics implements Brain {
   async decide(p: Perception, a: AgentState, tier: Tier): Promise<ActionProposal> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.decide(p, a, tier)); if (a.brainKind === "hosted") this.meter(b, tier >= 2 ? this.models.stakes : this.models.routine); return out; }
   async converse(ctx: ConverseContext): Promise<Dialogue> { const b = this.bucket(); b.converse++; const out = await this.timed(b, () => this.inner.converse(ctx)); this.meter(b, this.models.routine); return out; }
   async reflect(ctx: ReflectContext): Promise<Reflection> { const b = this.bucket(); b.t3++; const out = await this.timed(b, () => this.inner.reflect(ctx)); if (ctx.agent.brainKind === "hosted") this.meter(b, this.models.reflect); return out; }
+  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.plan(ctx, tier)); if (ctx.agent.brainKind === "hosted") this.meter(b, tier >= 2 ? this.models.stakes : this.models.routine); return out; }
   async writePaper(ctx: PaperContext): Promise<Paper> { const b = this.bucket(); const out = await this.timed(b, () => this.inner.writePaper(ctx)); this.meter(b, this.models.reflect); return out; }
   hold(level: "hold" | "watch" | "ok", text: string, source: string) { this.holds.unshift({ id: this.nextHold++, level, text, at: Date.now(), source, done: false }); if (this.holds.length > 100) this.holds.pop(); }
   today(day: number) { const hs = this.hours.filter((h) => h.day === day); const ms = hs.flatMap((h) => h.ms).sort((a, b) => a - b); return { t1: hs.reduce((s, h) => s + h.t1, 0), t2: hs.reduce((s, h) => s + h.t2, 0), t3: hs.reduce((s, h) => s + h.t3, 0), converse: hs.reduce((s, h) => s + h.converse, 0), cost: hs.reduce((s, h) => s + h.cost, 0), p50: ms.length ? ms[Math.floor(ms.length / 2)]! : 0, p95: ms.length ? ms[Math.floor(ms.length * 0.95)]! : 0 }; }

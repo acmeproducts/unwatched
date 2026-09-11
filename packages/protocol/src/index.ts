@@ -66,6 +66,14 @@ export const ActionProposal = z.object({
 export type ActionProposal = z.infer<typeof ActionProposal>;
 
 /** What an agent sees when it is its turn to think. Never ground truth. */
+/** What a person means to do with the day. Written each morning from their own wants, yesterday, and the people they know. */
+export const DayPlan = z.object({
+  mood: z.string().max(160),
+  goals: z.array(z.string().max(240)).min(1).max(3),
+  steps: z.array(z.object({ hour: z.number().int().min(5).max(23), do: z.string().max(240), place: PlaceId.nullable() })).min(1).max(6),
+});
+export type DayPlan = z.infer<typeof DayPlan>;
+
 export const Perception = z.object({
   type: z.literal("perceive"),
   agent_id: AgentId,
@@ -86,6 +94,7 @@ export const Perception = z.object({
   heard: z.array(z.object({ from: AgentId, name: z.string(), text: z.string() })),
   recent: z.array(z.string()),
   owner_letters: z.array(z.object({ id: z.number().int(), text: z.string() })),
+  today: z.object({ mood: z.string(), goals: z.array(z.string()), steps: z.array(z.object({ hour: z.number().int(), do: z.string(), place: PlaceId.nullable(), done: z.boolean() })) }).nullable(),
   options: z.array(ActionKind),
   deadline_ms: z.number().int(),
 });
@@ -98,7 +107,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice",
+  "conversation", "action.rejected", "town.notice", "agent.plan",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt } from "./prompts.ts";
 
 export interface AnthropicBrainOptions {
   routine?: string;   // tier 1
@@ -79,6 +79,19 @@ export class AnthropicBrain implements Brain {
       if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.reflect(ctx);
       return res.parsed_output;
     } catch (err) { return this.handle(err, () => this.fallback.reflect(ctx)); }
+  }
+
+  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
+    try {
+      const res = await this.client.messages.parse({
+        model: tier >= 2 ? this.stakes : this.routine, max_tokens: 1200,
+        system: this.system(ctx.agent),
+        messages: [{ role: "user", content: planPrompt(ctx) }],
+        output_config: { format: zodOutputFormat(DayPlan) },
+      });
+      if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.plan(ctx, tier);
+      return res.parsed_output;
+    } catch (err) { return this.handle(err, () => this.fallback.plan(ctx, tier)); }
   }
 
   async writePaper(ctx: PaperContext): Promise<Paper> {

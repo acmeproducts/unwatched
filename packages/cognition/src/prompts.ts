@@ -1,5 +1,5 @@
 import type { Perception } from "@ferrytown/protocol";
-import type { AgentState, ConverseContext, PaperContext, ReflectContext } from "@ferrytown/engine";
+import type { AgentState, ConverseContext, PaperContext, PlanContext, ReflectContext } from "@ferrytown/engine";
 
 /** One set of prompts for every brain, so a hosted agent and an own-key agent are the same person. */
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
@@ -24,7 +24,20 @@ Temperament (0 to 1): warmth ${p.traits.warmth.toFixed(2)}, pride ${p.traits.pri
 }
 
 export function decidePrompt(p: Perception): string {
-  return `It is ${p.time.sim}, ${p.time.weather}. Here is what you perceive, as JSON. Choose exactly one action for this minute, in character. Prefer talking to people who are here over waiting. If a letter from whoever sent you is unread, decide how you feel about it. Answer with JSON only.\n\n${JSON.stringify(p)}`;
+  return `It is ${p.time.sim}, ${p.time.weather}. Here is what you perceive, as JSON. Choose exactly one action for this minute, in character. Prefer talking to people who are here over waiting. If a letter from whoever sent you is unread, decide how you feel about it.${p.today ? " Your own plan for today is under \"today\": follow it, or change your mind, as this person would." : ""} Answer with JSON only.\n\n${JSON.stringify(p)}`;
+}
+
+export function planPrompt(ctx: PlanContext): string {
+  return `It is the morning of day ${ctx.day}, ${ctx.hour}:00, ${ctx.weather}. Make your own plan for today, in first person, as this person and nobody else. Not a to-do list for a game: what you actually want from the day, given what you have, who you know, and what you fear.
+What you carry: ${ctx.agent.coins} coins, ${ctx.agent.job ? `work as ${ctx.agent.job}` : "no work"}, ${ctx.agent.home ? `a bed at ${ctx.agent.home.place} paid for ${ctx.agent.home.nightsPaid} more nights` : "no bed of your own"}.
+Last night you thought: ${ctx.yesterday ?? "nothing yet; you arrived recently"}.
+What you meant to do next: ${ctx.intentions.join(" | ") || "nothing decided"}.
+What you keep coming back to: ${ctx.keyMemories.join(" | ") || "nothing"}.
+People you know: ${ctx.relationships.map((r) => `${r.name} (${r.id}) trust ${r.trust.toFixed(2)}${r.opinion ? `, "${r.opinion}"` : ""}`).join("; ") || "nobody yet"}.
+Letters waiting for you: ${ctx.unreadLetters.join(" | ") || "none"}.
+Places on the island: ${ctx.places.map((p) => `${p.id} (${p.name})`).join(", ")}.
+Work going: ${ctx.jobsOpen.join("; ") || "none"}.
+Give a mood in a few words, one to three goals for the day, and one to six steps with the hour you mean to start each and the place id if it has one. You may plan to do nothing, to talk to someone, to change your life, or to leave. Answer with JSON only.`;
 }
 
 export const conversePrompt = {

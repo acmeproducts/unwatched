@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import type { WebSocket } from "ws";
-import type { ActionProposal, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
-import { ActionProposal as ActionProposalSchema, Reflection as ReflectionSchema } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { ActionProposal, DayPlan, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
+import { ActionProposal as ActionProposalSchema, DayPlan as DayPlanSchema, Reflection as ReflectionSchema } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
 import { MockBrain, OpenRouterBrain } from "@ferrytown/cognition";
 import type { BrainRow } from "@ferrytown/store";
 
@@ -28,6 +28,7 @@ export class OwnKeyBrain implements Brain {
   }
   async converse(ctx: ConverseContext): Promise<Dialogue> { const out = await this.inner.converse(ctx); this.meter(this.row.models?.routine ?? "anthropic/claude-haiku-4.5"); return out; }
   async reflect(ctx: ReflectContext): Promise<Reflection> { if (this.capped(ctx.day)) return new MockBrain(3).reflect(ctx); const out = await this.inner.reflect(ctx); this.meter(this.row.models?.reflect ?? "anthropic/claude-opus-5"); return out; }
+  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> { if (this.capped(ctx.day)) return new MockBrain(3).plan(ctx, tier); const out = await this.inner.plan(ctx, tier); this.meter(tier >= 2 ? (this.row.models?.stakes ?? "anthropic/claude-sonnet-5") : (this.row.models?.routine ?? "anthropic/claude-haiku-4.5")); return out; }
   async writePaper(ctx: PaperContext): Promise<Paper> { return this.inner.writePaper(ctx); }
   status() { return { spentToday: Math.round(this.spentToday * 100) / 100, calls: this.last.calls }; }
 }
@@ -83,6 +84,11 @@ export class OwnBrain implements Brain {
     const parsed = got ? ReflectionSchema.safeParse(got) : null;
     return parsed?.success ? parsed.data : this.fallback.reflect(ctx);
   }
+  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
+    const got = await this.ask({ type: "plan", agent_id: ctx.agent.id, day: ctx.day, hour: ctx.hour, weather: ctx.weather, yesterday: ctx.yesterday, intentions: ctx.intentions, key_memories: ctx.keyMemories, relationships: ctx.relationships, places: ctx.places, jobs_open: ctx.jobsOpen, letters: ctx.unreadLetters, coins: ctx.agent.coins, job: ctx.agent.job }, 30000);
+    const parsed = got ? DayPlanSchema.safeParse(got) : null;
+    return parsed?.success ? parsed.data : this.fallback.plan(ctx, tier);
+  }
   async writePaper(ctx: PaperContext): Promise<Paper> { return this.fallback.writePaper(ctx); } // the paper is the town's, never one brain's
   status() {
     const sorted = [...this.latencies].sort((a, b) => a - b);
@@ -106,6 +112,7 @@ export class BrainRouter implements Brain {
   decide(p: Perception, a: AgentState, tier: Tier) { return (this.perAgent.get(a.id) ?? this.town).decide(p, a, tier); }
   converse(ctx: ConverseContext) { return (this.perAgent.get(ctx.a.id) ?? this.perAgent.get(ctx.b.id) ?? this.town).converse(ctx); }
   reflect(ctx: ReflectContext) { return (this.perAgent.get(ctx.agent.id) ?? this.town).reflect(ctx); }
+  plan(ctx: PlanContext, tier: Tier) { return (this.perAgent.get(ctx.agent.id) ?? this.town).plan(ctx, tier); }
   writePaper(ctx: PaperContext) { return this.town.writePaper(ctx); }
 }
 

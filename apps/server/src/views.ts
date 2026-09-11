@@ -19,7 +19,7 @@ export function ownerAgent(town: Town, a: AgentState) {
     persona: a.persona,
     needs: a.needs, coins: a.coins, inventory: a.inventory,
     nightsPaid: a.home?.nightsPaid ?? 0,
-    budget: a.budget, intentions: a.intentions,
+    budget: a.budget, intentions: a.intentions, plan: a.plan && a.plan.day === town.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
     people: [...a.relationships.entries()].map(([id, r]) => ({ id, name: town.agents.get(id)?.persona.name ?? id, trust: r.trust, affection: r.affection, opinion: r.opinion, lastSeen: r.lastSeen, tide: tideWord(r.trust, r.affection) })),
     memories: a.memory.slice(-60).reverse(),
     letters: a.letters,

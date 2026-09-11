@@ -1,3 +1,4 @@
+import type { DayPlan } from "@ferrytown/protocol";
 import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@ferrytown/protocol";
 
 export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic";
@@ -33,7 +34,7 @@ export interface Memory {
   t: number;
   text: string;
   importance: number;
-  kind: "obs" | "reflect" | "letter" | "rumor";
+  kind: "obs" | "reflect" | "letter" | "rumor" | "plan";
 }
 
 export interface Budget {
@@ -75,7 +76,12 @@ export interface AgentState {
   brainKind: "hosted" | "own_key" | "own_brain";
   /** For own-key agents: think at least this often, in sim minutes, while awake. */
   thinkEvery: number | null;
+  /** Today's plan, made on waking. Null before the first morning, or for a person who cannot afford to plan. */
+  plan: ActivePlan | null;
 }
+
+/** A DayPlan once the engine has it: dated, with each step ticked off as its thought is spent. */
+export interface ActivePlan { day: number; mood: DayPlan["mood"]; goals: DayPlan["goals"]; steps: { hour: number; do: string; place: PlaceId | null; done: boolean }[] }
 
 export type Tier = 1 | 2 | 3;
 
@@ -91,6 +97,13 @@ export interface ReflectContext {
   unreadLetters: string[];
 }
 
+export interface PlanContext {
+  agent: AgentState; day: number; weather: string; hour: number;
+  yesterday: string | null; intentions: string[]; keyMemories: string[];
+  relationships: { id: AgentId; name: string; trust: number; opinion: string }[];
+  places: { id: string; name: string; kind: string }[]; jobsOpen: string[]; unreadLetters: string[];
+}
+
 export interface PaperContext {
   edition: number; date: string; weather: string;
   events: { text: string; importance: number; actors: string[] }[];
@@ -103,6 +116,8 @@ export interface Brain {
   decide(p: Perception, agent: AgentState, tier: Tier): Promise<ActionProposal>;
   converse(ctx: ConverseContext): Promise<Dialogue>;
   reflect(ctx: ReflectContext): Promise<Reflection>;
+  /** Once a morning: what this person means to do today. Tier 2 when they can afford it, tier 1 otherwise. */
+  plan(ctx: PlanContext, tier: Tier): Promise<DayPlan>;
   writePaper(ctx: PaperContext): Promise<Paper>;
 }
 
@@ -119,7 +134,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

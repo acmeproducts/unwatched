@@ -1,4 +1,4 @@
-import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection } from "@ferrytown/protocol";
+import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot } from "./types.ts";
@@ -87,6 +87,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
+      plan: null,
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -114,7 +115,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null,
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -132,7 +133,7 @@ export class Town {
       t: this.t, day: this.day, weather: this.weather, flourShortage: this.flourShortage,
       agents: [...this.agents.values()].map((a): AgentSnapshot => ({
         id: a.id, persona: a.persona, owner: a.owner, funded: a.funded, appearance: a.appearance, arrivedAt: a.arrivedAt,
-        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery },
+        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan },
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
@@ -172,11 +173,17 @@ export class Town {
     const thinkers: { a: AgentState; tier: Tier; why: string }[] = [];
     for (const a of this.agents.values()) {
       if (a.asleep) { this.maybeWake(a); if (a.asleep) continue; }
+      await this.maybePlan(a);
       const here = this.places.get(a.location)!;
       const nearby = this.nearby(a);
       const s = this.brain.name === "none" || this.paused ? null : salience(a, { hour: this.hour, t: this.t, nearby, jobsOpenHere: this.openJobsAt(here.id).length });
-      if (s && this.spend(a, s.tier)) thinkers.push({ a, tier: s.tier, why: s.why });
-      else this.apply(a, habit(a, this.habitView()), "habit");
+      if (s && this.spend(a, s.tier)) { thinkers.push({ a, tier: s.tier, why: s.why }); if (s.why.startsWith("plan")) this.dueStep(a)!.done = true; }
+      else {
+        let act = habit(a, this.habitView());
+        const step = this.dueStep(a);
+        if (act.kind === "wait" && step?.place && step.place !== a.location && this.places.has(step.place)) { const next = this.path(a.location, step.place); if (next) act = { kind: "move", to: next }; }
+        this.apply(a, act, "habit");
+      }
     }
     // 3. thoughts, sequential so the world is consistent between them
     for (const th of thinkers) {
@@ -215,6 +222,7 @@ export class Town {
       heard: a.heard.map((h) => ({ from: h.from, name: h.name, text: h.text })),
       recent: retrieve(a.memory, q, this.t, 8).map((m) => m.text),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
+      today: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
       options: OPTIONS_DEFAULT,
       deadline_ms: 8000,
     };
@@ -459,6 +467,33 @@ export class Town {
   }
 
   /** An operator did something. It is logged and it is news. */
+  /** The plan step whose hour has come and which has not had its thought yet. */
+  dueStep(a: AgentState) { return a.plan?.day === this.day ? a.plan.steps.find((st) => !st.done && st.hour <= this.hour) ?? null : null; }
+
+  /** On waking, once a day: a thought about what today is for. Costs a stakes thought when the person can afford it. */
+  private async maybePlan(a: AgentState): Promise<void> {
+    if (a.plan?.day === this.day || !a.funded || this.brain.name === "none" || this.paused || this.hour < 5) return;
+    const tier: Tier = this.spend(a, 2) ? 2 : this.spend(a, 1) ? 1 : 0 as unknown as Tier;
+    if (!tier) { a.plan = { day: this.day, mood: "", goals: [], steps: [] }; return; } // cannot afford to plan today; habit carries them
+    const yesterday = [...a.memory].reverse().find((m) => m.kind === "reflect")?.text ?? null;
+    const ctx = {
+      agent: a, day: this.day, weather: this.weather, hour: this.hour, yesterday, intentions: [...a.intentions],
+      keyMemories: retrieve(a.memory, a.persona.want, this.t, 6).map((m) => m.text),
+      relationships: [...a.relationships.entries()].map(([id, r]) => ({ id, name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion })),
+      places: [...this.places.values()].map((p) => ({ id: p.id, name: p.name, kind: p.kind })),
+      jobsOpen: [...this.jobs.values()].filter((j) => j.holders.length < j.slots).map((j) => `${j.title} at ${this.places.get(j.place)?.name ?? j.place}, ${j.wage} coins`),
+      unreadLetters: a.letters.filter((l) => !l.read).map((l) => l.text),
+    };
+    a.plan = { day: this.day, mood: "", goals: [], steps: [] }; // reserved: an overlapping tick must not plan this person twice
+    let plan: DayPlan;
+    try { plan = await this.brain.plan(ctx, tier); }
+    catch (err) { this.log(`plan failed for ${a.persona.name}: ${(err as Error).message}`); a.plan = { day: this.day, mood: "", goals: [], steps: [] }; return; }
+    const steps = plan.steps.filter((st) => st.place === null || this.places.has(st.place)).sort((x, y) => x.hour - y.hour).map((st) => ({ ...st, done: false }));
+    a.plan = { ...plan, steps, day: this.day };
+    a.lastThought = this.t;
+    if (plan.goals[0]) { this.remember(a, `What I meant to do today: ${plan.goals.join("; ")}`, 0.35, "plan"); this.emit("agent.plan", [a.id], a.location, `${a.persona.name} set out to ${lower(plan.goals[0])}`, 0.15, { goals: plan.goals, mood: plan.mood }); }
+  }
+
   /** People who boarded today and have not yet stepped off. */
   pendingArrivals(): number { return this.arrivalsToday; }
 
@@ -544,3 +579,5 @@ export class Town {
 }
 
 function clamp(x: number, lo = 0, hi = 1): number { return Math.max(lo, Math.min(hi, x)); }
+
+function lower(t: string): string { return t.length ? t[0]!.toLowerCase() + t.slice(1) : t; }

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt } from "./prompts.ts";
 
 export interface OpenRouterBrainOptions {
   apiKey?: string;
@@ -77,6 +77,10 @@ export class OpenRouterBrain implements Brain {
   async reflect(ctx: ReflectContext): Promise<Reflection> {
     const out = await this.call(this.reflectModel, `${WORLD}\n\n${personaBlock(ctx.agent)}`, reflectPrompt(ctx), Reflection, "reflection", 2000);
     return out ?? this.fallback.reflect(ctx);
+  }
+  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
+    const out = await this.call(tier >= 2 ? this.stakes : this.routine, `${WORLD}\n\n${personaBlock(ctx.agent)}`, planPrompt(ctx), DayPlan, "day_plan", 1200);
+    return out ?? this.fallback.plan(ctx, tier);
   }
   async writePaper(ctx: PaperContext): Promise<Paper> {
     const out = await this.call(this.reflectModel, paperSystem, paperPrompt(ctx), Paper, "paper", 3000);

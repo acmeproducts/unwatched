@@ -25,7 +25,7 @@ function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; 
   const out: { sprite: string; x: number; y: number; w?: number; flip?: boolean }[] = [
     { sprite: "pier", x: h.x - 250, y: h.y + 40 }, { sprite: "rowboat", x: h.x - 230, y: h.y + 110 }, { sprite: "crates", x: h.x + 110, y: h.y + 30 }, { sprite: "lamp", x: h.x + 150, y: h.y - 10 }, { sprite: "searocks", x: h.x - 320, y: h.y + 220 },
     { sprite: "bench", x: m.x - 200, y: m.y + 40 }, { sprite: "lamp", x: m.x - 150, y: m.y + 70 }, { sprite: "lamp", x: m.x + 160, y: m.y + 60 }, { sprite: "bush", x: m.x + 210, y: m.y - 40 }, { sprite: "tree-small", x: m.x - 260, y: m.y - 120 },
-    { sprite: "lamp", x: ln.x, y: ln.y + 10 }, { sprite: "bench", x: ln.x + 120, y: ln.y + 30 }, { sprite: "bush", x: ln.x - 140, y: ln.y + 60 },
+    { sprite: "lamp", x: ln.x, y: ln.y + 10 }, { sprite: "bench", x: ln.x + 120, y: ln.y + 30 }, { sprite: "bush", x: ln.x - 140, y: ln.y + 60 }, { sprite: "washing", x: ln.x - 60, y: ln.y - 90 }, { sprite: "washing", x: m.x + 330, y: m.y - 190 },
     { sprite: "fence", x: f.x + 60, y: f.y + 120 }, { sprite: "field", x: f.x - 120, y: f.y + 200, w: 200 }, { sprite: "tree-small", x: o.x + 180, y: o.y - 60 }, { sprite: "tree-small", x: o.x - 160, y: o.y + 80 }, { sprite: "tree-small", x: o.x + 40, y: o.y + 140 },
     { sprite: "searocks", x: cv.x - 120, y: cv.y + 120 }, { sprite: "searocks", x: cv.x + 260, y: cv.y - 60 }, { sprite: "rowboat", x: cv.x + 120, y: cv.y + 80, flip: true }, { sprite: "bush", x: sh.x + 120, y: sh.y + 90 }, { sprite: "tree-small", x: sh.x - 200, y: sh.y + 60 },
     { sprite: "rock", x: q.x - 120, y: q.y + 90 }, { sprite: "rock", x: q.x + 140, y: q.y + 60 }, { sprite: "searocks", x: lh.x + 140, y: lh.y + 120 }, { sprite: "rock", x: lh.x - 100, y: lh.y + 60 },
@@ -45,7 +45,7 @@ function lookSvg(hash: string): Promise<string | null> {
   return p;
 }
 
-type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1 };
+type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean };
 
 export function World({ mineId, onSelect, view }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" }) {
   const host = useRef<HTMLDivElement>(null);
@@ -193,6 +193,12 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       // wet ground darkens the island under the rain; snow settles on it and melts again
       const wetGround = new Graphics(); poly(wetGround, outline(0.99)).fill(C.kelp); wetGround.alpha = 0; world.addChild(wetGround);
       const snowGround = new Graphics(); poly(snowGround, outline(0.99)).fill(0xffffff); snowGround.alpha = 0; world.addChild(snowGround); let snowiness = 0;
+      // the moving parts of the drawn things, found by their labels
+      const findParts = (label: string): Container[] => { const out: Container[] = []; const walk = (n: Container) => { if (n.label === label) out.push(n); for (const ch of n.children) if (ch instanceof Container) walk(ch); }; walk(scene); return out; };
+      const sails = findParts("sails"), bells = findParts("bell"), cloths = findParts("cloth"); let millSpeed = 0;
+      const boats = [...scene.children].filter((ch) => decor.some((d) => d.sprite === "rowboat" && Math.abs(ch.position.x - d.x) < 1 && Math.abs(ch.position.y - d.y) < 1)) as (Container & { userData: number })[]; for (const bt of boats) bt.userData = bt.position.y;
+      const wake = new Graphics(); wake.zIndex = 0.6; scene.addChild(wake);
+      const gulls = new Graphics(); gulls.zIndex = 180000; scene.addChild(gulls);
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
       const dockX = harbor.x - 420, awayX = -300;
@@ -210,6 +216,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
       const ambience = new Ambience(); ambienceRef.current = ambience;
 
+      const takenBenches = new Set<string>();
+      const benchAt = (place: string): { key: string; x: number; y: number } | null => { const p = places.get(place); if (!p) return null; const near = decor.map((d, i) => ({ d, i })).filter(({ d }) => d.sprite === "bench" && Math.hypot(d.x - p.x, d.y - p.y) < 260); for (const { d, i } of near) { for (const side of [-14, 14]) { const key = `${i}:${side}`; if (!takenBenches.has(key)) return { key, x: d.x + side, y: d.y + 4 }; } } return null; };
       const spot = (place: string, seat: number) => { const p = places.get(place) ?? places.get("market")!; const g = gather(p); const cols = 5; return { x: g.x + 20 + (seat % cols) * ((g.w - 40) / (cols - 1)), y: g.y + Math.floor(seat / cols) * 26 }; };
       const ensure = (a: PublicAgent) => {
         agents.current.set(a.id, a);
@@ -223,12 +231,14 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           scene.addChild(g);
           const seat = seatOf.current.get(a.location) ?? 0; seatOf.current.set(a.location, (seat + 1) % 10);
           const sp = spot(a.location, seat);
-          f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1 };
+          f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1, weak: !!a.weak, bench: false };
           figs.current.set(a.id, f);
-        } else { f.asleep = a.asleep; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); if (a.location !== f.place) moveTo(a.id, a.location); }
+        } else { f.asleep = a.asleep; f.weak = !!a.weak; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); if (a.location !== f.place) moveTo(a.id, a.location); }
+        // someone idle where there is a bench takes it
+        if (!f.asleep && f.pose === "idle" && !f.bench) { const b = benchAt(f.place); if (b && !takenBenches.has(b.key)) { takenBenches.add(b.key); f.bench = true; f.tx = b.x; f.ty = b.y; } }
         return f;
       };
-      const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
+      const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; if (f.bench) { f.bench = false; for (const k of takenBenches) { const b = decor[Number(k.split(":")[0])]; if (b && Math.abs(b.x + Number(k.split(":")[1]) - f.tx) < 1 && Math.abs(b.y + 4 - f.ty) < 1) takenBenches.delete(k); } } const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
       const refreshPlaces = async () => { try { const t = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView; for (const p of t.places) { const old = places.get(p.id); places.set(p.id, p); if (!old || old.kind !== p.kind || old.name !== p.name || JSON.stringify(old.site) !== JSON.stringify(p.site) || JSON.stringify(old.stock) !== JSON.stringify(p.stock)) drawPlace(p); } } catch {} };
 
       poll = setInterval(() => { void fetch(`${API}/api/agents`, { cache: "no-store" }).then((r) => r.json()).then((list: PublicAgent[]) => { for (const a of list) ensure(a); }).catch(() => {}); void refreshPlaces(); }, 30000);
@@ -268,12 +278,23 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         // sea
         sea.clear(); sea.rect(-3000, -3000, W + 6000, H + 6000).fill(C.water);
         if (tick % 6 === 0) { ripples.clear(); for (let i = 0; i < 48; i++) { const yy = ((i * 97 + tick * 0.4) % (H + 600)) - 300; const xx = ((i * 331) % (W + 800)) - 400 + Math.sin(tick / 90 + i) * 12; ripples.moveTo(xx, yy).lineTo(xx + 60 + (i % 3) * 20, yy).stroke({ width: 3, color: C.waterDeep, cap: "round" }); } }
-        // ferry
-        ferry.position.x += (ferryTarget - ferry.position.x) * 0.02;
         // weather: what falls, what lingers, what blows
         const c = clockRef.current; const weather = c?.weather ?? "clear"; const winter = c?.season === "winter";
         const wet = weather === "rain" || weather === "storm" || weather === "snow"; const snowing = weather === "snow" || (wet && winter);
         const wind = weather === "storm" ? 1 : weather === "wind" ? 0.8 : weather === "rain" ? 0.45 : weather === "fog" ? 0.1 : 0.2;
+        // ferry: it crosses at a boat's pace, bobs, and leaves a wake; the rowboats bob beside the quay
+        const sailing = Math.abs(ferryTarget - ferry.position.x) > 2;
+        if (sailing) ferry.position.x += Math.sign(ferryTarget - ferry.position.x) * Math.min(Math.abs(ferryTarget - ferry.position.x), 2.2);
+        ferry.position.y = harbor.y + 20 + Math.sin(tick / 40) * 1.5; ferry.rotation = Math.sin(tick / 55) * 0.012;
+        if (tick % 2 === 0) { wake.clear(); if (sailing) { const dir = Math.sign(ferryTarget - ferry.position.x); for (let i = 1; i <= 7; i++) { const x = ferry.position.x - dir * (70 + i * 26), y = ferry.position.y + 6 + Math.sin(tick / 9 + i) * 2; wake.moveTo(x, y - i * 1.5).lineTo(x - dir * 18, y - i * 1.5).moveTo(x, y + i * 1.5).lineTo(x - dir * 18, y + i * 1.5).stroke({ width: 2, color: C.foam, alpha: Math.max(0, 0.7 - i * 0.09), cap: "round" }); } } }
+        for (let i = 0; i < boats.length; i++) { const bt = boats[i]!; bt.position.y = bt.userData + Math.sin(tick / 35 + i * 2) * 1.2; bt.rotation = Math.sin(tick / 50 + i) * 0.03; }
+        // the mill turns while it is worked; the chapel bell swings at ten on Sunday; the washing sways in the wind
+        const millP = places.get("mill"); const millOn = !!millP && millP.crowd > 0 && (c?.hour ?? 12) >= 7 && (c?.hour ?? 12) < 15 && c?.weekday !== "Sunday";
+        millSpeed += ((millOn ? 0.012 : 0) - millSpeed) * 0.01; for (const sl of sails) sl.rotation += millSpeed;
+        const bellOn = c?.weekday === "Sunday" && c.hour === 10 && c.minute % 60 < 3; for (const bl of bells) bl.rotation = bellOn ? Math.sin(tick / 4) * 0.5 : bl.rotation * 0.95;
+        for (const cl of cloths) cl.skew.x = Math.sin(tick / 18) * 0.12 * wind + Math.sin(tick / 6) * 0.03 * wind;
+        // gulls over the quay by day, a few, wheeling
+        if (tick % 2 === 0) { gulls.clear(); if (!(c && (c.hour < 6 || c.hour >= 20)) && weather !== "storm") for (let i = 0; i < 5; i++) { const t = tick / 60 + i * 1.3; const gx = harbor.x - 120 + Math.cos(t * 0.7 + i) * (160 + i * 30), gy = harbor.y - 260 - i * 28 + Math.sin(t * 1.1) * 40; const flap = Math.sin(tick / 5 + i) * 4; gulls.moveTo(gx - 9, gy + flap).quadraticCurveTo(gx - 4, gy - 4, gx, gy).quadraticCurveTo(gx + 4, gy - 4, gx + 9, gy + flap).stroke({ width: 1.6, color: C.kelp, alpha: 0.7, cap: "round" }); } }
         if (tick % 2 === 0) {
           rain.clear();
           if (wet) {
@@ -320,12 +341,12 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         for (const f of figs.current.values()) {
           const moving = Math.abs(f.tx - f.x) > 1.5 || Math.abs(f.ty - f.y) > 1.5;
           // walk at a person's pace, not a spring's
-          const dx = f.tx - f.x, dy = f.ty - f.y, dist = Math.hypot(dx, dy), step = Math.min(dist, 1.6);
+          const dx = f.tx - f.x, dy = f.ty - f.y, dist = Math.hypot(dx, dy), step = Math.min(dist, f.weak ? 0.9 : 1.6);
           if (dist > 0.01) { f.x += (dx / dist) * step; f.y += (dy / dist) * step; }
           f.g.position.set(f.x, f.y);
           if (moving) f.facing = dx < 0 ? -1 : 1;
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
-          f.rig.face(f.facing); f.rig.setPose(f.asleep ? "sleep" : moving ? "walk" : b ? "talk" : f.pose); f.rig.update(secs);
+          f.rig.face(f.facing); f.rig.setPose(f.asleep ? "sleep" : moving ? "walk" : b ? "talk" : f.bench ? "sit" : f.pose); f.rig.update(secs);
           f.g.zIndex = f.y;
           next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 66) * cam.zoom + cam.y, mine: f.mine, ...(b ? { bubble: b.text } : {}) });
         }

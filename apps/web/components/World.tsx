@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Application, Assets, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
 import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
+import { drawThing } from "./world/buildings";
 
 /**
  * The island, drawn by PixiJS from the live event stream, in the Tide style.
@@ -15,10 +16,6 @@ const C = { water: 0xdcebe3, waterDeep: 0xcfe3d8, sand: 0xefede4, shell: 0xf7f5e
 type PlaceView = { id: string; name: string; kind: string; exits: string[]; x: number; y: number; district: string; sprite: string; owner: string | null; site: { what: string; name: string; by: string; done: number; of: number } | null; crowd: number };
 type TownView = Clock & { size: { w: number; h: number }; places: PlaceView[] };
 
-/** How wide each sprite stands, in map units. Anything not listed stands 160 wide. */
-const WIDTH: Record<string, number> = { "harbor-office": 150, inn: 240, stall: 170, bakery: 200, chandlery: 150, tavern: 190, council: 220, well: 90, mill: 200, field: 230, boatshed: 190, cottage: 150, house: 160, shop: 170, lamp: 30, bench: 70, rowboat: 90, searocks: 110, "tree-large": 160, "tree-small": 100, rock: 60, crates: 80, fence: 140, pier: 260, ferry: 170, bush: 70, fishhouse: 170, chapel: 170, smithy: 160, orchard: 220, sawpit: 150, quarry: 200, lighthouse: 120 };
-/** Until a sprite of its own is drawn, a new kind of place borrows a neighbour's. */
-const STAND_IN: Record<string, string> = { fishhouse: "boatshed", chapel: "council", smithy: "chandlery", orchard: "field", sawpit: "crates", quarry: "rock", lighthouse: "harbor-office", house: "cottage", shop: "stall" };
 
 /** Trees, rocks and props laid by district so the island reads as a landscape and not a diagram. Positions are map units. */
 function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; w?: number; flip?: boolean }[] {
@@ -61,15 +58,9 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
     let app: Application | null = null; let ws: WebSocket | null = null; let alive = true; let inited = false; let poll: ReturnType<typeof setInterval> | null = null;
     (async () => {
       const el = host.current!;
-      const [manifest, townView] = await Promise.all([
-        (await fetch("/world/manifest.json")).json() as Promise<Record<string, { w: number; h: number }>>,
-        (await fetch(`${API}/api/town`, { cache: "no-store" })).json() as Promise<TownView>,
-      ]);
+      const townView = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView;
       const W = townView.size?.w ?? 3000, H = townView.size?.h ?? 1800;
       const places = new Map<string, PlaceView>(townView.places.map((p) => [p.id, p]));
-      const names = Object.keys(manifest);
-      const textures = (await Assets.load(names.map((n) => ({ alias: n, src: `/world/png/${n}.png` })))) as unknown as Record<string, Texture>;
-      const tex = (n: string) => textures[n] ?? Texture.WHITE;
       if (!alive) return;
       app = new Application();
       await app.init({ background: C.water, resizeTo: el, antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true });
@@ -115,9 +106,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
 
       // everything with a foot on the ground sorts by y
       const scene = new Container(); scene.sortableChildren = true; world.addChild(scene);
+      // everything standing on the ground is drawn in code, in one projection, at its natural size; props may be scaled
       const put = (name: string, x: number, y: number, w?: number, flip = false) => {
-        const real = manifest[name] ? name : STAND_IN[name] ?? name; const m = manifest[real]; if (!m) return null;
-        const s = new Sprite(tex(real)); s.anchor.set(0.5, 1); s.scale.set((w ?? WIDTH[name] ?? WIDTH[real] ?? 160) / m.w); if (flip) s.scale.x *= -1; s.position.set(x, y); s.zIndex = y; scene.addChild(s); return s;
+        const d = drawThing(name); if (!d) return null;
+        const c = d.c; if (w) c.scale.set(w / d.w); if (flip) c.scale.x *= -1; c.position.set(x, y); c.zIndex = y; scene.addChild(c); return c;
       };
       const nameStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
       const smallStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: C.teal });
@@ -126,7 +118,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const drawPlace = (p: PlaceView) => {
         drawn.get(p.id)?.destroy({ children: true });
         const g = new Container(); g.sortableChildren = true; g.zIndex = p.y; scene.addChild(g); drawn.set(p.id, g);
-        const local = (name: string, w?: number) => { const s = put(name, 0, 0, w); if (s) { scene.removeChild(s); g.addChild(s); } return s; };
+        const local = (name: string, w?: number) => { const s = put(name, 0, 0, w); if (s) { scene.removeChild(s); s.zIndex = 0; g.addChild(s); } return s; };
         if (p.kind === "plot" && !p.site) {
           // pegged-out land: a dashed rectangle and four stakes
           const r = new Graphics(); for (let i = 0; i < 4; i++) { const x0 = -80 + (i % 2) * 160, y0 = -60 + Math.floor(i / 2) * 70; r.rect(x0 - 3, y0 - 14, 6, 14).fill(C.drift); }
@@ -155,7 +147,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       };
       for (const p of places.values()) drawPlace(p);
       const decor = decorFor([...places.values()]);
-      const trees: Sprite[] = [];
+      const trees: Container[] = [];
       for (const d of decor) { const sp = put(d.sprite, d.x, d.y, d.w, d.flip); if (sp && /tree|bush/.test(d.sprite)) trees.push(sp); }
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
@@ -264,7 +256,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (night.alpha > 0.05) {
             for (const d of decor) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.42) });
             // a lit window where someone is inside
-            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") windows.roundRect(p.x - 14, p.y - 70, 28, 18, 4).fill({ color: 0xffe3a3, alpha: 0.5 * (night.alpha / 0.42) });
+            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") windows.roundRect(p.x - 30, p.y - 34, 16, 12, 3).fill({ color: 0xffe3a3, alpha: 0.5 * (night.alpha / 0.42) });
           }
         }
         // smoke from a chimney where someone works

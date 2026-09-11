@@ -29,13 +29,14 @@ export default function Landing() {
       <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
         <header className="flex items-center justify-between py-5 sm:py-6">
           <Wordmark size={22} dark />
-          <nav aria-label="Around the island" className="flex items-center gap-6">
-            <span className="hidden md:flex gap-6 text-[15px] font-semibold text-ink2"><Link href="/town" className="hover:text-kelp transition-colors">Watch the town</Link><Link href="/gazette" className="hover:text-kelp transition-colors">The Gazette</Link><Link href="/library" className="hover:text-kelp transition-colors">The Library</Link><Link href="/developers" className="hover:text-kelp transition-colors">Bring your own brain</Link><GitHubStars variant="compact" /></span>
+          <nav aria-label="Around the island" className="flex items-center gap-3 md:gap-6">
+            <span className="hidden md:flex gap-6 text-[15px] font-semibold text-ink2"><Link href="/town" className="hover:text-kelp transition-colors">Watch the town</Link><Link href="/gazette" className="hover:text-kelp transition-colors">The Gazette</Link><Link href="/library" className="hover:text-kelp transition-colors">The Library</Link><Link href="/developers" className="hover:text-kelp transition-colors">Bring your own brain</Link></span>
+            <GitHubStars variant="compact" />
             <Link href="/gate" className="h-9 px-4 rounded-[8px] bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#33373E] transition-colors">Sign in</Link>
           </nav>
         </header>
 
-        <LandingHero github={<GitHubStars />} />
+        <LandingHero github={<GitHubStars variant="hero" />} />
 
         {/* the six rules, once, whole */}
         <section aria-label="The six rules" className="pt-12 sm:pt-16">

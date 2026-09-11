@@ -30,6 +30,14 @@ function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; 
     { sprite: "searocks", x: cv.x - 120, y: cv.y + 120 }, { sprite: "searocks", x: cv.x + 260, y: cv.y - 60 }, { sprite: "rowboat", x: cv.x + 120, y: cv.y + 80, flip: true }, { sprite: "bush", x: sh.x + 120, y: sh.y + 90 }, { sprite: "tree-small", x: sh.x - 200, y: sh.y + 60 },
     { sprite: "rock", x: q.x - 120, y: q.y + 90 }, { sprite: "rock", x: q.x + 140, y: q.y + 60 }, { sprite: "searocks", x: lh.x + 140, y: lh.y + 120 }, { sprite: "rock", x: lh.x - 100, y: lh.y + 60 },
   ];
+  // dressing by district: walls along the fields and plots, olives and cypresses on the hill, nets and barrels at the harbour, a well in the square
+  const hill = at("hill"), chapel = at("chapel");
+  out.push({ sprite: "wall", x: f.x - 210, y: f.y + 60 }, { sprite: "wall", x: f.x - 90, y: f.y + 120 }, { sprite: "wall", x: o.x + 220, y: o.y + 40 }, { sprite: "wall", x: ln.x + 260, y: ln.y + 120 });
+  for (let i = 0; i < 5; i++) out.push({ sprite: "olive", x: hill.x - 260 + i * 110, y: hill.y + 140 + (i % 2) * 40 });
+  for (let i = 0; i < 4; i++) out.push({ sprite: "cypress", x: chapel.x - 150 + i * 44, y: chapel.y + 70 + (i % 2) * 6 });
+  out.push({ sprite: "cypress", x: hill.x + 120, y: hill.y - 40 }, { sprite: "cypress", x: hill.x + 150, y: hill.y - 30 });
+  out.push({ sprite: "net", x: h.x - 60, y: h.y + 140 }, { sprite: "barrel", x: h.x + 190, y: h.y + 50 }, { sprite: "barrel", x: h.x + 212, y: h.y + 58 }, { sprite: "barrel", x: h.x + 200, y: h.y + 74 }, { sprite: "net", x: cv.x + 40, y: cv.y - 40 });
+  out.push({ sprite: "well", x: m.x + 120, y: m.y - 110 }, { sprite: "barrel", x: m.x - 250, y: m.y - 30 });
   // the pinewood is a wood
   for (let i = 0; i < 22; i++) out.push({ sprite: i % 3 === 0 ? "tree-small" : "tree-large", x: pw.x - 340 + (i * 173) % 680, y: pw.y - 160 + (i * 97) % 340, flip: i % 2 === 0 });
   // a few more trees where the land is empty, so the island is not bare between districts
@@ -225,7 +233,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
       const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
       const moonPhase = () => { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000; return (days / 29.530588) % 1; }; // 0 new, 0.5 full
-      const forcedHour = typeof location !== "undefined" ? Number(new URLSearchParams(location.search).get("hour")) : NaN; // ?hour=23 previews the light without waiting for it
+      const hourParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("hour") : null; const forcedHour = hourParam === null ? NaN : Number(hourParam); // ?hour=23 previews the light without waiting for it
       const forcedWeather = typeof location !== "undefined" ? new URLSearchParams(location.search).get("weather") : null; // ?weather=storm previews the weather
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
       const ambience = new Ambience(); ambienceRef.current = ambience;

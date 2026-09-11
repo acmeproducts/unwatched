@@ -13,6 +13,7 @@ services:
   - name: town
     image:
       registry_type: DOCR
+      registry: unwatched
       repository: unwatched-town
       tag: latest
     http_port: 4000
@@ -44,6 +45,7 @@ services:
   - name: web
     image:
       registry_type: DOCR
+      registry: unwatched
       repository: unwatched-web
       tag: latest
     http_port: 3000

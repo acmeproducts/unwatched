@@ -38,14 +38,16 @@ fi
 
 registry
 REGURL=$(doctl registry get --format Endpoint --no-header)
+TAG="$(git rev-parse --short HEAD 2>/dev/null || echo dev)-$(date +%s)"   # a fresh tag each time, so the platform pulls the new image instead of trusting `latest`
+export TAG
 echo "building the town"
-docker build --platform linux/amd64 -t "$REGURL/ferry-town-town:latest" -f Dockerfile .
-docker push "$REGURL/ferry-town-town:latest"
+docker build --platform linux/amd64 -t "$REGURL/ferry-town-town:$TAG" -f Dockerfile .
+docker push "$REGURL/ferry-town-town:$TAG"
 
 ID=$(app_id)
 if [[ -z "$ID" ]]; then
   echo "creating the app with the town only; the web joins once its image is built against the app's URL"
-  python3 -c "import yaml; s=yaml.safe_load(open('.do/app.yaml')); s['services']=[x for x in s['services'] if x['name']=='town']; yaml.safe_dump(s, open('/tmp/ft-town-only.yaml','w'))"
+  python3 -c "import os, yaml; s=yaml.safe_load(open('.do/app.yaml')); s['services']=[x for x in s['services'] if x['name']=='town']; s['services'][0]['image']['tag']=os.environ['TAG']; yaml.safe_dump(s, open('/tmp/ft-town-only.yaml','w'))"
   doctl apps create --spec /tmp/ft-town-only.yaml --wait >/dev/null; rm -f /tmp/ft-town-only.yaml
   ID=$(app_id)
 fi
@@ -54,17 +56,18 @@ echo "app is at $URL"
 
 echo "building the web against $URL/engine"
 set -a; [[ -f .env ]] && source .env; set +a
-docker build --platform linux/amd64 -t "$REGURL/ferry-town-web:latest" -f apps/web/Dockerfile \
+docker build --platform linux/amd64 -t "$REGURL/ferry-town-web:$TAG" -f apps/web/Dockerfile \
   --build-arg NEXT_PUBLIC_API_URL="$URL/engine" \
   --build-arg NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-}" \
   --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" .
-docker push "$REGURL/ferry-town-web:latest"
+docker push "$REGURL/ferry-town-web:$TAG"
 
 echo "deploying both services, keeping the town's secrets"
 doctl apps spec get "$ID" > /tmp/ft-live.yaml
 python3 - <<'PY2'
-import yaml
+import os, yaml
 live = yaml.safe_load(open("/tmp/ft-live.yaml")); want = yaml.safe_load(open(".do/app.yaml"))
+for s in want["services"]: s["image"]["tag"] = os.environ["TAG"]
 by = {s["name"]: s for s in live.get("services", [])}
 merged = []
 for svc in want["services"]:

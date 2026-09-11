@@ -7,3 +7,5 @@ export { habit } from "./habit.ts";
 export { retrieve, compress } from "./memory.ts";
 export { MINUTES_PER_DAY } from "./world.ts";
 export { embed, cosine } from "./embed.ts";
+export { ISLAND, BUILDS } from "./world.ts";
+export type { WorldPack, PlaceSpec, JobSpec } from "./world.ts";

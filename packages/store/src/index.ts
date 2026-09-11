@@ -77,14 +77,14 @@ export class TownStore {
     ]);
     if (e1) console.error("agents upsert failed:", e1.message);
     if (e2) console.error("town update failed:", e2.message);
-    const rels: { agent_id: string; other_id: string; trust: number; affection: number; last_seen: number; opinion: string }[] = [];
-    for (const a of town.agents.values()) for (const [other, r] of a.relationships) rels.push({ agent_id: a.id, other_id: other, trust: r.trust, affection: r.affection, last_seen: r.lastSeen, opinion: r.opinion });
+    const rels: { agent_id: string; town_id: string; other_id: string; trust: number; affection: number; last_seen: number; opinion: string }[] = [];
+    for (const a of town.agents.values()) for (const [other, r] of a.relationships) rels.push({ agent_id: a.id, town_id: this.townId, other_id: other, trust: r.trust, affection: r.affection, last_seen: r.lastSeen, opinion: r.opinion });
     if (rels.length) { const { error } = await this.sb.from("relationships").upsert(rels, { onConflict: "agent_id,other_id" }); if (error) console.error("relationships upsert failed:", error.message); }
   }
 
   /** Memories are appended, never rewritten. Pass only the ones written since the last call. */
   async appendMemories(a: AgentState, sinceT: number): Promise<void> {
-    const rows = a.memory.filter((m) => m.t >= sinceT).map((m) => ({ agent_id: a.id, t: m.t, kind: m.kind, text: m.text, importance: m.importance }));
+    const rows = a.memory.filter((m) => m.t >= sinceT).map((m) => ({ agent_id: a.id, town_id: this.townId, t: m.t, kind: m.kind, text: m.text, importance: m.importance }));
     if (!rows.length) return;
     const { error } = await this.sb.from("memories").insert(rows);
     if (error) console.error("memories insert failed:", error.message);
@@ -169,7 +169,7 @@ export class TownStore {
     return ((data ?? []) as BrainRow[]).filter((r) => ids.has(r.agent_id));
   }
   async saveBrain(row: BrainRow): Promise<void> {
-    const { error } = await this.sb.from("agent_brains").upsert(row, { onConflict: "agent_id" });
+    const { error } = await this.sb.from("agent_brains").upsert({ ...row, town_id: this.townId }, { onConflict: "agent_id" });
     if (error) console.error("brain save failed:", error.message);
   }
 
@@ -199,7 +199,7 @@ export class TownStore {
   }
 
   async saveLetter(agentId: string, ownerId: string | null, direction: "to_agent" | "to_owner", text: string, t: number): Promise<void> {
-    const { error } = await this.sb.from("letters").insert({ agent_id: agentId, owner_id: ownerId && /^[0-9a-f-]{36}$/.test(ownerId) ? ownerId : null, direction, text, t }); // dev owners are names, not ids
+    const { error } = await this.sb.from("letters").insert({ agent_id: agentId, town_id: this.townId, owner_id: ownerId && /^[0-9a-f-]{36}$/.test(ownerId) ? ownerId : null, direction, text, t }); // dev owners are names, not ids
     if (error) console.error("letter insert failed:", error.message);
   }
 
@@ -230,3 +230,6 @@ export class TownStore {
     };
   }
 }
+
+export { FileStore } from "./file.ts";
+export type { Store } from "./file.ts";

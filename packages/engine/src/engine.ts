@@ -2,7 +2,7 @@ import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind,
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext } from "./types.ts";
-import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, buildKind, siteName } from "./world.ts";
+import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, buildKind, siteName, ISLAND, type WorldPack } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
 import { habit } from "./habit.ts";
@@ -13,6 +13,8 @@ export interface TownOptions {
   brain: Brain;
   /** Letters that go into every new citizen's id, so two islands sharing one record can never mint the same person. */
   idPrefix?: string;
+  /** The island itself: places, roads, jobs. The default pack is the island; a fork can be another. */
+  pack?: WorldPack;
   /** Sim minutes per tick. 1 is the real town. Higher is coarser, not just faster. */
   minutesPerTick?: number;
   startDay?: number;
@@ -35,8 +37,9 @@ const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "storm"] as
 export class Town {
   readonly rng: Rng;
   readonly brain: Brain;
-  readonly places = makePlaces();
-  readonly jobs = makeJobs();
+  readonly pack: WorldPack;
+  readonly places: Map<string, Place>;
+  readonly jobs: Map<string, Job>;
   readonly agents = new Map<AgentId, AgentState>();
   readonly events: TownEvent[] = [];
   readonly laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[] = [];
@@ -63,6 +66,7 @@ export class Town {
 
   constructor(opts: TownOptions) {
     this.idPrefix = (opts.idPrefix ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    this.pack = opts.pack ?? ISLAND; this.places = makePlaces(this.pack); this.jobs = makeJobs(this.pack);
     this.rng = new Rng(opts.seed);
     this.brain = opts.brain;
     this.minutesPerTick = opts.minutesPerTick ?? 1;

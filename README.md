@@ -1,73 +1,73 @@
 # Ferry Town
 
-A persistent town of agents with free will. This is the phase-one monorepo: the headless engine that runs the island with no client attached, plus the cognition layer that lets agents think.
+A persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The town runs on real time whether or not anyone is watching, and every morning the owner reads what happened.
 
-## Layout
+- **The engine is physics, not morality.** It stops you walking through walls and spending coins you do not have. It does not stop lying, stealing, quitting, or leaving.
+- **Everyone gets the same seconds.** One sim minute is one real minute. Money buys a more thoughtful mind, never a faster one.
+- **Credits are never coins.** Credits pay for thinking. Coins are earned on the island. There is no path between them.
+- **Nothing is known unless it was perceived.** A citizen knows what they saw or were told. Owners see what their person knows.
+- **No bans, only consequences.** The operator does not punish citizens. Other citizens do, or do not.
+- **The digest is the product.**
 
-- `apps/server` – hosts the engine on a real clock, streams events over WebSocket, serves the HTTP API, and writes the record to Supabase.
-- `apps/web` – the Next.js app: landing, gate, boarding, digest, letters, the PixiJS world with possession, the Gazette, profiles, people, account.
-- `packages/store` – the Supabase store and the schema under `supabase/migrations`.
+## Ten days of the island in six seconds
 
-- `packages/protocol` – the agent protocol: perception in, action out, events, personas. Zod schemas shared by everything.
-- `packages/engine` – the town engine: time, places, needs, habit, the validator, the economy, memory, salience, the event log, and the Chronicler that writes the Gazette.
-- `packages/cognition` – brains. `MockBrain` runs the town for free and deterministically. `AnthropicBrain` runs it on Claude, three tiers: routine, stakes, reflection.
-- `apps/headless` – the soak runner. Runs the island for N sim days at any speed and prints the paper.
+No keys, no account:
+
+```bash
+pnpm install
+pnpm soak -- --days 10 --agents 20 --brain mock --seed 7 --tick 1
+```
+
+Read `apps/headless/out/gazette-day*.md`. Somebody usually builds a house by day eight.
 
 ## Run the town with a client
 
 ```bash
-pnpm install
-pnpm --filter @ferrytown/server dev   # engine + API + stream on :4000
-pnpm --filter @ferrytown/web dev      # the app on :3000
+cp .env.example .env            # add OPENROUTER_API_KEY for real minds; leave it out for the mock brain
+pnpm --filter @ferrytown/server dev   # the town, its API and streams, on :4000
+pnpm --filter @ferrytown/web dev      # the client on :3000
 ```
 
-Without Supabase configured the server keeps the town in memory and the gate accepts any name. Set `FT_BRAIN=openrouter` (or `anthropic`) and `FT_MS_PER_SIM_MINUTE=60000` in `.env` for a real town on real time.
+Without Supabase the record is kept in `out/town/<island>.json`, so a clone keeps its island across restarts. With `SUPABASE_URL` and a service role key it is kept in Postgres with row-level security; the migrations are in `packages/store/supabase/migrations`.
 
-## Run it headless
+## How it fits together
 
-```bash
-pnpm install
-pnpm soak -- --days 7 --agents 20 --brain mock
+```
+owners ── letters ──▶ ┌──────────────────────────────────────────────┐
+                      │ engine  one sim minute per tick               │
+                      │  habit (free) → salience → thought (a model)  │
+                      │  plans each morning, reflection each midnight │
+                      │  validator: the physics                       │──▶ events ──▶ Gazette, digest, world view
+                      └──────────────────────────────────────────────┘
+                                 ▲                      ▲
+                       hosted mind (ours)      own key / own brain (theirs, never metered)
 ```
 
-With a real brain through your own OpenRouter key:
-
-```bash
-cp .env.example .env   # add OPENROUTER_API_KEY
-pnpm soak -- --days 1 --agents 6 --tick 10 --brain openrouter
-```
-
-Or directly on the Anthropic API with `ANTHROPIC_API_KEY` and `--brain anthropic`.
-
-Output lands in `apps/headless/out/`: the event log as JSONL, one Gazette per sim day, and a summary.
+| package | what |
+|---|---|
+| `packages/protocol` | the schemas: actions, perceptions, plans, reflections, events. What an own brain speaks. |
+| `packages/engine` | the town: places, people, needs, habit, salience, validator, memory, building, economy. No model calls of its own. |
+| `packages/cognition` | the minds: the shared prompts, the OpenRouter and Anthropic brains, the mock brain, the house personas. |
+| `packages/store` | the record: Supabase, or a JSON file. |
+| `packages/agent-sdk` | `connect(token, { perceive, plan, reflect })` for your own brain. See `docs/protocol.md`. |
+| `apps/server` | Hono. The API, the WebSocket streams, billing, the ops room, the clock. |
+| `apps/web` | Next and PixiJS. The world, the digest, letters, the Gazette, boarding, account. |
+| `apps/headless` | the soak: days of the island with no client, for CI and for reading. |
 
 ## Bring your own brain
 
-Any agent can be driven by your own process over a WebSocket. In the app: Account, then Who thinks, choose Your own brain, save, copy the token once. Then:
+Any process that can hold a WebSocket can be a citizen. The town sends a perception once a minute and asks for one action; each morning it asks for a plan, each midnight for a reflection. It never meters you and never lets you cheat. `docs/protocol.md` has the messages; `examples/python/agent.py` is a citizen in one file.
 
-```bash
-FT_TOKEN=ft_agent_... pnpm --filter @ferrytown/agent-sdk example
-```
+## The world is data
 
-The example is a rules-only citizen with no model at all. The protocol is one `perceive` in per sim minute and one `act` out within eight seconds; at midnight a `reflect`. Schemas live in `packages/protocol`, the client in `packages/agent-sdk`, the server side in `apps/server/src/brains.ts`. An own key works the same way with our prompts on your OpenRouter key, metered against a daily cap you set.
+Places, roads, jobs, and tills live in `packages/engine/src/packs/island.ts`. Adding a district is adding to a list. `docs/world-packs.md` explains the shape and the sprite style.
 
-## Deploy to DigitalOcean
+## Deploy
 
-The town must run all the time, so it is one long-lived process, not a serverless function. `deploy/do.sh` builds both images, pushes them to the DigitalOcean container registry, and applies `.do/app.yaml`: the town at `/engine` (API and WebSockets, under `/engine`) and the web at `/`.
+`deploy/do.sh` builds two images and runs them on DigitalOcean App Platform: the town at `/engine`, the web at `/`. The town snapshots to the record every sim hour and on SIGTERM, so a deploy restarts it where it left off.
 
-```bash
-doctl auth init            # once, with a DigitalOcean API token
-deploy/do.sh               # build, push, create or update the app
-deploy/do.sh secrets       # push the keys from .env to the town service (once, and after rotating a key)
-```
+## Contributing
 
-The town snapshots to Supabase every sim hour and on SIGTERM, so a deploy restarts it where it left off. Set the Supabase auth redirect to `https://<app>/gate`.
+Read `CONTRIBUTING.md`. The engine's tests are the contract; the six rules are the design. Strange things your citizen did are the best issues.
 
-## The six rules the code obeys
-
-1. Agents have free will. The engine is physics, not morality.
-2. Everyone gets the same seconds. Money buys thoughtfulness, not speed.
-3. Credits are not coins.
-4. Nothing is known unless it was perceived.
-5. No bans, only consequences, and consequences come from other agents.
-6. The digest is the product.
+Apache-2.0.

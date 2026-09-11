@@ -1,0 +1,68 @@
+import type { PlaceKind } from "../types.ts";
+
+/**
+ * The island as data. A world pack is places (with positions the client draws from), roads (exits, made two-way on load),
+ * jobs, and the float each unowned business starts with. Add a district, a job, or a whole island by adding a pack.
+ */
+export interface PlaceSpec { id: string; name: string; kind: PlaceKind; district: string; sprite: string; x: number; y: number; exits: string[]; sells?: { item: string; base: number }[]; beds?: { price: number; capacity: number } }
+export interface JobSpec { id: string; title: string; place: string; wage: number; hours: [number, number]; slots: number }
+export interface WorldPack { id: string; name: string; size: { w: number; h: number }; places: PlaceSpec[]; jobs: JobSpec[]; float: Record<string, number> }
+
+const P = (id: string, name: string, kind: PlaceKind, district: string, sprite: string, x: number, y: number, exits: string[], extra: Partial<PlaceSpec> = {}): PlaceSpec => ({ id, name, kind, district, sprite, x, y, exits, ...extra });
+
+export const ISLAND: WorldPack = {
+  id: "island", name: "The island", size: { w: 3000, h: 1800 },
+  places: [
+    // Harbor
+    P("harbor", "the harbor", "harbor", "harbor", "harbor-office", 560, 1180, ["inn", "market", "chandlery", "boatshed", "fishhouse", "coast"]),
+    P("inn", "the harbor inn", "inn", "harbor", "inn", 820, 1020, ["harbor", "market"], { sells: [{ item: "soup", base: 2 }, { item: "bread", base: 1 }], beds: { price: 4, capacity: 6 } }),
+    P("chandlery", "the chandlery", "shop", "harbor", "chandlery", 880, 1280, ["harbor", "market"], { sells: [{ item: "rope", base: 3 }, { item: "lamp oil", base: 2 }], beds: { price: 3, capacity: 1 } }),
+    P("boatshed", "the boat shed", "home", "harbor", "boatshed", 420, 1400, ["harbor"], { beds: { price: 0, capacity: 8 } }),
+    P("fishhouse", "the fish house", "workplace", "harbor", "fishhouse", 300, 1000, ["harbor"], { sells: [{ item: "fish", base: 1 }] }),
+    // Old town
+    P("market", "the market square", "market", "old town", "stall", 1180, 1100, ["harbor", "inn", "bakery", "chandlery", "tavern", "council", "hill", "chapel", "smithy", "lane"], { sells: [{ item: "bread", base: 1 }, { item: "apples", base: 1 }, { item: "fish", base: 1 }] }),
+    P("bakery", "Ilić's bakery", "workplace", "old town", "bakery", 1160, 840, ["market"], { sells: [{ item: "bread", base: 1 }] }),
+    P("tavern", "the tavern", "public", "old town", "tavern", 1500, 1200, ["market", "lane"], { sells: [{ item: "drink", base: 1 }] }),
+    P("council", "the council hall", "civic", "old town", "council", 1520, 880, ["market", "chapel"]),
+    P("chapel", "the chapel", "public", "old town", "chapel", 1820, 760, ["council", "market", "hill"]),
+    P("smithy", "the smithy", "workplace", "old town", "smithy", 900, 760, ["market"], { sells: [{ item: "nails", base: 2 }] }),
+    P("lane", "Rope Lane", "public", "old town", "lamp", 1420, 1420, ["market", "tavern", "lane-1", "lane-2"]),
+    P("lane-1", "an empty lot on Rope Lane", "plot", "old town", "plot", 1300, 1560, ["lane"]),
+    P("lane-2", "the corner lot on Rope Lane", "plot", "old town", "plot", 1620, 1520, ["lane"]),
+    // Hill
+    P("hill", "the hill road", "public", "hill", "well", 2000, 1000, ["market", "chapel", "mill", "fields", "orchard", "pinewood"]),
+    P("mill", "the mill", "workplace", "hill", "mill", 2180, 640, ["hill", "fields"]),
+    P("fields", "the hill fields", "workplace", "hill", "field", 2380, 1000, ["hill", "mill", "orchard"], { sells: [{ item: "apples", base: 1 }] }),
+    P("orchard", "the old orchard", "workplace", "hill", "orchard", 2360, 1320, ["fields", "hill", "shore"], { sells: [{ item: "apples", base: 1 }] }),
+    // North shore
+    P("coast", "the coast road", "public", "north shore", "searocks", 520, 620, ["harbor", "cove", "shore"]),
+    P("cove", "the cove", "public", "north shore", "rowboat", 300, 380, ["coast", "lighthouse"]),
+    P("shore", "the north shore", "public", "north shore", "bench", 1000, 440, ["coast", "shore-1", "shore-2", "shore-3", "pinewood", "orchard"]),
+    P("shore-1", "a plot above the cove", "plot", "north shore", "plot", 760, 300, ["shore"]),
+    P("shore-2", "a plot on the north shore", "plot", "north shore", "plot", 1060, 220, ["shore"]),
+    P("shore-3", "the last plot before the pines", "plot", "north shore", "plot", 1380, 300, ["shore"]),
+    // Pinewood and the quarry
+    P("pinewood", "the pinewood", "wild", "pinewood", "tree-large", 1900, 380, ["shore", "hill", "sawpit", "quarry"]),
+    P("sawpit", "the sawpit", "workplace", "pinewood", "sawpit", 1700, 520, ["pinewood", "wood-1"], { sells: [{ item: "timber", base: 3 }] }),
+    P("wood-1", "a clearing in the pines", "plot", "pinewood", "plot", 1620, 260, ["sawpit", "pinewood"]),
+    P("quarry", "the quarry", "wild", "pinewood", "quarry", 2300, 260, ["pinewood", "lighthouse", "point-1"]),
+    P("lighthouse", "the lighthouse", "public", "pinewood", "lighthouse", 2660, 420, ["quarry", "cove"]),
+    P("point-1", "the plot on the point", "plot", "pinewood", "plot", 2560, 700, ["quarry", "lighthouse"]),
+  ],
+  jobs: [
+    { id: "bakery.cook", title: "cook at the bakery", place: "bakery", wage: 3, hours: [6, 12], slots: 2 },
+    { id: "inn.help", title: "help at the inn", place: "inn", wage: 2, hours: [8, 16], slots: 2 },
+    { id: "fields.hand", title: "field hand", place: "fields", wage: 2, hours: [7, 15], slots: 4 },
+    { id: "mill.hand", title: "mill hand", place: "mill", wage: 3, hours: [7, 14], slots: 1 },
+    { id: "harbor.dock", title: "dock hand", place: "harbor", wage: 2, hours: [6, 12], slots: 2 },
+    { id: "chandlery.clerk", title: "clerk at the chandlery", place: "chandlery", wage: 2, hours: [9, 17], slots: 1 },
+    { id: "tavern.keep", title: "tavern keeper's help", place: "tavern", wage: 2, hours: [16, 23], slots: 1 },
+    { id: "fishhouse.gutter", title: "fish gutter", place: "fishhouse", wage: 2, hours: [5, 11], slots: 2 },
+    { id: "smithy.help", title: "smith's help", place: "smithy", wage: 3, hours: [8, 16], slots: 1 },
+    { id: "orchard.picker", title: "picker at the orchard", place: "orchard", wage: 2, hours: [7, 14], slots: 3 },
+    { id: "pinewood.cutter", title: "woodcutter", place: "pinewood", wage: 3, hours: [7, 15], slots: 2 },
+    { id: "sawpit.sawyer", title: "sawyer", place: "sawpit", wage: 3, hours: [8, 16], slots: 1 },
+    { id: "quarry.hand", title: "quarryman", place: "quarry", wage: 3, hours: [7, 14], slots: 2 },
+  ],
+  float: { inn: 60, bakery: 40, fields: 40, mill: 40, harbor: 40, chandlery: 30, tavern: 30, fishhouse: 30, smithy: 30, orchard: 30, pinewood: 30, sawpit: 30, quarry: 30 },
+};

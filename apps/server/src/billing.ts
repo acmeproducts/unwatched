@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import type { AgentState, Tier } from "@ferrytown/engine";
-import type { TownStore, Wallet, Plan } from "@ferrytown/store";
+import type { Store, Wallet, Plan } from "@ferrytown/store";
 
 /** What each plan buys per day. Prices are placeholders until they are not. */
 export const PLANS: Record<Plan, { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string }> = {
@@ -20,7 +20,7 @@ export class Billing {
   private wallets = new Map<string, Wallet>();
   readonly stripe: Stripe | null;
   readonly testMode: boolean;
-  constructor(private store: TownStore | null, private log: (l: string) => void) {
+  constructor(private store: Store | null, private log: (l: string) => void) {
     const key = process.env.STRIPE_SECRET_KEY;
     this.stripe = key ? new Stripe(key) : null;
     this.testMode = !this.stripe;

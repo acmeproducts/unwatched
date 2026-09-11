@@ -13,10 +13,10 @@ import { Town, Rng, MINUTES_PER_DAY } from "@ferrytown/engine";
 import type { Brain } from "@ferrytown/engine";
 import { Action, Persona, type TownEvent } from "@ferrytown/protocol";
 import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferrytown/cognition";
-import { TownStore } from "@ferrytown/store";
+import { TownStore, FileStore } from "@ferrytown/store";
 import { publicAgent, ownerAgent, clockOf } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
-import type { BrainRow, Plan } from "@ferrytown/store";
+import type { BrainRow, Plan, Store } from "@ferrytown/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
 import { Metrics } from "./ops.ts";
 
@@ -40,8 +40,9 @@ const brain = router; // endpoints keep talking to the router; the engine talks 
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
 if (townBrain instanceof OpenRouterBrain) townBrain.onFallback = (f) => metrics.fallback(f);
 const TOWN_ID = process.env.FT_TOWN_ID ?? "island";
-let store = TownStore.fromEnv(TOWN_ID);
+let store: Store | null = TownStore.fromEnv(TOWN_ID);
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
+if (!store && process.env.FT_STORE !== "none") { store = FileStore.fromEnv(TOWN_ID); log(`record kept in ${process.env.FT_DATA_DIR ?? "out/town"}/${TOWN_ID}.json (set SUPABASE_URL for the shared record, FT_STORE=none for none)`); }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
@@ -118,7 +119,7 @@ async function ownerOf(req: Request): Promise<string | null> {
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
 const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
-app.get("/api/town", (c) => c.json({ ...clockOf(town), size: { w: 3000, h: 1800 }, places: [...town.places.values()].map(placeView), laws: town.laws }));
+app.get("/api/town", (c) => c.json({ ...clockOf(town), size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws }));
 const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
 const nextFerry = () => { const h = town.hour < 6 ? 6 : town.hour >= 20 ? 6 : town.hour + 1; return `${String(h).padStart(2, "0")}:00${town.hour >= 20 ? " tomorrow" : ""}`; };
 const liveTown = () => ({ id: store?.townId ?? "island", name: "The island", live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : "Ferries hourly, 06:00 to 20:00", next: town.ferryHeld ? null : nextFerry(), spaces: town.ferryHeld ? 0 : Math.max(0, FERRY_SPACES - town.pendingArrivals()) });
@@ -144,7 +145,7 @@ async function writtenDigest(a: AgentState, since: number): Promise<{ text: stri
   catch (err) { log(`digest failed for ${a.persona.name}: ${(err as Error).message}`); return null; }
 }
 /** An intent is the owner's to read, not the town's. Public streams carry the deed, never the why. */
-const publicEvent = (e: TownEvent): TownEvent => { if (!e.payload || !("because" in e.payload)) return e; const { because: _b, ...rest } = e.payload; return { ...e, ...(Object.keys(rest).length ? { payload: rest } : {}) } as TownEvent; };
+function publicEvent(e: TownEvent): TownEvent { if (!e.payload || !("because" in e.payload)) return e; const { because: _b, ...rest } = e.payload; return { ...e, ...(Object.keys(rest).length ? { payload: rest } : {}) } as TownEvent; }
 app.get("/api/agents/:id/digest", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
   const since = Math.max(Number(c.req.query("since") ?? town.t - 3 * MINUTES_PER_DAY), a.arrivedAt); // nothing before the ferry counts as "away"

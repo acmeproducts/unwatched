@@ -161,9 +161,12 @@ export class TownStore {
 
   /** Per-agent minds. The key column is readable by the service role only; there are no RLS policies on this table. */
   async loadBrains(): Promise<BrainRow[]> {
+    // only the minds of people on this island; ids are unique per island now, but the record predates that
+    const { data: mine } = await this.sb.from("agents").select("id").eq("town_id", this.townId);
+    const ids = new Set((mine ?? []).map((r) => r.id as string));
     const { data, error } = await this.sb.from("agent_brains").select("agent_id, kind, provider, api_key, models, think_every, daily_cap_usd, token, memory");
     if (error) { console.error("brains read failed:", error.message); return []; }
-    return (data ?? []) as BrainRow[];
+    return ((data ?? []) as BrainRow[]).filter((r) => ids.has(r.agent_id));
   }
   async saveBrain(row: BrainRow): Promise<void> {
     const { error } = await this.sb.from("agent_brains").upsert(row, { onConflict: "agent_id" });

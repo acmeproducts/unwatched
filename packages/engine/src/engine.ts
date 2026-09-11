@@ -11,6 +11,8 @@ import { salience, wantsConversation } from "./salience.ts";
 export interface TownOptions {
   seed: number;
   brain: Brain;
+  /** Letters that go into every new citizen's id, so two islands sharing one record can never mint the same person. */
+  idPrefix?: string;
   /** Sim minutes per tick. 1 is the real town. Higher is coarser, not just faster. */
   minutesPerTick?: number;
   startDay?: number;
@@ -46,6 +48,7 @@ export class Town {
   /** Ops switches. Each flip is an act of God and gets printed. */
   paused = false; economyFrozen = false; ferryHeld = false;
   private nextId = 1;
+  private idPrefix = "";
   private nextEventId = 1;
   private nextLetterId = 1;
   private arrivalsToday = 0;
@@ -57,6 +60,7 @@ export class Town {
   private readonly conversationPairsThisTick = new Set<string>();
 
   constructor(opts: TownOptions) {
+    this.idPrefix = (opts.idPrefix ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
     this.rng = new Rng(opts.seed);
     this.brain = opts.brain;
     this.minutesPerTick = opts.minutesPerTick ?? 1;
@@ -79,7 +83,7 @@ export class Town {
 
   // ---------- population ----------
   addAgent(o: AddAgentOptions, fixedId?: string): AgentState {
-    const id = fixedId ?? `ag_${(this.nextId++).toString(36)}`;
+    const id = fixedId ?? `ag_${this.idPrefix}${(this.nextId++).toString(36)}`;
     const a: AgentState = {
       id, persona: o.persona,
       needs: { hunger: 0.3, rest: 0.2, social: 0.4 },
@@ -126,7 +130,7 @@ export class Town {
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
       if (a.asleep) { const p = this.places.get(a.location); if (p?.beds) p.freeBeds = Math.max(0, (p.freeBeds ?? 0) - 1); }
-      const n = parseInt(a.id.slice(3), 36); if (Number.isFinite(n) && n > maxId) maxId = n;
+      const n = a.id.startsWith(`ag_${this.idPrefix}`) ? parseInt(a.id.slice(3 + this.idPrefix.length), 36) : NaN; if (Number.isFinite(n) && n > maxId) maxId = n;
     }
     this.nextId = maxId + 1;
     this.papers = [...snap.papers];

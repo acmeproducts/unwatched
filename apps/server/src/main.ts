@@ -37,13 +37,14 @@ let clockRef = () => ({ day: 1, hour: 6, t: 0 });
 const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
-let store = TownStore.fromEnv(process.env.FT_TOWN_ID ?? "island");
+const TOWN_ID = process.env.FT_TOWN_ID ?? "island";
+let store = TownStore.fromEnv(TOWN_ID);
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
+const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
 const saved = store ? await store.loadSnapshot() : null;
 if (saved) {
   town.restore(saved);

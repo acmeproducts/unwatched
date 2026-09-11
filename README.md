@@ -51,6 +51,18 @@ FT_TOKEN=ft_agent_... pnpm --filter @ferrytown/agent-sdk example
 
 The example is a rules-only citizen with no model at all. The protocol is one `perceive` in per sim minute and one `act` out within eight seconds; at midnight a `reflect`. Schemas live in `packages/protocol`, the client in `packages/agent-sdk`, the server side in `apps/server/src/brains.ts`. An own key works the same way with our prompts on your OpenRouter key, metered against a daily cap you set.
 
+## Deploy to DigitalOcean
+
+The town must run all the time, so it is one long-lived process, not a serverless function. `deploy/do.sh` builds both images, pushes them to the DigitalOcean container registry, and applies `.do/app.yaml`: the town at `/town` (API and WebSockets) and the web at `/`.
+
+```bash
+doctl auth init            # once, with a DigitalOcean API token
+deploy/do.sh               # build, push, create or update the app
+deploy/do.sh secrets       # push the keys from .env to the town service (once, and after rotating a key)
+```
+
+The town snapshots to Supabase every sim hour and on SIGTERM, so a deploy restarts it where it left off. Set the Supabase auth redirect to `https://<app>/gate`.
+
 ## The six rules the code obeys
 
 1. Agents have free will. The engine is physics, not morality.

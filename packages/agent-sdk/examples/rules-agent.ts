@@ -24,5 +24,6 @@ function decide(p: Perception): { action: Action; intent?: string; remember?: st
 connect(token, {
   hello: (h) => console.log(`connected as ${h.name} (${h.agent_id})`),
   perceive: (p) => { const d = decide(p); console.log(`${p.time.sim} @${p.self.location} → ${d.action.kind}${"text" in d.action ? `: ${d.action.text}` : ""}`); return d; },
+  plan: (r) => ({ mood: r.coins < 10 ? "worried about money" : "steady", goals: r.job ? ["Do the day's work and keep the bed."] : ["Find work before the coins run out."], steps: r.job ? [{ hour: 18, do: "Go where people are and talk.", place: "tavern" }] : [{ hour: r.hour + 1, do: "Ask for work wherever it is going.", place: "market" }] }),
   reflect: (r) => ({ summary: `Day ${r.day}. ${r.day_memories.slice(0, 2).join(" ")}`.slice(0, 1400), insights: r.coins < 10 ? ["Coins are getting low."] : [], opinions: [], intentions: r.job ? ["Keep the job."] : ["Find work."], letter_to_owner: null }),
 });

@@ -8,6 +8,7 @@ import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
 import { Lighting, WaterFilter, Weather, Clouds, type LightSource } from "./world/fx";
+import { Life } from "./world/life";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
 
@@ -234,6 +235,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const aboard: Container[] = []; // figures riding the boat, parented to it
       const gulls = new Graphics(); gulls.zIndex = 180000; scene.addChild(gulls);
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
+      const HEARTHS: Record<string, [number, number]> = { inn: [60, -210], tavern: [40, -150], chandlery: [30, -150], boatshed: [20, -120], council: [50, -190] }; // where a fire is kept for the people inside, not the work
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
       const dockX = harbor.x - 420, awayX = -760;
       const boat = put("boat", dockX, harbor.y + 20)!; boat.zIndex = harbor.y - 30; let boatTarget = dockX;
@@ -254,11 +256,32 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const caps = new Graphics(); caps.zIndex = 170000; scene.addChild(caps); // snow and rain on the roofs
       const prints_ = new Graphics(); prints_.zIndex = 0.7; scene.addChild(prints_); const prints: { x: number; y: number; at: number }[] = [];
       const moths = new Graphics(); moths.zIndex = 150001; scene.addChild(moths);
+      // the small life: it needs to know where the posts, the benches, the yard and the trees are
+      const life = (() => {
+        const pier = decor.find((d) => d.sprite === "pier"); const rocks = decor.filter((d) => d.sprite === "searocks"); const crates = decor.filter((d) => d.sprite === "crates"); const benches = decor.filter((d) => d.sprite === "bench");
+        const perches: { x: number; y: number; dir: 1 | -1 }[] = [];
+        if (pier) for (const off of [-110, -22, 66, 110]) perches.push({ x: pier.x + off, y: pier.y - 18, dir: off < 0 ? -1 : 1 });
+        for (const r of rocks) { perches.push({ x: r.x + 14, y: r.y - 20, dir: 1 }); if (perches.length % 3 === 0) perches.push({ x: r.x - 16, y: r.y - 16, dir: -1 }); }
+        for (const cr of crates) perches.push({ x: cr.x, y: cr.y - 30, dir: -1 });
+        const inn = places.get("inn"), fh = places.get("fishhouse"), tav = places.get("tavern");
+        const catSpots = [inn ? { x: inn.x - 40, y: inn.y + 10 } : { x: harbor.x, y: harbor.y }, ...benches.map((b) => ({ x: b.x, y: b.y })), ...(tav ? [{ x: tav.x - 50, y: tav.y + 10 }] : []), ...(fh ? [{ x: fh.x + 30, y: fh.y + 20 }] : [])];
+        const f = places.get("fields") ?? { x: 2380, y: 1000 }, o = places.get("orchard") ?? { x: 2360, y: 1320 }, lh = places.get("lighthouse") ?? { x: 2660, y: 420 }, ch = places.get("chapel") ?? { x: 1820, y: 760 }, pw = places.get("pinewood") ?? { x: 1900, y: 380 };
+        let moor = { x: (pier?.x ?? harbor.x - 250) - 150, y: (pier?.y ?? harbor.y + 40) + 30 }; for (let i = 0; i < 80 && inside(moor.x, moor.y) < 1.05; i++) moor = { x: moor.x - 6, y: moor.y };
+        let spot = { x: moor.x - 300, y: moor.y - 160 }; for (let i = 0; i < 80 && inside(spot.x, spot.y) < 1.18; i++) spot = { x: spot.x - 8, y: spot.y - 3 };
+        return new Life({
+          perches, catSpots, dogHome: { x: harbor.x + 80, y: harbor.y + 70 }, yard: { x: f.x + 150, y: f.y + 200, r: 70 },
+          trees: () => trees.map((t) => ({ x: t.position.x, y: t.position.y, h: t.scale.x > 1.3 ? 70 : 44, orchard: Math.hypot(t.position.x - o.x, t.position.y - o.y) < 260 })),
+          flag: { x: (pier?.x ?? harbor.x - 250) - 118, y: (pier?.y ?? harbor.y + 40) - 12 }, moor, spot, lantern: { x: lh.x, y: lh.y - 108 },
+          meadows: [{ x: f.x - 40, y: f.y + 140, r: 220 }, { x: o.x, y: o.y + 40, r: 200 }, { x: pw.x - 60, y: pw.y + 120, r: 180 }], roosts: [{ x: lh.x, y: lh.y - 100 }, { x: ch.x, y: ch.y - 70 }],
+        }, scene);
+      })();
+      world.addChild(life.glow); lighting.dark.addChild(life.cut); // the beam cuts the shade; what glows sits above it, so the night cannot dim it
       const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
       const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
       const moonPhase = () => { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000; return (days / 29.530588) % 1; }; // 0 new, 0.5 full
       const hourParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("hour") : null; const forcedHour = hourParam === null ? NaN : Number(hourParam); // ?hour=23 previews the light without waiting for it
       const forcedWeather = typeof location !== "undefined" ? new URLSearchParams(location.search).get("weather") : null; // ?weather=storm previews the weather
+      const forcedSeason = typeof location !== "undefined" ? new URLSearchParams(location.search).get("season") : null; // ?season=autumn previews the leaves
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
       const ambience = new Ambience(); ambienceRef.current = ambience;
 
@@ -425,6 +448,8 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         const nightAmt = (hour < rise - 1 ? 0.42 : hour < rise + 0.5 ? 0.42 * (rise + 0.5 - hour) / 1.5 : hour < set - 0.5 ? 0 : hour < set + 1 ? 0.42 * (hour - (set - 0.5)) / 1.5 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
         const duskAmt = Math.abs(hour - rise) < 1 ? 0.16 * (1 - Math.abs(hour - rise)) : Math.abs(hour - set) < 1 ? 0.2 * (1 - Math.abs(hour - set)) : 0;
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
+        perfMark("life");
+        life.update({ tick, hour, rise, set, night: night.alpha / 0.42, season: forcedSeason ?? c?.season ?? "summer", weather, wind, people: figs.current.values(), effects: effectsOn });
         if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; rain.visible = !effectsOn; fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }
         if (effectsOn) {
           const up = hour > rise && hour < set; let lx: number, ly: number, ls: number;
@@ -435,9 +460,10 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
           const sources: LightSource[] = [];
           if (night.alpha > 0.03) {
             for (const d of decor) if (d.sprite === "lamp") sources.push({ x: d.x, y: d.y - 24, r: 165, color: LIGHT.lamp, strength: 0.95, flicker: 0.06 });
-            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") sources.push({ x: p.x - 22, y: p.y - 28, r: 95, color: LIGHT.window, strength: 0.8 });
+            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") sources.push({ x: p.x - 22, y: p.y - 28, r: 95, color: LIGHT.window, strength: 0.8, flicker: 0.12 });
           }
           if (night.alpha > 0.1) sources.push({ x: W - 220, y: 90, r: 130, color: 0xdfe8ff, strength: 0.5, noHole: true }); // the moon blooms too
+          sources.push(...life.lights);
           lighting.update(night.alpha, sources, tick, flash.alpha);
           weatherFx.update({ weather, wind, snowing, wet, tick, night: Math.min(1, night.alpha / 0.42), fogColor: 0xd7dfe2, rainColor: night.alpha > 0.15 ? 0xdfe8ee : 0x4b5560 });
           clouds.update({ tick, wind, sunUp: up ? 1 - Math.min(1, night.alpha / 0.42) : 0, night: Math.min(1, night.alpha / 0.42), weather });
@@ -470,7 +496,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         if (tick % 2 === 0) { moths.clear(); if (night.alpha > 0.15) for (const d of decor) { if (d.sprite !== "lamp") continue; for (let i = 0; i < 3; i++) { const t = tick / (9 + i * 3) + i * 2; moths.circle(d.x + Math.cos(t) * (10 + i * 4) + Math.sin(t * 2.3) * 3, d.y - 26 + Math.sin(t * 1.7) * (7 + i * 2), 1.3).fill({ color: LIGHT.star, alpha: 0.8 }); } } }
         // smoke from a chimney where someone works
         perfMark("smoke");
-        if (tick % 2 === 0) { smoke.clear(); for (const [id, [ox, oy]] of Object.entries(CHIMNEYS)) { const p = places.get(id); if (!p || p.crowd === 0 || hour < 6 || hour > 20) continue; for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
+        if (tick % 2 === 0) { smoke.clear(); const sn = forcedSeason ?? c?.season; const cold = sn === "winter" || sn === "autumn"; const evening = hour >= 16.5 || hour < 8; for (const [id, [ox, oy]] of [...Object.entries(CHIMNEYS).filter(([, ]) => hour >= 6 && hour <= 20), ...Object.entries(HEARTHS).filter(() => cold || evening)]) { const p = places.get(id); if (!p || p.crowd === 0) continue; for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
         // sound follows the camera
         if (tick % 30 === 0 && c) { const f = cam.follow ? figs.current.get(cam.follow) : null; const p = places.get(f?.place ?? "market"); ambience.tick({ mood: stagedNow ? (stagedNow.kind === "wedding" || stagedNow.kind === "feast" ? "tavern" : stagedNow.kind === "funeral" ? "night" : stagedNow.kind === "fire" ? "storm" : "day") : null, weather, hour: c.hour, season: c.season, district: p?.district ?? "old town", place: p?.id ?? "market", crowd: p?.crowd ?? 0 }); }
         // people

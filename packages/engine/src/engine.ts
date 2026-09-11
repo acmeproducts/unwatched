@@ -255,9 +255,19 @@ export class Town {
     return hit ? hit.id : ref;
   }
 
+  /** People name places the way people do: "the market", "Ilić's bakery", "market square". Find the id, or leave it for the validator to refuse. */
+  resolvePlace(ref: string): string {
+    if (this.places.has(ref)) return ref;
+    const q = ref.trim().toLowerCase().replace(/^(the|to|at)\s+/, "");
+    for (const p of this.places.values()) { const n = p.name.toLowerCase().replace(/^(the|an?)\s+/, ""); if (n === q || p.id === q) return p.id; }
+    for (const p of this.places.values()) { const n = p.name.toLowerCase(); if (n.includes(q) || q.includes(n.replace(/^(the|an?)\s+/, ""))) return p.id; }
+    return ref;
+  }
   private resolveAction(a: AgentState, action: Action): Action {
     const near = this.nearby(a);
     switch (action.kind) {
+      case "move": return { ...action, to: this.resolvePlace(action.to) };
+      case "build": return { ...action, at: this.resolvePlace(action.at) };
       case "say": return action.to ? { ...action, to: this.resolveRef(action.to, near) } : action;
       case "give": return { ...action, to: this.resolveRef(action.to, near) };
       case "take": return action.from ? { ...action, from: this.resolveRef(action.from, near) } : action;
@@ -545,7 +555,7 @@ export class Town {
     let plan: DayPlan;
     try { plan = await this.brain.plan(ctx, tier); }
     catch (err) { this.log(`plan failed for ${a.persona.name}: ${(err as Error).message}`); a.plan = { day: this.day, mood: "", goals: [], steps: [] }; return; }
-    const steps = plan.steps.filter((st) => st.place === null || this.places.has(st.place)).sort((x, y) => x.hour - y.hour).map((st) => ({ ...st, done: false }));
+    const steps = plan.steps.map((st) => ({ ...st, place: st.place === null ? null : this.resolvePlace(st.place) })).map((st) => ({ ...st, place: st.place && this.places.has(st.place) ? st.place : null })).sort((x, y) => x.hour - y.hour).map((st) => ({ ...st, done: false }));
     a.plan = { ...plan, steps, day: this.day };
     a.lastThought = this.t;
     if (plan.goals[0]) { this.remember(a, `What I meant to do today: ${plan.goals.join("; ")}`, 0.35, "plan"); this.emit("agent.plan", [a.id], a.location, `${a.persona.name} set out to ${lower(plan.goals[0])}`, 0.15, { goals: plan.goals, mood: plan.mood }); }

@@ -2,7 +2,8 @@ import { z } from "zod";
 
 /** Identifiers */
 export const AgentId = z.string().regex(/^ag_[a-z0-9]+$/);
-export const PlaceId = z.string().regex(/^[a-z][a-z0-9_.]*$/);
+/** A place, by id or by the name a person would use. The engine resolves names; nothing downstream relies on the pattern. */
+export const PlaceId = z.string().min(1).max(80);
 export type AgentId = z.infer<typeof AgentId>;
 /** How a brain may refer to a person: by id or by name. The engine resolves it. */
 export const AgentRef = z.string().min(1).max(60);
@@ -60,7 +61,7 @@ export type Action = z.infer<typeof Action>;
 /** What an agent returns when it thinks. The model proposes, the engine disposes. */
 export const ActionProposal = z.object({
   action: Action,
-  intent: z.string().max(300).optional(),
+  intent: z.string().max(600).optional(),
   remember: z.array(z.string().max(400)).max(3).default([]),
 });
 export type ActionProposal = z.infer<typeof ActionProposal>;
@@ -130,8 +131,8 @@ export type TownEvent = z.infer<typeof TownEvent>;
 /** Nightly reflection, produced by a brain. */
 export const Reflection = z.object({
   summary: z.string().max(1500),
-  insights: z.array(z.string().max(300)).max(3),
-  opinions: z.array(z.object({ about: AgentRef, opinion: z.string().max(300), trust_delta: z.number().min(-0.3).max(0.3) })).max(5),
+  insights: z.array(z.string().max(600)).max(3),
+  opinions: z.array(z.object({ about: AgentRef, opinion: z.string().max(600), trust_delta: z.number().min(-0.3).max(0.3) })).max(5),
   intentions: z.array(z.string().max(240)).max(3),
   letter_to_owner: z.string().max(1200).nullable(),
 });
@@ -145,7 +146,7 @@ export const Dialogue = z.object({
     b_trust_delta: z.number().min(-0.2).max(0.2),
     a_remember: z.string().max(400),
     b_remember: z.string().max(400),
-    rumor: z.string().max(300).nullable(),
+    rumor: z.string().max(600).nullable(),
   }),
 });
 export type Dialogue = z.infer<typeof Dialogue>;

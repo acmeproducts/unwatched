@@ -6,13 +6,15 @@ import type { PlaceKind } from "../types.ts";
  */
 export interface PlaceSpec { id: string; name: string; kind: PlaceKind; district: string; sprite: string; x: number; y: number; exits: string[]; sells?: { item: string; base: number }[]; beds?: { price: number; capacity: number }; stock?: Record<string, number> }
 /** What a paid shift makes at a place, from what, and in which seasons. */
-export interface ProduceSpec { place: string; makes: string; qty: number; needs?: { item: string; qty: number }; seasons?: string[] }
+export interface ProduceSpec { place: string; makes: string; qty: number; needs?: { item: string; qty: number }; seasons?: string[]; /** only in these months (1 to 12), for a crop with a short season */ months?: number[] }
+/** A day the whole island keeps: a feast at the square, everyone fed. Month and day of the island's year. */
+export interface FeastSpec { name: string; month: number; day: number; place: string }
 /** The morning cart: what moves from where to where each day, and what the buyer's till pays for it. */
 export interface SupplySpec { from: string; to: string; item: string; qty: number; price: number; /** the cart fills the buyer's shelf only up to this much */ upTo?: number }
 /** What the mainland pays per unit for what the morning ferry takes away: the island's income, in proportion to what it makes. */
 export interface ExportSpec { item: string; price: number; /** how much a place keeps back before the rest goes to the ferry */ keep: number }
 export interface JobSpec { id: string; title: string; place: string; wage: number; hours: [number, number]; slots: number }
-export interface WorldPack { id: string; name: string; size: { w: number; h: number }; places: PlaceSpec[]; jobs: JobSpec[]; float: Record<string, number>; produce: ProduceSpec[]; supply: SupplySpec[]; exports: ExportSpec[] }
+export interface WorldPack { id: string; name: string; size: { w: number; h: number }; places: PlaceSpec[]; jobs: JobSpec[]; float: Record<string, number>; produce: ProduceSpec[]; supply: SupplySpec[]; exports: ExportSpec[]; feasts: FeastSpec[] }
 
 const P = (id: string, name: string, kind: PlaceKind, district: string, sprite: string, x: number, y: number, exits: string[], extra: Partial<PlaceSpec> = {}): PlaceSpec => ({ id, name, kind, district, sprite, x, y, exits, ...extra });
 
@@ -74,12 +76,16 @@ export const ISLAND: WorldPack = {
   // a shift makes something; the mill and the bakery and the sawpit make theirs out of someone else's
   produce: [
     { place: "fields", makes: "grain", qty: 6, seasons: ["summer", "autumn"] }, { place: "fields", makes: "grain", qty: 3, seasons: ["spring"] }, { place: "fields", makes: "grain", qty: 1, seasons: ["winter"] },
+    // the cash crop: lavender, six weeks of the year, all of it for the ferry
+    { place: "fields", makes: "lavender", qty: 4, months: [6, 7] }, { place: "orchard", makes: "lavender", qty: 2, months: [6, 7] },
     { place: "mill", makes: "flour", qty: 6, needs: { item: "grain", qty: 6 } },
     { place: "bakery", makes: "bread", qty: 10, needs: { item: "flour", qty: 2 } },
     { place: "fishhouse", makes: "fish", qty: 5 }, { place: "orchard", makes: "apples", qty: 5, seasons: ["summer", "autumn"] }, { place: "orchard", makes: "apples", qty: 1, seasons: ["spring"] },
     { place: "pinewood", makes: "timber", qty: 3 }, { place: "sawpit", makes: "planks", qty: 4, needs: { item: "timber", qty: 4 } },
     { place: "smithy", makes: "nails", qty: 2 }, { place: "quarry", makes: "stone", qty: 2 },
   ],
+  // the days the island keeps: its own, not anyone else's
+  feasts: [{ name: "the island's day", month: 7, day: 24, place: "market" }, { name: "the harvest supper", month: 10, day: 5, place: "market" }, { name: "the midwinter fire", month: 12, day: 21, place: "harbor" }],
   // the six o'clock cart
   supply: [
     { from: "fields", to: "mill", item: "grain", qty: 6, price: 1, upTo: 12 }, { from: "mill", to: "bakery", item: "flour", qty: 6, price: 2, upTo: 8 },
@@ -90,6 +96,6 @@ export const ISLAND: WorldPack = {
   // the morning ferry takes the surplus to the mainland; this is where the island's coins come from
   exports: [
     { item: "grain", price: 1, keep: 60 }, { item: "flour", price: 2, keep: 24 }, { item: "bread", price: 1, keep: 16 }, { item: "fish", price: 1, keep: 12 }, { item: "apples", price: 1, keep: 12 },
-    { item: "timber", price: 2, keep: 12 }, { item: "planks", price: 3, keep: 24 }, { item: "nails", price: 2, keep: 8 }, { item: "stone", price: 2, keep: 8 },
+    { item: "lavender", price: 3, keep: 0 }, { item: "timber", price: 2, keep: 12 }, { item: "planks", price: 3, keep: 24 }, { item: "nails", price: 2, keep: 8 }, { item: "stone", price: 2, keep: 8 },
   ],
 };

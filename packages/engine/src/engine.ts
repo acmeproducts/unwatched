@@ -113,12 +113,19 @@ export class Town {
   get hour(): number { return Math.floor(this.minuteOfDay / 60); }
   get season(): string { return this.seasonOverride ?? SEASONS[Math.floor(((this.day - 1) % 360) / 90)] ?? "autumn"; }
   /** The week and the month, from the real calendar when the island keeps our time, else from the island's own days. Sunday is 0. */
-  weekdayOverride: number | null = null; dayOfMonthOverride: number | null = null;
+  weekdayOverride: number | null = null; dayOfMonthOverride: number | null = null; monthOverride: number | null = null;
+  /** The month, 1 to 12: the real one when the island keeps our time, else twelve months of thirty days from the island's first day. */
+  get month(): number { return this.monthOverride ?? (Math.floor(((this.day - 1) % 360) / 30) + 1); }
+  /** What is in season this month: crops with a short window. */
+  inSeason(): string[] { return [...new Set(this.pack.produce.filter((pr) => pr.months?.includes(this.month)).map((pr) => pr.makes))]; }
+  /** Today's feast, if the island keeps one today. */
+  feastToday(): { name: string; place: string } | null { const f = this.pack.feasts.find((x) => x.month === this.month && x.day === this.dayOfMonth); return f ? { name: f.name, place: f.place } : null; }
   get weekday(): number { return this.weekdayOverride ?? (this.day - 1) % 7; }
   get dayOfMonth(): number { return this.dayOfMonthOverride ?? ((this.day - 1) % 30) + 1; }
   get weekdayName(): string { return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][this.weekday]!; }
   /** What kind of day it is, when it is not an ordinary one. */
   get occasion(): string | null {
+    const feast = this.feastToday(); if (feast) return `${feast.name}: no shifts after noon, a feast at ${this.places.get(feast.place)?.name ?? feast.place} at one, everyone fed`;
     if (this.dayOfMonth === 1) return "council day: the mayor is chosen at the council hall and the month's business is done";
     if (this.weekday === 0) return "Sunday: no shifts, the chapel bell rings at ten";
     if (this.weekday === 6) return "market day: the square is full and prices are a coin lower";
@@ -397,7 +404,7 @@ export class Town {
   apply(a: AgentState, rawAction: Action, source: string): boolean {
     const action = this.resolveAction(a, rawAction);
     const here = this.places.get(a.location)!;
-    const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, weekday: this.weekday, day: this.day, mayor: this.mayor, works: this.works, residentsOf: (p: Place) => this.residentsOf(p), bedPrice: (p: Place) => this.bedPrice(p), price: (p, i) => this.price(p, i), path: (f, t) => this.path(f, t) });
+    const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, weekday: this.weekday, day: this.day, mayor: this.mayor, works: this.works, feast: !!this.feastToday(), residentsOf: (p: Place) => this.residentsOf(p), bedPrice: (p: Place) => this.bedPrice(p), price: (p, i) => this.price(p, i), path: (f, t) => this.path(f, t) });
     if (!verdict.ok) {
       if (source !== "habit") this.emit("action.rejected", [a.id], here.id, `${a.persona.name} tried to ${action.kind} but ${verdict.reason}.`, 0.05, { action, source });
       return false;
@@ -671,9 +678,12 @@ export class Town {
     }
     if (this.economyFrozen) return;
     if (h === 6) { this.cart(); this.prosper(); }
+    const feast = this.feastToday();
+    if (h === 9 && feast && this.places.has(feast.place) && !this.gatherings.some((g) => g.kind === "feast" && g.day === this.day)) this.gather("feast", feast.place, this.day, 13, [], feast.name);
     if (h === 9 && (this.dayOfMonth === 1 || (!this.mayor && this.day >= 2)) && !this.gatherings.some((g) => g.kind === "election" && g.day === this.day)) this.gather("election", "council", this.day, 10, [], this.mayor ? "the council chooses its mayor for the month" : "the council chooses the island's first mayor");
     this.summon(h); this.holdGatherings(h); this.sparks(h);
     if (this.weekday === 0) return; // Sunday: no shifts, no wages
+    if (this.feastToday() && h >= 12) return; // a feast day: the afternoon is the town's
     for (const job of this.jobs.values()) {
       if (h === job.hours[1]) for (const id of job.holders) {
         const a = this.agents.get(id); if (!a) continue;
@@ -854,6 +864,7 @@ export class Town {
     for (const pr of this.pack.produce) {
       if (pr.place !== place.id) continue;
       if (pr.seasons && !pr.seasons.includes(this.season)) continue;
+      if (pr.months && !pr.months.includes(this.month)) continue;
       if (pr.needs) { const have = place.stock[pr.needs.item] ?? 0; if (have < pr.needs.qty) { if (have === 0 && !this.dry.has(place.id)) { this.dry.add(place.id); this.emit("economy.price", [], place.id, `${place.name} has run out of ${pr.needs.item}; nothing was made today.`, 0.5); } continue; } place.stock[pr.needs.item] = have - pr.needs.qty; }
       place.stock[pr.makes] = (place.stock[pr.makes] ?? 0) + pr.qty; this.dry.delete(place.id);
     }
@@ -1139,8 +1150,9 @@ export class Town {
         for (const r of this.residentsOf(place)) if (!crowd.includes(r)) this.remember(r, `${place.name}, where I sleep, burned. I have no roof for ${days} days.`, 1);
         this.emit("town.gathering", g.actors, g.place, `The fire at ${place.name} is out. ${who} came with buckets; ${days} days before it stands again${lost ? `, and ${lost} lost to the flames` : ""}.`, 1, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true, days, cause: g.note });
       } else if (g.kind === "feast") {
+        const council = this.places.get("council"); const market = this.places.get("market"); const paid = council ? Math.min(council.treasury, who) : 0; if (council && market && paid) { council.treasury -= paid; market.treasury += paid; }
         for (const c of crowd) { c.needs.hunger = 0; c.needs.social = 0; this.remember(c, `${g.note}: the whole town at ${place.name}, and enough for everyone.`, 0.7); for (const d of crowd) if (d !== c) this.nudge(c, d.id, 0.02, 0.02); }
-        this.emit("town.gathering", [], g.place, `${g.note}: ${who} came to ${place.name}, and everyone ate.`, 0.95, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });
+        this.emit("town.gathering", [], g.place, `${g.note}: ${who} came to ${place.name}, and everyone ate${paid ? `; the council paid ${paid} coins for it` : ""}.`, 0.95, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });
       }
     }
     if (this.gatherings.length > 200) this.gatherings = this.gatherings.filter((g) => !g.held || g.day >= this.day - 7);

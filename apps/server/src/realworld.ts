@@ -69,7 +69,8 @@ export class RealWorld {
   applyCalendar(): void {
     const season = seasonOf(new Date(), this.place.tz);
     this.town.seasonOverride = season; this.town.ferryTimes = TIMETABLE[season] ?? TIMETABLE.spring!;
-    const parts = new Intl.DateTimeFormat("en-US", { timeZone: this.place.tz, weekday: "short", day: "numeric" }).formatToParts(new Date());
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: this.place.tz, weekday: "short", day: "numeric", month: "numeric" }).formatToParts(new Date());
+    this.town.monthOverride = Number(parts.find((x) => x.type === "month")?.value ?? 1);
     const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((x) => x.type === "weekday")?.value ?? "Mon");
     this.town.weekdayOverride = wd >= 0 ? wd : null; this.town.dayOfMonthOverride = Number(parts.find((x) => x.type === "day")?.value ?? 1);
   }

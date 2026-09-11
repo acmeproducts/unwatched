@@ -212,6 +212,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const SEASON_CAST: Record<string, number> = { winter: 0xeaf0f0, spring: 0xffffff, summer: 0xfbf2dc, autumn: 0xf7e9d2 };
       // wet ground darkens the island under the rain; snow settles on it and melts again
       const wetGround = new Graphics(); poly(wetGround, outline(0.99)).fill(C.kelp); wetGround.alpha = 0; world.addChild(wetGround);
+      const lavender = new Graphics(); lavender.visible = false; world.addChild(lavender);
+      { const f = places.get("fields"), o = places.get("orchard"); for (const p of [f, o]) { if (!p) continue; for (let r = 0; r < 7; r++) for (let k = 0; k < 9; k++) { const x = p.x - 200 + k * 46 + (r % 2) * 23, y = p.y + 60 + r * 26; if (inside(x, y) > 0.96) continue; lavender.ellipse(x, y, 14, 7).fill({ color: 0x9a8fc4, alpha: 0.85 }); lavender.ellipse(x, y - 2, 9, 4).fill({ color: 0xb8aee0, alpha: 0.9 }); } } }
       const snowGround = new Graphics(); poly(snowGround, outline(0.99)).fill(0xffffff); snowGround.alpha = 0; world.addChild(snowGround); let snowiness = 0;
       // the moving parts of the drawn things, found by their labels
       const findParts = (label: string): Container[] => { const out: Container[] = []; const walk = (n: Container) => { if (n.label === label) out.push(n); for (const ch of n.children) if (ch instanceof Container) walk(ch); }; walk(scene); return out; };
@@ -355,6 +357,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         wetGround.alpha = 0.12 * wetness; snowGround.alpha = 0.6 * snowiness;
         if (tick % 60 === 0 && c && setSeason(c.season)) { plantTrees(); }
         if (tick % 60 === 0) ground.tint = SEASON_CAST[c?.season ?? "summer"] ?? 0xffffff;
+        // the short season: the fields turn to lavender
+        if (tick % 60 === 0) { const bloom = !!c?.inSeason?.includes("lavender"); if (bloom !== lavender.visible) { lavender.visible = bloom; } }
         if (tick % 15 === 0) { puddles.clear(); if (wetness > 0.02) for (let i = 0; i < 26; i++) { const xx = ((i * 587) % (W - 400)) + 200, yy = ((i * 911) % (H - 400)) + 200; puddles.ellipse(xx, yy, 26 + (i % 4) * 8, 9 + (i % 3) * 3).fill({ color: C.waterDeep, alpha: 0.55 * wetness }); } }
         for (let i = 0; i < trees.length; i++) { const tr = trees[i]!; tr.skew.x = Math.sin(tick / 22 + i) * 0.035 * wind + Math.sin(tick / 7 + i * 2) * 0.012 * wind; }
         if (tick % 3 === 0) { fog.clear(); if (weather === "fog") for (let i = 0; i < 18; i++) { const xx = ((i * 431 + tick * 0.6) % (W + 800)) - 400, yy = ((i * 277) % (H + 200)) - 100; fog.ellipse(xx, yy, 340 + (i % 3) * 120, 110 + (i % 2) * 50).fill({ color: C.shell, alpha: 0.16 }); } }

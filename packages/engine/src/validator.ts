@@ -8,7 +8,7 @@ export interface ValidatorView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   agents: Map<string, AgentState>;
-  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; residentsOf?: (p: Place) => AgentState[]; bedPrice?: (p: Place) => number;
+  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; feast?: boolean; residentsOf?: (p: Place) => AgentState[]; bedPrice?: (p: Place) => number;
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
 }
@@ -60,6 +60,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "work": {
       if (a.starving >= 2) return { ok: false, reason: "too weak with hunger to work" };
       if (v.weekday === 0 && !here.site) return { ok: false, reason: "it is Sunday; no shifts today" };
+      if (v.feast && v.hour >= 12 && !here.site) return { ok: false, reason: "a feast day; no shifts this afternoon" };
       if (here.brokenUntil && here.brokenUntil > (v.day ?? 0)) return { ok: false, reason: `${here.name} is broken; nothing to do here for now` };
       if (here.site) return here.site.by === a.id || v.hour >= 6 && v.hour < 20 ? { ok: true } : { ok: false, reason: "not building hours" };
       if (!a.job) return { ok: false, reason: "no job" };

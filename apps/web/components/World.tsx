@@ -124,10 +124,15 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       for (const sg of segs) { ground.moveTo(sg.ax, sg.ay).lineTo(sg.bx, sg.by).stroke({ width: 32, color: sg.cobbled ? 0xd3cbb8 : C.earthEdge, cap: "round", join: "round" }); }
       for (const sg of segs) { ground.moveTo(sg.ax, sg.ay).lineTo(sg.bx, sg.by).stroke({ width: 26, color: sg.cobbled ? C.cobble : C.earth, cap: "round", join: "round" }); }
       for (const sg of segs) { if (sg.cobbled) continue; const dx = sg.bx - sg.ax, dy = sg.by - sg.ay, L = Math.hypot(dx, dy) || 1; const nx = -dy / L * 5, ny = dx / L * 5; for (const sgn of [-1, 1]) ground.moveTo(sg.ax + nx * sgn, sg.ay + ny * sgn).lineTo(sg.bx + nx * sgn, sg.by + ny * sgn).stroke({ width: 1.5, color: C.earthEdge, alpha: 0.5 }); }
-      // foam along the shore, as broken lines that the ripples pass under
-      const shorePts = outline(1.012); for (let k = 0; k < shorePts.length; k += 2) { if (k % 6 === 4) continue; const a = shorePts[k]!, b = shorePts[(k + 1) % shorePts.length]!; ground.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 3, color: C.foam, alpha: 0.9, cap: "round" }); }
-      const foam2 = outline(1.05); for (let k = 0; k < foam2.length; k += 3) { if (k % 9 !== 0) continue; const a = foam2[k]!, b = foam2[(k + 1) % foam2.length]!; ground.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 2, color: C.foam, alpha: 0.5, cap: "round" }); }
       world.addChild(ground);
+      // the water's edge, alive: foam that breathes along the shore, whitecaps in wind and storm, rings where the rain hits
+      const shoreLine = outline(1.012), shoreOut = outline(1.05); const foam = new Graphics(); world.addChild(foam);
+      const seaLife = new Graphics(); world.addChild(seaLife);
+      const drawFoam = (t: number, rough: number) => {
+        foam.clear();
+        for (let k = 0; k < shoreLine.length; k += 2) { const ph = Math.sin(t / 30 + k * 0.35); if (ph < -0.2) continue; const a = shoreLine[k]!, b = shoreLine[(k + 1) % shoreLine.length]!; foam.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 2.5 + rough * 2, color: C.foam, alpha: 0.45 + 0.45 * ph, cap: "round" }); }
+        for (let k = 0; k < shoreOut.length; k += 3) { const ph = Math.sin(t / 42 + k * 0.5 + 1); if (ph < 0.3 && rough < 0.5) continue; const a = shoreOut[k]!, b = shoreOut[(k + 1) % shoreOut.length]!; foam.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 2, color: C.foam, alpha: 0.25 + 0.3 * Math.max(0, ph) + rough * 0.3, cap: "round" }); }
+      };
 
       // everything with a foot on the ground sorts by y
       const scene = new Container(); scene.sortableChildren = true; world.addChild(scene);
@@ -221,6 +226,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
       const moonPhase = () => { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000; return (days / 29.530588) % 1; }; // 0 new, 0.5 full
       const forcedHour = typeof location !== "undefined" ? Number(new URLSearchParams(location.search).get("hour")) : NaN; // ?hour=23 previews the light without waiting for it
+      const forcedWeather = typeof location !== "undefined" ? new URLSearchParams(location.search).get("weather") : null; // ?weather=storm previews the weather
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
       const ambience = new Ambience(); ambienceRef.current = ambience;
 
@@ -287,9 +293,18 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         sea.clear(); sea.rect(-3000, -3000, W + 6000, H + 6000).fill(C.water);
         if (tick % 6 === 0) { ripples.clear(); for (let i = 0; i < 48; i++) { const yy = ((i * 97 + tick * 0.4) % (H + 600)) - 300; const xx = ((i * 331) % (W + 800)) - 400 + Math.sin(tick / 90 + i) * 12; ripples.moveTo(xx, yy).lineTo(xx + 60 + (i % 3) * 20, yy).stroke({ width: 3, color: C.waterDeep, cap: "round" }); } }
         // weather: what falls, what lingers, what blows
-        const c = clockRef.current; const weather = c?.weather ?? "clear"; const winter = c?.season === "winter";
+        const c = clockRef.current; const weather = forcedWeather ?? c?.weather ?? "clear"; const winter = c?.season === "winter";
         const wet = weather === "rain" || weather === "storm" || weather === "snow"; const snowing = weather === "snow" || (wet && winter);
         const wind = weather === "storm" ? 1 : weather === "wind" ? 0.8 : weather === "rain" ? 0.45 : weather === "fog" ? 0.1 : 0.2;
+        // the sea itself: the foam breathes, the water darkens and breaks white in a blow, rain rings the surface
+        const rough = weather === "storm" ? 1 : weather === "wind" ? 0.5 : 0;
+        if (tick % 3 === 0) drawFoam(tick, rough);
+        sea.tint = weather === "storm" ? 0x8fa9a6 : weather === "rain" || weather === "fog" ? 0xb9cfcb : 0xffffff;
+        if (tick % 3 === 0) {
+          seaLife.clear();
+          if (rough > 0) for (let i = 0; i < 70 * rough; i++) { const xx = ((i * 811 + tick * 3) % (W + 1400)) - 700, yy = ((i * 1237) % (H + 1000)) - 500; if (inside(xx, yy) < 1.12) continue; const ph = Math.sin(tick / 12 + i); if (ph < 0.2) continue; seaLife.moveTo(xx, yy).lineTo(xx + 14 + ph * 10, yy - 2).stroke({ width: 2.2, color: C.foam, alpha: 0.5 + ph * 0.4, cap: "round" }); }
+          if (weather === "rain" || weather === "storm") for (let i = 0; i < 60; i++) { const xx = ((i * 947 + Math.floor(tick / 9) * 131) % (W + 1400)) - 700, yy = ((i * 1543 + Math.floor(tick / 9) * 71) % (H + 1000)) - 500; if (inside(xx, yy) < 1.1) continue; const age = ((tick + i * 7) % 9) / 9; seaLife.ellipse(xx, yy, 3 + age * 14, 1.5 + age * 6).stroke({ width: 1, color: C.foam, alpha: 0.5 * (1 - age) }); }
+        }
         // ferry: it crosses at a boat's pace, bobs, and leaves a wake; the rowboats bob beside the quay
         const sailing = Math.abs(ferryTarget - ferry.position.x) > 2;
         if (sailing) ferry.position.x += Math.sign(ferryTarget - ferry.position.x) * Math.min(Math.abs(ferryTarget - ferry.position.x), 2.2);
@@ -340,7 +355,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (tick % 4 === 0 && sky.alpha > 0.02) {
           sky.clear();
           for (const st of STARS) { if (inside(st.x, st.y) < 1.1) continue; const tw = 0.5 + 0.5 * Math.sin(tick / 20 + st.tw); sky.circle(st.x, st.y, st.r).fill({ color: 0xfff6d5, alpha: 0.35 + 0.5 * tw }); }
-          const ph = moonPhase(); const mx = W - 140, my = -140; const full = (1 - Math.cos(ph * Math.PI * 2)) / 2; // 0 new, 1 full
+          const ph = moonPhase(); const mx = W - 220, my = 90; const full = (1 - Math.cos(ph * Math.PI * 2)) / 2; // 0 new, 1 full
           sky.circle(mx, my, 28).fill(0xfff2c2); if (full < 0.98) sky.circle(mx + (ph < 0.5 ? -1 : 1) * 58 * full, my, 29).fill({ color: 0x1b2a30, alpha: 0.94 }); // the earth's shadow slides off as the moon fills
           for (let i = 0; i < 9; i++) { const yy = my + 60 + i * 34; sky.moveTo(mx - 14 - (i % 3) * 8 + Math.sin(tick / 30 + i) * 6, yy).lineTo(mx + 14 + (i % 2) * 10 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: 0xfff2c2, alpha: 0.35 - i * 0.03, cap: "round" }); }
           // the quay's lamps on the water

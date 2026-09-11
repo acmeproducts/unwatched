@@ -26,6 +26,7 @@ export function ownerAgent(town: Town, a: AgentState) {
     letters: a.letters,
     instructions: a.instructions,
     brainKind: a.brainKind,
+    watch: a.watch, selves: a.selves, doToday: a.doToday,
   };
 }
 

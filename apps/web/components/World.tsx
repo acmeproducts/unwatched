@@ -439,7 +439,15 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           f.g.position.set(f.x, f.y);
           if (moving) f.facing = dx < 0 ? -1 : 1;
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
-          f.rig.face(f.facing); f.rig.setPose(f.asleep ? "sleep" : moving ? "walk" : b ? "talk" : f.bench ? "sit" : f.pose); f.rig.update(secs);
+          // which way they face: toward you or away when the walk is mostly down or up the map, else side on
+          if (moving && Math.abs(dy) > Math.abs(dx) * 1.3) f.rig.facing4(dy > 0 ? "front" : "back"); else f.rig.face(f.facing);
+          const running = moving && stagedNow?.kind === "fire" && f.place !== stagedNow.place;
+          f.rig.setPose(f.asleep ? "sleep" : running ? "run" : moving ? "walk" : b ? "talk" : f.bench ? "sit" : f.pose);
+          // the face: hunger shows, a wedding or a feast lifts it, a funeral lowers it; the eyes go to whoever they are talking to
+          const inStage = !!stagedNow && f.place === stagedNow.place; const ag = agents.current.get(f.id);
+          f.rig.mood({ hunger: Math.min(1, (ag?.daysHungry ?? 0) / 3), joy: inStage && (stagedNow.kind === "wedding" || stagedNow.kind === "feast") ? 0.8 : 0, grief: inStage && stagedNow.kind === "funeral" ? 0.8 : 0 });
+          if (b || f.rig["pose" as keyof typeof f.rig] === "talk") { let best: Fig | null = null, bd = 90; for (const o of figs.current.values()) { if (o === f) continue; const d = Math.hypot(o.x - f.x, o.y - f.y); if (d < bd) { bd = d; best = o; } } f.rig.lookAt(best ? (best.x - f.x) * (f.facing) : 0); } else f.rig.lookAt(0);
+          f.rig.update(secs);
           f.rig.weather({ rain: wet && !snowing && !f.asleep, cold: (winter || snowing) && !f.asleep });
           if (moving && snowiness > 0.3 && tick % 6 === 0) { prints.push({ x: f.x + (tick % 12 < 6 ? -4 : 4), y: f.y + 2, at: tick }); if (prints.length > 400) prints.shift(); }
           f.g.zIndex = f.y;

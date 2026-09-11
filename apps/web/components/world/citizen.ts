@@ -7,7 +7,8 @@ import { Container, Graphics } from "pixi.js";
  *
  * Proportions are in "units"; a citizen stands about 72 units tall. The origin is between the feet.
  */
-export type Pose = "idle" | "walk" | "sleep" | "sit" | "talk" | "work";
+export type Pose = "idle" | "walk" | "run" | "sleep" | "sit" | "talk" | "work";
+export type Facing = "left" | "right" | "front" | "back";
 export interface Look {
   build: "Slight" | "Average" | "Sturdy" | "Tall";
   hair: "Short dark" | "Bob" | "Curls" | "Bun" | "Grey" | "Under a hat";
@@ -52,9 +53,12 @@ const ellipse = (g: Graphics, x: number, y: number, rx: number, ry: number, fill
 export class Citizen extends Container {
   readonly look: Look;
   private body = new Container();
-  private legL = new Graphics(); private legR = new Graphics();
-  private armL = new Graphics(); private armR = new Graphics();
+  private legL = new Graphics(); private legR = new Graphics(); private shinL = new Graphics(); private shinR = new Graphics();
+  private armL = new Graphics(); private armR = new Graphics(); private foreL = new Graphics(); private foreR = new Graphics();
   private torso = new Graphics(); private head = new Container();
+  private eyes = new Graphics(); private brows = new Graphics(); private mouth = new Graphics(); private backHair = new Graphics();
+  private facingMode: Facing = "right"; private moodState = { hunger: 0, joy: 0, grief: 0 }; private gaze = 0; private talking = false;
+  private thighH = 0; private shinH = 0; private upperH = 0; private foreH = 0; private headR = 11;
   private carry = new Graphics(); private tool = new Graphics();
   private hood = new Graphics(); private umbrella = new Graphics(); private breath = new Graphics(); private gear = { rain: false, cold: false };
   private facing = 1;
@@ -71,10 +75,13 @@ export class Citizen extends Container {
     const skin = look.skin ?? SKINS[1]!;
     const top = PALETTE[look.top], bottom = PALETTE[look.bottom];
 
-    // legs pivot at the hip, drawn hanging down
-    for (const [g, side] of [[this.legL, -1], [this.legR, 1]] as const) {
-      rrect(g, -4, 0, 8, this.legH, 4, bottom);
-      ellipse(g, 0, this.legH, 5.5, 3, KELP);
+    // legs: a thigh that pivots at the hip and a shin that pivots at the knee, a foot at the end
+    this.thighH = this.legH * 0.55; this.shinH = this.legH * 0.5;
+    for (const [g, shin, side] of [[this.legL, this.shinL, -1], [this.legR, this.shinR, 1]] as const) {
+      rrect(g, -4, 0, 8, this.thighH + 3, 4, bottom);
+      rrect(shin, -3.5, 0, 7, this.shinH, 3.5, bottom);
+      ellipse(shin, 1, this.shinH, 5.5, 3, KELP);
+      shin.position.set(0, this.thighH); g.addChild(shin);
       g.position.set(side * (this.torsoW * 0.28), -this.legH);
       this.body.addChild(g);
     }
@@ -83,23 +90,30 @@ export class Citizen extends Container {
     if (look.coral === "Buttons") for (let i = 0; i < 3; i++) this.torso.circle(0, -this.legH - this.torsoH + 7 + i * 7, 1.8).fill(CORAL);
     if (look.coral === "Scarf") this.torso.roundRect(-this.torsoW / 2 - 1, -this.legH - this.torsoH - 3, this.torsoW + 2, 7, 3).fill(CORAL).stroke(STROKE);
     this.body.addChild(this.torso);
-    // arms pivot at the shoulder
-    for (const [g, side] of [[this.armL, -1], [this.armR, 1]] as const) {
-      rrect(g, -3.5, 0, 7, this.torsoH * 0.78, 3.5, top);
-      ellipse(g, 0, this.torsoH * 0.78 + 1, 4, 4, skin);
+    // arms: an upper arm at the shoulder, a forearm at the elbow, a hand at the end
+    this.upperH = this.torsoH * 0.44; this.foreH = this.torsoH * 0.4;
+    for (const [g, fore, side] of [[this.armL, this.foreL, -1], [this.armR, this.foreR, 1]] as const) {
+      rrect(g, -3.5, 0, 7, this.upperH + 2, 3.5, top);
+      rrect(fore, -3, 0, 6, this.foreH, 3, top);
+      ellipse(fore, 0, this.foreH + 1, 4, 4, skin);
+      fore.position.set(0, this.upperH); g.addChild(fore);
       g.position.set(side * (this.torsoW / 2 + 1), -this.legH - this.torsoH + 5);
       this.body.addChild(g);
     }
     // what they carry, in the front hand or on the hip
     this.drawCarry(look);
-    this.armR.addChild(this.carry);
+    this.foreR.addChild(this.carry);
     this.tool.roundRect(-2, -6, 4, 18, 2).fill(LEATHER).stroke(STROKE).roundRect(-7, -9, 14, 6, 2).fill(KELP);
-    this.tool.position.set(0, this.torsoH * 0.78); this.tool.visible = false; this.armR.addChild(this.tool);
+    this.tool.position.set(0, this.foreH); this.tool.visible = false; this.foreR.addChild(this.tool);
     // head, hair, hat
-    const headR = 11 * (look.build === "Sturdy" ? 1.05 : 1);
+    const headR = 11 * (look.build === "Sturdy" ? 1.05 : 1); this.headR = headR;
     const face = new Graphics(); face.circle(0, 0, headR).fill(skin).stroke(STROKE);
-    face.circle(-4, -1, 1.4).fill(KELP).circle(4, -1, 1.4).fill(KELP);
     this.head.addChild(face);
+    // a face that can look, blink, frown and smile
+    this.eyes.circle(-4, -1, 1.4).fill(KELP).circle(4, -1, 1.4).fill(KELP); this.head.addChild(this.eyes);
+    this.head.addChild(this.brows); this.head.addChild(this.mouth); this.drawFace();
+    // the back of the head: all hair, or hat; shown only when they walk away from you
+    this.backHair.circle(0, 0, headR + 0.5).fill(look.hair === "Grey" ? GREY : HAIR).stroke(STROKE); this.backHair.visible = false; this.head.addChild(this.backHair);
     this.head.addChild(this.drawHair(look, headR));
     this.head.addChild(this.drawHat(look, headR));
     this.head.position.set(0, -this.legH - this.torsoH - headR + 3);
@@ -134,7 +148,7 @@ export class Citizen extends Container {
     return g;
   }
   private drawCarry(look: Look): void {
-    const g = this.carry; const handY = this.torsoH * 0.78 + 1; const coral = look.coral === "Suitcase" && look.carrying === "Suitcase";
+    const g = this.carry; const handY = this.foreH + 1; const coral = look.coral === "Suitcase" && look.carrying === "Suitcase";
     switch (look.carrying) {
       case "Nothing": break;
       case "Suitcase": g.roundRect(-9, handY + 2, 18, 13, 2).fill(coral ? CORAL : 0xc9b58f).stroke(STROKE); g.roundRect(-3, handY - 1, 6, 4, 1).fill(KELP); break;
@@ -146,24 +160,53 @@ export class Citizen extends Container {
 
   /** What the weather asks of a person: a hood or an umbrella in rain, visible breath in the cold. */
   weather(g: { rain: boolean; cold: boolean }): void { if (g.rain === this.gear.rain && g.cold === this.gear.cold) return; this.gear = g; const brolly = g.rain && this.phase % 5 < 2 && this.look.carrying !== "Suitcase"; this.umbrella.visible = brolly; this.hood.visible = g.rain && !brolly && this.look.hat === "None"; this.breath.visible = g.cold; }
-  setPose(p: Pose): void { if (this.pose === p) return; this.pose = p; this.tool.visible = p === "work" && this.look.carrying !== "Suitcase"; }
-  face(dir: -1 | 1): void { this.facing = dir; }
+  /** Brows and mouth from the mood: hunger flattens, grief pulls the brows up and the mouth down, joy lifts. */
+  private drawFace(): void {
+    const { hunger, joy, grief } = this.moodState; const r = this.headR;
+    const curve = joy * 3.5 - grief * 3 - hunger * 2; // positive is a smile
+    this.mouth.clear(); if (this.talking) this.mouth.ellipse(0, 4.5, 2.2, 1.6).fill(KELP); else this.mouth.moveTo(-3, 4).quadraticCurveTo(0, 4 + curve, 3, 4).stroke({ width: 1.2, color: KELP, cap: "round" });
+    this.brows.clear(); const tilt = grief * 1.6 - hunger * 0.6; const lift = joy * 0.8 - hunger * 0.8;
+    if (Math.abs(tilt) > 0.2 || Math.abs(lift) > 0.2 || grief > 0.2) { this.brows.moveTo(-6, -4.5 - lift + tilt * 0.6).lineTo(-2, -4.5 - lift - tilt * 0.6).moveTo(2, -4.5 - lift - tilt * 0.6).lineTo(6, -4.5 - lift + tilt * 0.6).stroke({ width: 1.1, color: KELP, cap: "round" }); }
+    void r;
+  }
+  /** What the day is doing to their face. */
+  mood(m: { hunger?: number; joy?: number; grief?: number }): void { const next = { hunger: m.hunger ?? 0, joy: m.joy ?? 0, grief: m.grief ?? 0 }; if (Math.abs(next.hunger - this.moodState.hunger) < 0.05 && Math.abs(next.joy - this.moodState.joy) < 0.05 && Math.abs(next.grief - this.moodState.grief) < 0.05) return; this.moodState = next; this.drawFace(); }
+  /** Where they are looking, in local pixels to the side; the eyes follow a little. */
+  lookAt(dx: number): void { this.gaze = Math.max(-2.5, Math.min(2.5, dx / 40)); }
+  /** Which way they face: side on, toward you, or away. */
+  facing4(f: Facing): void { if (f === this.facingMode) return; this.facingMode = f; this.facing = f === "left" ? -1 : 1; const back = f === "back"; this.eyes.visible = !back; this.mouth.visible = !back; this.brows.visible = !back; this.backHair.visible = back; this.carry.visible = !back; }
+  setPose(p: Pose): void { if (this.pose === p) return; this.pose = p; this.tool.visible = p === "work" && this.look.carrying !== "Suitcase"; const talking = p === "talk"; if (talking !== this.talking) { this.talking = talking; this.drawFace(); } }
+  face(dir: -1 | 1): void { this.facing4(dir < 0 ? "left" : "right"); }
 
   /** Advance the animation. `t` is seconds. */
   update(t: number): void {
     const k = t * 2 * Math.PI + this.phase;
-    this.body.scale.x = this.facing; this.body.rotation = 0; this.body.position.set(0, 0); this.body.alpha = 1;
-    let legL = 0, legR = 0, armL = 0, armR = 0, bob = 0, headTilt = 0;
+    this.body.scale.x = this.facingMode === "left" ? -1 : 1; this.body.rotation = 0; this.body.position.set(0, 0); this.body.alpha = 1; this.torso.scale.y = 1;
+    let legL = 0, legR = 0, shinL = 0, shinR = 0, armL = 0, armR = 0, foreL = 0.15, foreR = 0.15, bob = 0, headTilt = 0;
+    const gait = (speed: number, amp: number) => { const s = Math.sin(k * speed), c = Math.cos(k * speed); legL = s * amp; legR = -s * amp; shinL = Math.max(0, -c) * amp * 1.3; shinR = Math.max(0, c) * amp * 1.3; armL = -s * amp * 0.8; armR = s * amp * 0.8; foreL = 0.35 + Math.max(0, -s) * 0.5; foreR = 0.35 + Math.max(0, s) * 0.5; bob = Math.abs(c) * -amp * 4; };
     switch (this.pose) {
-      case "walk": { const s = Math.sin(k * 1.6); legL = s * 0.55; legR = -s * 0.55; armL = -s * 0.45; armR = s * 0.45; bob = Math.abs(Math.cos(k * 1.6)) * -2.2; break; }
-      case "idle": { bob = Math.sin(k * 0.35) * 0.8; armL = 0.06; armR = -0.06; break; }
-      case "talk": { armR = -0.9 + Math.sin(k * 1.2) * 0.25; armL = 0.1; headTilt = Math.sin(k * 0.6) * 0.06; bob = Math.sin(k * 0.5) * 0.6; break; }
-      case "work": { const s = Math.sin(k * 1.4); armR = -1.6 + Math.max(0, s) * 1.3; armL = 0.15; bob = Math.max(0, -s) * -1.5; break; }
-      case "sit": { legL = -1.45; legR = -1.45; armL = 0.5; armR = 0.5; this.body.position.y = 8; bob = Math.sin(k * 0.3) * 0.5; break; }
-      case "sleep": { this.body.rotation = (Math.PI / 2) * this.facing; this.body.position.set(0, -6); legL = -0.15; legR = 0.1; armL = 0.3; armR = 0.35; this.body.alpha = 0.92; break; }
+      case "walk": gait(1.6, 0.55); break;
+      case "run": gait(2.6, 0.95); this.body.rotation = 0.12 * this.facing; bob *= 1.4; break;
+      case "idle": {
+        // small life between actions: a sway, and every few seconds a fidget: a shift of weight, a look around, a scratch of the head, a stretch
+        bob = Math.sin(k * 0.35) * 0.8; armL = 0.06; armR = -0.06;
+        const slot = Math.floor((t + this.phase * 3) / 5); const which = ((slot * 2654435761) >>> 0) % 7; const into = ((t + this.phase * 3) % 5);
+        if (into < 1.2) { const e = Math.sin((into / 1.2) * Math.PI); if (which === 1) this.body.position.x = e * 1.5 * this.facing; else if (which === 2) { armR = -2.6 * e; foreR = -1.2 * e; headTilt = -0.08 * e; } else if (which === 3) { armL = -2.9 * e; armR = 2.9 * e; foreL = 0.3 * e; foreR = -0.3 * e; bob -= e * 1.5; } else if (which === 4) { headTilt = 0.1 * e; } }
+        break;
+      }
+      case "talk": { armR = -0.9 + Math.sin(k * 1.2) * 0.25; foreR = -0.9 + Math.sin(k * 1.7) * 0.4; armL = 0.1; headTilt = Math.sin(k * 0.6) * 0.06; bob = Math.sin(k * 0.5) * 0.6; break; }
+      case "work": { const s = Math.sin(k * 1.4); armR = -1.9 + Math.max(0, s) * 1.6; foreR = -0.6 + Math.max(0, s) * 0.6; armL = 0.15; foreL = 0.5; bob = Math.max(0, -s) * -1.5; break; }
+      case "sit": { legL = -1.5; legR = -1.5; shinL = 1.45; shinR = 1.45; armL = 0.5; armR = 0.5; foreL = -0.6; foreR = -0.6; this.body.position.y = 8; bob = Math.sin(k * 0.3) * 0.5; break; }
+      case "sleep": { this.body.rotation = (Math.PI / 2) * this.facing; this.body.position.set(0, -6); legL = -0.15; legR = 0.1; shinL = 0.3; shinR = 0.2; armL = 0.3; armR = 0.35; foreL = 0.4; foreR = 0.3; this.body.alpha = 0.92; this.torso.scale.y = 1 + Math.sin(k * 0.25) * 0.02; break; }
     }
-    this.legL.rotation = legL; this.legR.rotation = legR; this.armL.rotation = armL; this.armR.rotation = armR;
+    // hunger shows in the whole body: a slump, a hanging head
+    if (this.moodState.hunger > 0.4 && this.pose !== "sleep") { const w = (this.moodState.hunger - 0.4) / 0.6; this.body.rotation += 0.1 * w * this.facing; headTilt += 0.18 * w; if (this.pose === "walk") bob *= 0.5; }
+    this.legL.rotation = legL; this.legR.rotation = legR; this.shinL.rotation = shinL; this.shinR.rotation = shinR;
+    this.armL.rotation = armL; this.armR.rotation = armR; this.foreL.rotation = foreL; this.foreR.rotation = foreR;
     this.head.rotation = headTilt; this.body.position.y += bob;
+    // eyes: they follow a little where the person looks, and blink
+    const side = this.facingMode === "left" || this.facingMode === "right" ? 2.2 : 0; this.eyes.position.x = side + this.gaze; const blink = ((t * 0.9 + this.phase) % 4.3) < 0.13; this.eyes.scale.y = blink ? 0.15 : 1;
+    if (this.talking) this.mouth.scale.y = 0.6 + Math.abs(Math.sin(k * 2.4)) * 0.6;
     if (this.breath.visible && this.pose !== "sleep") { const c = (t * 0.6 + this.phase) % 1; this.breath.clear(); if (c < 0.6) this.breath.circle(11 + c * 10, 1 - c * 6, 2 + c * 4).fill({ color: 0xe6eeee, alpha: 0.45 * (1 - c / 0.6) }); }
   }
 }

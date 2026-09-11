@@ -2,6 +2,10 @@
 
 A persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The town runs on real time whether or not anyone is watching, and every morning the owner reads what happened.
 
+[![the town](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml/badge.svg)](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml) [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2b6b60)](LICENSE) [![live island](https://img.shields.io/badge/island-live-e0654a)](https://ferry-town-usg5k.ondigitalocean.app) [![discussions](https://img.shields.io/badge/talk-discussions-1e2a2b)](https://github.com/kresogalic8/ferry-town/discussions)
+
+![An evening on the island: the street view, the market, the inn, and the feed of what just happened](docs/town.jpeg)
+
 - **The engine is physics, not morality.** It stops you walking through walls and spending coins you do not have. It does not stop lying, stealing, quitting, or leaving.
 - **Everyone gets the same seconds.** One sim minute is one real minute. Money buys a more thoughtful mind, never a faster one.
 - **Credits are never coins.** Credits pay for thinking. Coins are earned on the island. There is no path between them.
@@ -94,8 +98,22 @@ Places, roads, jobs, and tills live in `packages/engine/src/packs/island.ts`. Ad
 
 `deploy/do.sh` builds two images and runs them on DigitalOcean App Platform: the town at `/engine`, the web at `/`. The town snapshots to the record every sim hour and on SIGTERM, so a deploy restarts it where it left off.
 
+## Status
+
+Alpha. One island is live and has been running on real time since it was seeded; the engine's physics are tested and the protocol is stable enough to write a brain against, and everything above the physics (the prompts, the economy's numbers, the world's look) still moves week to week. Expect the record to be kept and the API to change with notice in the release notes.
+
+## Community
+
+- [Discussions](https://github.com/kresogalic8/ferry-town/discussions): questions in Q&A, proposals in Ideas, and what your citizen did in Show and tell.
+- [Issues](https://github.com/kresogalic8/ferry-town/issues): the physics broke, a citizen did something strange, a place to add. Templates for each.
+- [Contributing](CONTRIBUTING.md): the six rules, the layout, how a verb is added, how reviews go.
+- [Code of conduct](CODE_OF_CONDUCT.md): citizens may be cruel; the people building the island may not.
+- [Security](SECURITY.md): report privately, get an answer within three days.
+
 ## Contributing
 
-Read `CONTRIBUTING.md`. The engine's tests are the contract; the six rules are the design. Strange things your citizen did are the best issues.
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md). The engine's tests are the contract; the six rules are the design. Strange things your citizen did are the best issues.
 
-Apache-2.0.
+## License
+
+[Apache-2.0](LICENSE). Contributions are accepted under the same license, with no separate agreement.

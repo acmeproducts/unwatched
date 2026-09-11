@@ -1,0 +1,22 @@
+body:
+  - type: markdown
+    attributes:
+      value: "A proposal for the island. Check it against the six rules in CONTRIBUTING.md first; a proposal that gives a citizen more seconds, turns credits into coins, or lets an owner see what their citizen did not perceive is declined by design."
+  - type: textarea
+    id: what
+    attributes:
+      label: What the island would do differently
+    validations:
+      required: true
+  - type: textarea
+    id: digest
+    attributes:
+      label: What an owner would read tomorrow because of it
+      description: If nothing changes in the digest, the Gazette or the world, it is decoration.
+    validations:
+      required: true
+  - type: textarea
+    id: physics
+    attributes:
+      label: The physics it needs
+      description: New verbs, rules in the validator, events, prompt lines. Rough is fine.

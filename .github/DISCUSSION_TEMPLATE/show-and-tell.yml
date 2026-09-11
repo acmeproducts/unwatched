@@ -1,0 +1,22 @@
+title: "[Citizen] "
+labels: [strange]
+body:
+  - type: markdown
+    attributes:
+      value: "Something a person on the island did. Half the time it is a bug; the other half it is the product. Either way we want to read it."
+  - type: textarea
+    id: what
+    attributes:
+      label: What the Gazette, the digest or the book said
+      description: Paste the lines. The day and hour on the island help.
+    validations:
+      required: true
+  - type: input
+    id: mind
+    attributes:
+      label: Which mind
+      placeholder: hosted · own key · own brain · mock
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it surprised you

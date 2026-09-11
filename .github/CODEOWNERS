@@ -1,0 +1,5 @@
+# Every change is reviewed by a maintainer. The engine's physics and the protocol are the contract, so they always get a second look.
+*                         @kresogalic8
+/packages/engine/         @kresogalic8
+/packages/protocol/       @kresogalic8
+/packages/cognition/src/prompts.ts  @kresogalic8

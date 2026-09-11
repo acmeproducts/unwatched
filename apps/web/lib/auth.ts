@@ -18,7 +18,7 @@ export async function currentOwner(): Promise<{ id: string; email?: string } | n
   if (supabase) { const { data } = await supabase.auth.getUser(); return data.user ? { id: data.user.id, ...(data.user.email ? { email: data.user.email } : {}) } : null; }
   try { const o = localStorage.getItem("ft.owner"); return o ? { id: o } : null; } catch { return null; }
 }
-/** A dev name travels in a header, which only carries Latin-1, so it becomes a plain slug: "Krešimir Galić" is "kresimir-galic". */
+/** A dev name travels in a header, which only carries Latin-1, so it becomes a plain slug: "Mira Kovač" is "mira-kovac". */
 export function devName(name: string): string { return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "visitor"; }
 export async function signInDev(name: string) { localStorage.setItem("ft.owner", devName(name)); }
 export async function signOut() { if (supabase) await supabase.auth.signOut(); try { localStorage.removeItem("ft.owner"); localStorage.removeItem("ft.agent"); } catch {} }

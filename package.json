@@ -1,8 +1,16 @@
 {
   "name": "ferry-town",
   "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kresogalic8/ferry-town.git"
+  },
+  "homepage": "https://ferry-town-usg5k.ondigitalocean.app",
   "packageManager": "pnpm@10.10.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",

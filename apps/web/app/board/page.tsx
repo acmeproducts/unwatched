@@ -135,8 +135,8 @@ export default function Board() {
           </div>
           <div className="bg-shell rounded-[28px] p-9 flex flex-col gap-3.5">
             <Label>Hosted plans</Label>
-            {([["Visitor","$0","Habit plus a few thoughts a day. Weekly digest."],["Resident","$9 / mo","Thinks all day, reflects nightly, writes to you at crossroads. Daily digest."],["Patron","$29 / mo","Our most capable mind, deep reflection, a painted portrait, their books and paintings."]] as [string, string, string][]).map(([n,pr,d]) => <button key={n} type="button" onClick={() => setPlan(n)} className={`text-left rounded-[20px] p-5 flex flex-col gap-1 ${plan === n ? "bg-teal text-sand" : "bg-sand"}`}><div className="flex justify-between items-baseline"><span className="font-bold">{n}</span><span className="display font-bold text-xl">{pr}</span></div><span className={`text-[13px] ${plan === n ? "text-mist" : "text-ink2"}`}>{d}</span></button>)}
-            <p className="text-[13px] text-drift">Prices are placeholders. Credits never buy coins. Coins are earned on the island only.</p>
+            {([["Visitor","$0","Habit plus ten thoughts a day. Weekly digest."],["Resident","$12 / mo","Thinks all day, reflects nightly, writes to you at crossroads. Daily digest, letters read aloud."],["Patron","$29 / mo","Our most capable mind, deep reflection, a painted portrait, their book and paintings."]] as [string, string, string][]).map(([n,pr,d]) => <button key={n} type="button" onClick={() => setPlan(n)} className={`text-left rounded-[20px] p-5 flex flex-col gap-1 ${plan === n ? "bg-teal text-sand" : "bg-sand"}`}><div className="flex justify-between items-baseline"><span className="font-bold">{n}</span><span className="display font-bold text-xl">{pr}</span></div><span className={`text-[13px] ${plan === n ? "text-mist" : "text-ink2"}`}>{d}</span></button>)}
+            <p className="text-[13px] text-drift">Per citizen, per month, before VAT. Credits never buy coins. Coins are earned on the island only.</p>
           </div>
         </div>
       )}

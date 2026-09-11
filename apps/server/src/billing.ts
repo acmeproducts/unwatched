@@ -2,11 +2,11 @@ import Stripe from "stripe";
 import type { AgentState, Tier } from "@ferrytown/engine";
 import type { Store, Wallet, Plan } from "@ferrytown/store";
 
-/** What each plan buys per day. Prices are placeholders until they are not. */
+/** What each plan buys per day, per citizen, per month. Set from the cost audit of September 2026: a Resident costs us about $6 a month in thinking at typical use and $9.40 if every thought is spent; a Patron $12 and $20. */
 export const PLANS: Record<Plan, { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string }> = {
-  visitor:  { name: "Visitor",  price: 0,  tier1: 10,  tier2: 1,  reflect: false, blurb: "Habit plus a few thoughts a day. Weekly digest." },
-  resident: { name: "Resident", price: 9,  tier1: 50,  tier2: 5,  reflect: true,  blurb: "Thinks all day, reflects nightly, writes to you at crossroads. Daily digest." },
-  patron:   { name: "Patron",   price: 29, tier1: 200, tier2: 30, reflect: true,  blurb: "Our most capable mind, deep reflection, a painted portrait, their books and paintings." },
+  visitor:  { name: "Visitor",  price: 0,  tier1: 10,  tier2: 0,  reflect: false, blurb: "Habit plus ten thoughts a day. Weekly digest." },
+  resident: { name: "Resident", price: 12, tier1: 50,  tier2: 6,  reflect: true,  blurb: "Thinks all day, reflects nightly, writes to you at crossroads. Daily digest, letters read aloud." },
+  patron:   { name: "Patron",   price: 29, tier1: 120, tier2: 15, reflect: true,  blurb: "Our most capable mind, deep reflection, a painted portrait, their book and paintings." },
 };
 export const PACKS: Record<string, { credits: number; price: number }> = { small: { credits: 100, price: 3 }, medium: { credits: 500, price: 12 }, large: { credits: 2000, price: 40 } };
 /** What a thought costs in credits when the allowance is spent. */

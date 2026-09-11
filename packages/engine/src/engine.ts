@@ -43,6 +43,8 @@ export class Town {
   weather: string = "clear";
   flourShortage = false;
   papers: Paper[] = [];
+  /** Ops switches. Each flip is an act of God and gets printed. */
+  paused = false; economyFrozen = false; ferryHeld = false;
   private nextId = 1;
   private nextEventId = 1;
   private nextLetterId = 1;
@@ -172,7 +174,7 @@ export class Town {
       if (a.asleep) { this.maybeWake(a); if (a.asleep) continue; }
       const here = this.places.get(a.location)!;
       const nearby = this.nearby(a);
-      const s = this.brain.name === "none" ? null : salience(a, { hour: this.hour, t: this.t, nearby, jobsOpenHere: this.openJobsAt(here.id).length });
+      const s = this.brain.name === "none" || this.paused ? null : salience(a, { hour: this.hour, t: this.t, nearby, jobsOpenHere: this.openJobsAt(here.id).length });
       if (s && this.spend(a, s.tier)) thinkers.push({ a, tier: s.tier, why: s.why });
       else this.apply(a, habit(a, this.habitView()), "habit");
     }
@@ -364,7 +366,7 @@ export class Town {
 
   // ---------- conversations ----------
   private async conversations(): Promise<void> {
-    if (this.brain.name === "none") return;
+    if (this.brain.name === "none" || this.paused) return;
     const byPlace = new Map<string, AgentState[]>();
     for (const a of this.agents.values()) if (!a.asleep) (byPlace.get(a.location) ?? byPlace.set(a.location, []).get(a.location)!).push(a);
     for (const [placeId, group] of byPlace) {
@@ -406,8 +408,10 @@ export class Town {
   private hourly(): void {
     const h = this.hour;
     if (h >= 6 && h <= 20) {
-      this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry docked.`, 0.03);
+      if (this.ferryHeld) this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not come.`, 0.2);
+      else this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry docked.`, 0.03);
     }
+    if (this.economyFrozen) return;
     for (const job of this.jobs.values()) {
       if (h === job.hours[1]) for (const id of job.holders) {
         const a = this.agents.get(id); if (!a) continue;
@@ -423,7 +427,7 @@ export class Town {
     for (const a of this.agents.values()) { if (a.asleep && a.home?.place === a.location) { const p = this.places.get(a.location)!; p.freeBeds = Math.max(0, (p.freeBeds ?? 0) - 1); } }
     // reflection
     for (const a of this.agents.values()) {
-      if (!a.funded || this.brain.name === "none") continue;
+      if (!a.funded || this.brain.name === "none" || this.paused) continue;
       if (a.brainKind === "hosted" && a.budget.tier2Max === 0 && !(this.creditBank?.(a, 3) ?? false)) continue; // a Visitor with no credits keeps the day, not the reflection
       const dayStart = (this.day - 1) * MINUTES_PER_DAY;
       const dayMemories = a.memory.filter((m) => m.t >= dayStart && m.kind !== "reflect").sort((x, y) => y.importance - x.importance).slice(0, 12).map((m) => m.text);
@@ -454,8 +458,11 @@ export class Town {
     this.arrivalsToday = 0; this.departuresToday = 0;
   }
 
+  /** An operator did something. It is logged and it is news. */
+  actOfGod(text: string): void { this.emit("town.notice", [], undefined, text, 0.6); }
+
   private async printPaper(): Promise<void> {
-    if (this.brain.name === "none") return;
+    if (this.brain.name === "none" || this.paused) return;
     const dayStart = (this.day - 1) * MINUTES_PER_DAY;
     const evs = this.events.filter((e) => e.t >= dayStart && e.importance >= 0.3 && e.kind !== "agent.reflect" && e.kind !== "agent.letter")
       .sort((x, y) => y.importance - x.importance).slice(0, 14)

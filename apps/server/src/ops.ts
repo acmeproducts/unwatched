@@ -1,0 +1,35 @@
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { ActionProposal, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
+import { OpenRouterBrain } from "@ferrytown/cognition";
+
+const PRICE: Record<string, [number, number]> = { "anthropic/claude-haiku-4.5": [1, 5], "anthropic/claude-sonnet-5": [2, 10], "anthropic/claude-opus-5": [5, 25], "claude-haiku-4-5": [1, 5], "claude-sonnet-5": [2, 10], "claude-opus-5": [5, 25] };
+
+export interface HourBucket { hour: number; day: number; t1: number; t2: number; t3: number; converse: number; ms: number[]; cost: number }
+
+/**
+ * Sees every thought the town spends, and what it cost. Wraps the router the engine calls, so nothing is missed.
+ */
+export class Metrics implements Brain {
+  readonly name: string;
+  hours: HourBucket[] = [];
+  holds: { id: number; level: "hold" | "watch" | "ok"; text: string; at: number; source: string; done: boolean }[] = [];
+  private nextHold = 1;
+  private lastUsage = { prompt: 0, completion: 0 };
+  tickMs: number[] = [];
+  constructor(private inner: Brain, private townBrain: Brain, private clock: () => { day: number; hour: number; t: number }, private models: { routine: string; stakes: string; reflect: string }) { this.name = inner.name; }
+  private bucket(): HourBucket {
+    const c = this.clock(); let b = this.hours[this.hours.length - 1];
+    if (!b || b.hour !== c.hour || b.day !== c.day) { b = { hour: c.hour, day: c.day, t1: 0, t2: 0, t3: 0, converse: 0, ms: [], cost: 0 }; this.hours.push(b); if (this.hours.length > 48) this.hours.shift(); }
+    return b;
+  }
+  private meter(b: HourBucket, model: string) {
+    if (this.townBrain instanceof OpenRouterBrain) { const u = this.townBrain.usage(); const [i, o] = PRICE[model] ?? [3, 15]; b.cost += ((u.prompt - this.lastUsage.prompt) * i + (u.completion - this.lastUsage.completion) * o) / 1e6; this.lastUsage = { prompt: u.prompt, completion: u.completion }; }
+  }
+  private async timed<T>(b: HourBucket, f: () => Promise<T>): Promise<T> { const s = Date.now(); try { return await f(); } finally { b.ms.push(Date.now() - s); if (b.ms.length > 500) b.ms.shift(); } }
+  async decide(p: Perception, a: AgentState, tier: Tier): Promise<ActionProposal> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.decide(p, a, tier)); if (a.brainKind === "hosted") this.meter(b, tier >= 2 ? this.models.stakes : this.models.routine); return out; }
+  async converse(ctx: ConverseContext): Promise<Dialogue> { const b = this.bucket(); b.converse++; const out = await this.timed(b, () => this.inner.converse(ctx)); this.meter(b, this.models.routine); return out; }
+  async reflect(ctx: ReflectContext): Promise<Reflection> { const b = this.bucket(); b.t3++; const out = await this.timed(b, () => this.inner.reflect(ctx)); if (ctx.agent.brainKind === "hosted") this.meter(b, this.models.reflect); return out; }
+  async writePaper(ctx: PaperContext): Promise<Paper> { const b = this.bucket(); const out = await this.timed(b, () => this.inner.writePaper(ctx)); this.meter(b, this.models.reflect); return out; }
+  hold(level: "hold" | "watch" | "ok", text: string, source: string) { this.holds.unshift({ id: this.nextHold++, level, text, at: Date.now(), source, done: false }); if (this.holds.length > 100) this.holds.pop(); }
+  today(day: number) { const hs = this.hours.filter((h) => h.day === day); const ms = hs.flatMap((h) => h.ms).sort((a, b) => a - b); return { t1: hs.reduce((s, h) => s + h.t1, 0), t2: hs.reduce((s, h) => s + h.t2, 0), t3: hs.reduce((s, h) => s + h.t3, 0), converse: hs.reduce((s, h) => s + h.converse, 0), cost: hs.reduce((s, h) => s + h.cost, 0), p50: ms.length ? ms[Math.floor(ms.length / 2)]! : 0, p95: ms.length ? ms[Math.floor(ms.length * 0.95)]! : 0 }; }
+}

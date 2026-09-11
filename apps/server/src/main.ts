@@ -17,6 +17,7 @@ import { publicAgent, ownerAgent, clockOf } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
 import type { BrainRow, Plan } from "@ferrytown/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
+import { Metrics } from "./ops.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const envFile = resolve(here, "../../../.env");
@@ -30,14 +31,19 @@ const CITIZENS = Number(process.env.FT_CITIZENS ?? 20);
 const log = (l: string) => console.log(`[town] ${l}`);
 
 const townBrain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) : BRAIN === "anthropic" ? new AnthropicBrain({ log }) : new MockBrain(SEED);
-const brain = new BrainRouter(townBrain, log);
+const router = new BrainRouter(townBrain, log);
+const MODELS = { routine: process.env.FT_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5", stakes: process.env.FT_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5", reflect: process.env.FT_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" };
+let clockRef = () => ({ day: 1, hour: 6, t: 0 });
+const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
+const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
+router.onBad = (text) => metrics.hold("watch", text, "own brains");
 let store = TownStore.fromEnv("island");
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-const town = new Town({ seed: SEED, brain, log, creditBank: billing.bank, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
+const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
 const saved = store ? await store.loadSnapshot() : null;
 if (saved) {
   town.restore(saved);
@@ -50,6 +56,7 @@ if (saved) {
   if (store) { await store.ensureTown("The island", SEED); await store.snapshot(town); }
   log("a new island: seeded the first citizens");
 }
+clockRef = () => ({ day: town.day, hour: town.hour, t: town.t });
 log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? "supabase" : "memory only"} · sign-in ${process.env.SUPABASE_URL ? "supabase" : "dev names"}`);
 
 // ---- the clock ----
@@ -60,7 +67,7 @@ async function loop() {
     if (!ticking) {
       ticking = true;
       try {
-        await town.tick();
+        const t0 = Date.now(); await town.tick(); metrics.tickMs.push(Date.now() - t0); if (metrics.tickMs.length > 200) metrics.tickMs.shift();
         if (town.hour !== lastHour) { lastHour = town.hour; broadcast({ type: "clock", clock: clockOf(town) }); await hourly(); }
       } catch (err) { log(`tick failed: ${(err as Error).message}`); }
       ticking = false;
@@ -125,6 +132,7 @@ app.post("/api/agents/:id/letters", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
   const owner = await ownerOf(c.req.raw); if (!owns(a, owner)) return c.json({ error: "not your agent" }, 403);
   const body = z.object({ text: z.string().min(1).max(1200) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "a letter needs words" }, 400);
+  if (/https?:\/\/|www\.|@[a-z0-9.-]+\.[a-z]{2,}/i.test(body.data.text)) metrics.hold("watch", `A letter to ${a.persona.name} carries a link or an address. Delivered; worth a look.`, "letters");
   town.sendLetter(a.id, body.data.text);
   if (store) await store.saveLetter(a.id, owner, "to_agent", body.data.text, town.t);
   return c.json({ ok: true, readsAt: "tomorrow morning" });
@@ -246,6 +254,41 @@ app.post("/api/me/credits/checkout", async (c) => {
   const r = await billing.checkoutPack(owner, body.data.pack, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ error: r.error }, 400);
 });
 app.post("/api/stripe/webhook", async (c) => { const r = await billing.webhook(await c.req.text(), c.req.header("stripe-signature")); return c.json(r, r.ok ? 200 : 400); });
+// ---- ops, behind a token ----
+const opsOk = (req: Request) => !!process.env.FT_OPS_TOKEN && req.headers.get("x-ops") === process.env.FT_OPS_TOKEN;
+app.get("/api/ops", (c) => {
+  if (!opsOk(c.req.raw)) return c.json({ error: process.env.FT_OPS_TOKEN ? "ops token required" : "set FT_OPS_TOKEN to open the ops room" }, 401);
+  const agents = [...town.agents.values()]; const funded = agents.filter((a) => a.funded && (a.owner || a.brainKind === "hosted"));
+  const hosted = agents.filter((a) => a.brainKind === "hosted"), ownKey = agents.filter((a) => a.brainKind === "own_key"), ownBrain = agents.filter((a) => a.brainKind === "own_brain");
+  const today = metrics.today(town.day);
+  const since = town.t - 3 * MINUTES_PER_DAY;
+  const bored = agents.filter((a) => a.funded && !town.events.some((e) => e.t >= since && e.importance >= 0.45 && e.actors.includes(a.id))).length;
+  const coins = agents.reduce((s, a) => s + a.coins, 0);
+  const jobs = [...town.jobs.values()]; const employed = agents.filter((a) => a.job).length;
+  const brains = ownBrain.map((a) => { const b = brain.perAgent.get(a.id); const st = b && "status" in b ? (b as { status: () => Record<string, unknown> }).status() : null; return { id: a.id, name: a.persona.name, ...st }; });
+  const ticks = [...metrics.tickMs].sort((x, y) => x - y);
+  return c.json({
+    clock: clockOf(town), switches: { paused: town.paused, economyFrozen: town.economyFrozen, ferryHeld: town.ferryHeld },
+    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, ceiling: Number(process.env.FT_DAILY_CEILING_USD ?? 120) },
+    hours: metrics.hours.filter((h) => h.day === town.day).map((h) => ({ hour: h.hour, calls: h.t1 + h.t2 + h.t3 + h.converse, t1: h.t1, t2: h.t2, t3: h.t3, converse: h.converse, cost: Math.round(h.cost * 100) / 100 })),
+    byTier: [{ tier: "Tier 1 · routine", model: MODELS.routine, calls: today.t1 + today.converse }, { tier: "Tier 2 · stakes", model: MODELS.stakes, calls: today.t2 }, { tier: "Tier 3 · reflection and the paper", model: MODELS.reflect, calls: today.t3 }],
+    health: { coins, employed, jobs: jobs.reduce((s, j) => s + j.slots, 0), flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boredomPct: funded.length ? Math.round(bored / funded.length * 100) : 0, events: town.events.length, tickP50: ticks.length ? ticks[Math.floor(ticks.length / 2)] : 0, tickMax: ticks.length ? ticks[ticks.length - 1] : 0, store: !!store, brain: townBrain.name, msPerMinute: MS_PER_SIM_MINUTE },
+    holds: metrics.holds.slice(0, 20), ownBrains: brains,
+  });
+});
+app.post("/api/ops/switch", async (c) => {
+  if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401);
+  const body = z.object({ which: z.enum(["pause", "economy", "ferry", "snapshot"]), on: z.boolean().optional() }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such switch" }, 400);
+  const { which } = body.data;
+  if (which === "snapshot") { if (store) await store.snapshot(town); town.actOfGod("The island's record was written down in full."); return c.json({ ok: true }); }
+  const on = body.data.on ?? !(which === "pause" ? town.paused : which === "economy" ? town.economyFrozen : town.ferryHeld);
+  if (which === "pause") { town.paused = on; town.actOfGod(on ? "Time stood still on the island. Nobody aged, nothing happened, no credits were spent." : "Time began again on the island."); }
+  if (which === "economy") { town.economyFrozen = on; town.actOfGod(on ? "No wages were paid and no rent was due. The coins on the island stayed where they were." : "Wages and rent resumed."); }
+  if (which === "ferry") { town.ferryHeld = on; town.actOfGod(on ? "The ferry was held at the mainland. Nobody arrived, nobody left." : "The ferry runs again."); }
+  log(`act of God: ${which} ${on ? "on" : "off"}`); broadcast({ type: "clock", clock: clockOf(town) });
+  return c.json({ ok: true, switches: { paused: town.paused, economyFrozen: town.economyFrozen, ferryHeld: town.ferryHeld } });
+});
+app.post("/api/ops/hold/:id", (c) => { if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401); const h = metrics.holds.find((x) => x.id === Number(c.req.param("id"))); if (h) h.done = true; return c.json({ ok: !!h }); });
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
 app.get("/api/papers/latest", (c) => { const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "the first edition prints at midnight" }, 404); });
 app.get("/api/events", (c) => {

@@ -40,6 +40,7 @@ export class OwnBrain implements Brain {
   exchanges: { t: string; sent: unknown; got: unknown }[] = [];
   private pending = new Map<string, { resolve: (v: unknown) => void; timer: NodeJS.Timeout }>();
   private fallback = new MockBrain(5);
+  onBad: ((text: string) => void) | null = null;
   constructor(readonly row: BrainRow, private log: (l: string) => void) {}
 
   attach(ws: WebSocket) {
@@ -72,7 +73,7 @@ export class OwnBrain implements Brain {
     const got = await this.ask({ ...p }, p.deadline_ms);
     const parsed = got ? ActionProposalSchema.safeParse(got) : null;
     const out = parsed?.success ? parsed.data : { action: { kind: "wait" as const }, remember: [] };
-    if (got && !parsed?.success) this.log(`own brain for ${p.agent_id} answered badly: ${parsed?.error.issues[0]?.message}`);
+    if (got && !parsed?.success) { this.log(`own brain for ${p.agent_id} answered badly: ${parsed?.error.issues[0]?.message}`); this.onBad?.(`Own brain for ${p.agent_id} answered with something the town could not read: ${parsed?.error.issues[0]?.message ?? "?"}. Fell back to habit.`); }
     this.exchanges.push({ t: p.time.sim, sent: { location: p.self.location, nearby: p.nearby.map((n) => n.name), heard: p.heard.map((h) => h.text) }, got: got ?? "missed" }); if (this.exchanges.length > 8) this.exchanges.shift();
     return out;
   }
@@ -93,12 +94,13 @@ export class OwnBrain implements Brain {
 export class BrainRouter implements Brain {
   readonly name: string;
   readonly perAgent = new Map<string, OwnKeyBrain | OwnBrain>();
+  onBad: ((text: string) => void) | null = null;
   constructor(readonly town: Brain, private log: (l: string) => void) { this.name = town.name; }
   set(agentId: string, row: BrainRow | null): void {
     this.perAgent.delete(agentId);
     if (!row || row.kind === "hosted") return;
     if (row.kind === "own_key" && row.api_key) this.perAgent.set(agentId, new OwnKeyBrain(row, this.log));
-    if (row.kind === "own_brain") this.perAgent.set(agentId, new OwnBrain(row, this.log));
+    if (row.kind === "own_brain") { const b = new OwnBrain(row, this.log); b.onBad = this.onBad; this.perAgent.set(agentId, b); }
   }
   ownBrainByToken(token: string): OwnBrain | null { for (const b of this.perAgent.values()) if (b instanceof OwnBrain && b.row.token === token) return b; return null; }
   decide(p: Perception, a: AgentState, tier: Tier) { return (this.perAgent.get(a.id) ?? this.town).decide(p, a, tier); }

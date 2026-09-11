@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Page, Card, Label, Bubble, Button, Dot, LinkButton } from "@/components/ui";
 import { api, clock, type TownEvent } from "@/lib/api";
 import { useMyAgent } from "@/lib/useAgent";
+import { Loading, SignedOut, NoAgent } from "@/components/states";
 
 export default function Letters() {
   const { agent, reason } = useMyAgent();
@@ -22,13 +23,14 @@ export default function Letters() {
     catch (e) { setToast("The letter did not go. " + (e as Error).message); }
     setBusy(false);
   }
-  if (reason === "signed-out" || reason === "none") return <Page><Card className="max-w-[560px]"><Label>Letters</Label><h1 className="text-[28px] font-bold">{reason === "signed-out" ? "Nobody is signed in." : "You have nobody to write to yet."}</h1><LinkButton href={reason === "signed-out" ? "/gate" : "/board"}>{reason === "signed-out" ? "Sign in" : "Board the ferry"}</LinkButton></Card></Page>;
-  if (!agent) return <Page><div className="text-drift">Fetching the post…</div></Page>;
+  if (reason === "signed-out") return <Page><SignedOut what="Letters go to your own agent. Sign in to write one." /></Page>;
+  if (reason === "none") return <Page><NoAgent what="Letters go to your own agent. Put someone on the ferry first." /></Page>;
+  if (!agent) return <Page><Loading what="Fetching the post." /></Page>;
   const first = agent.name.split(" ")[0];
   return (
     <Page>
-      <div className="grid gap-5 grow" style={{ gridTemplateColumns: "minmax(0,1fr) 380px" }}>
-        <div className="bg-shell rounded-card p-7 flex flex-col gap-3 min-h-[600px]">
+      <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="bg-shell rounded-card p-4 sm:p-7 flex flex-col gap-3 min-h-[520px]">
           <div className="flex justify-between items-center border-b border-line pb-3"><div><div className="display text-[22px] font-semibold">{agent.name}</div><div className="text-[13px] text-drift">at {agent.place} · {agent.coins} coins · reads letters in the morning</div></div><LinkButton href="/town" kind="secondary" size={36}>Visit</LinkButton></div>
           <div className="flex flex-col gap-3.5 grow">
             {thread.length === 0 && <p className="text-drift text-sm">Nothing yet. {first} writes when it matters. You can write first, if you want them to know something.</p>}

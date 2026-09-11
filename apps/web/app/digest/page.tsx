@@ -4,16 +4,19 @@ import Link from "next/link";
 import { Page, Card, Label, Dot, Strip, Bubble, Tide, LinkButton, Button } from "@/components/ui";
 import { api, clock, hhmm, dayOf, type Digest, type Paper } from "@/lib/api";
 import { useMyAgent } from "@/lib/useAgent";
+import { Loading, Offline, SignedOut, NoAgent } from "@/components/states";
 
 const tideWord = (t: number) => t < 0.2 ? "gone" : t < 0.3 ? "ebbing" : t < 0.45 ? "steady" : t < 0.65 ? "rising" : "close";
 
 export default function DigestPage() {
   const { agent, reason } = useMyAgent();
-  const [d, setD] = useState<Digest | null>(null); const [paper, setPaper] = useState<Paper | null>(null);
-  useEffect(() => { if (!agent) return; void api<Digest>(`/api/agents/${agent.id}/digest`).then(setD); void api<Paper>("/api/papers/latest").then(setPaper).catch(() => {}); }, [agent]);
-  if (reason === "signed-out") return <Page><Card className="max-w-[560px]"><Label>Ferry office</Label><h1 className="text-[28px] font-bold">Nobody is signed in.</h1><p className="text-ink2">Sign in to read what happened to your agent, or watch the town without one.</p><div className="flex gap-2"><LinkButton href="/gate">Sign in</LinkButton><LinkButton href="/town" kind="secondary">Watch the town</LinkButton></div></Card></Page>;
-  if (reason === "none") return <Page><Card className="max-w-[560px]"><Label>Ferry office</Label><h1 className="text-[28px] font-bold">You have nobody on the island yet.</h1><p className="text-ink2">Put a person on the ferry and the digest starts tomorrow morning.</p><LinkButton href="/board">Board the ferry</LinkButton></Card></Page>;
-  if (!agent || !d) return <Page><div className="text-drift">The ferry office is slow this morning.</div></Page>;
+  const [d, setD] = useState<Digest | null>(null); const [paper, setPaper] = useState<Paper | null>(null); const [down, setDown] = useState(false);
+  const load = () => { if (!agent) return; setDown(false); void api<Digest>(`/api/agents/${agent.id}/digest`).then(setD).catch(() => setDown(true)); void api<Paper>("/api/papers/latest").then(setPaper).catch(() => {}); };
+  useEffect(load, [agent]);
+  if (reason === "signed-out") return <Page><SignedOut what="Sign in to read what happened to your agent, or watch the town without one." /></Page>;
+  if (reason === "none") return <Page><NoAgent what="Put a person on the ferry and the digest starts tomorrow morning." /></Page>;
+  if (down) return <Page><Offline retry={load} /></Page>;
+  if (!agent || !d) return <Page><Loading /></Page>;
   const first = agent.name.split(" ")[0];
   const changed = d.items.filter((e) => e.importance >= 0.45);
   const top = d.items.length ? [...d.items].sort((a, b) => b.importance - a.importance)[0] : null;
@@ -21,12 +24,12 @@ export default function DigestPage() {
   const days = Math.max(1, Math.round((d.now - d.since) / 1440));
   return (
     <Page>
-      <div className="grid gap-5 grow" style={{ gridTemplateColumns: "minmax(0,1fr) 380px" }}>
-        <div className="bg-shell rounded-[28px] px-10 py-9 flex flex-col gap-5 rise">
+      <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="bg-shell rounded-[28px] px-5 py-6 sm:px-10 sm:py-9 flex flex-col gap-5 rise">
           <Label>While you were away · {days} day{days > 1 ? "s" : ""}</Label>
-          <div className="flex items-center gap-3.5">{!quiet && <Dot changed size={14} />}<h1 className="text-[44px] font-bold">{quiet ? `Nothing changed for ${first}.` : headline(top!.text, agent.name)}</h1></div>
+          <div className="flex items-center gap-3.5">{!quiet && <Dot changed size={14} />}<h1 className="text-[30px] sm:text-[44px] font-bold">{quiet ? `Nothing changed for ${first}.` : headline(top!.text, agent.name)}</h1></div>
           <p className="text-xl text-ink2 pl-7">{quiet ? `${first} worked, ate at the inn, and slept. No coral today, and that is allowed.` : deck(top!.text)}</p>
-          <div className="pl-7"><Strip items={d.items.map((e) => ({ t: `${dayOf(e.t) === dayOf(d.now) ? "Today" : `Day ${dayOf(e.t)}`} ${hhmm(e.t)}`, changed: e.importance >= 0.45, text: e.kind === "conversation" ? talk(e.text) : e.text }))} /></div>
+          <div className="pl-0 sm:pl-7"><Strip items={d.items.map((e) => ({ t: `${dayOf(e.t) === dayOf(d.now) ? "Today" : `Day ${dayOf(e.t)}`} ${hhmm(e.t)}`, changed: e.importance >= 0.45, text: e.kind === "conversation" ? talk(e.text) : e.text }))} /></div>
           {changed.length === 0 && d.items.length > 0 && <p className="text-sm text-drift pl-7">Nearby: {d.people.slice(0, 2).map((p) => p.name).join(" and ")} were seen about town.</p>}
         </div>
         <div className="flex flex-col gap-4">
@@ -36,7 +39,7 @@ export default function DigestPage() {
           <Card><Label>Money and roof</Label><div className="grid grid-cols-2 gap-3"><div><div className="display text-2xl font-semibold tabular">{agent.coins}</div><div className="text-xs text-drift">coins</div></div><div><div className="display text-2xl font-semibold">{agent.home ? `${agent.nightsPaid} night${agent.nightsPaid === 1 ? "" : "s"}` : "no roof"}</div><div className="text-xs text-drift">{agent.home ? `paid at the ${agent.home === "inn" ? "inn" : agent.home}` : "sleeping rough"}</div></div></div><div className="text-sm text-ink2">{agent.job ? `Works as ${agent.job}.` : "No work yet."}</div></Card>
         </div>
       </div>
-      {paper && <div className="bg-shell rounded-card px-7 py-4 grid gap-7 items-center" style={{ gridTemplateColumns: "180px repeat(3, minmax(0,1fr))" }}><div><div className="display text-lg font-semibold">The Gazette</div><div className="text-xs text-drift">Edition {paper.edition}</div></div>{[{ headline: paper.lead.headline, sub: paper.lead.deck }, ...paper.briefs.slice(0, 2).map((b) => ({ headline: b.headline, sub: b.body }))].map((b, i) => <Link key={i} href="/gazette" className="text-sm leading-[1.35]"><div className="font-bold">{b.headline}</div><div className="text-drift line-clamp-1">{b.sub}</div></Link>)}</div>}
+      {paper && <div className="bg-shell rounded-card px-7 py-4 grid gap-4 sm:gap-7 items-center grid-cols-1 md:grid-cols-[180px_repeat(3,minmax(0,1fr))]"><div><div className="display text-lg font-semibold">The Gazette</div><div className="text-xs text-drift">Edition {paper.edition}</div></div>{[{ headline: paper.lead.headline, sub: paper.lead.deck }, ...paper.briefs.slice(0, 2).map((b) => ({ headline: b.headline, sub: b.body }))].map((b, i) => <Link key={i} href="/gazette" className="text-sm leading-[1.35]"><div className="font-bold">{b.headline}</div><div className="text-drift line-clamp-1">{b.sub}</div></Link>)}</div>}
     </Page>
   );
 }

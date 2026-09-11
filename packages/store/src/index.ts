@@ -80,6 +80,10 @@ export class TownStore {
   async loadSnapshot(): Promise<TownSnapshot | null> {
     const { data: town } = await this.sb.from("towns").select("sim_t, day, weather, flour_shortage").eq("id", this.townId).maybeSingle();
     if (!town) return null;
+    // Anything recorded after the last snapshot belongs to a timeline that is about to be re-lived. Drop it, or the record doubles.
+    await this.sb.from("events").delete().eq("town_id", this.townId).gt("t", Number(town.sim_t));
+    const { data: ids0 } = await this.sb.from("agents").select("id").eq("town_id", this.townId);
+    if (ids0?.length) await this.sb.from("memories").delete().in("agent_id", ids0.map((r) => r.id as string)).gt("t", Number(town.sim_t));
     const { data: rows, error } = await this.sb.from("agents").select("id, owner_id, name, persona, appearance, funded, arrived_t, state").eq("town_id", this.townId).is("left_t", null).not("arrived_t", "is", null);
     if (error) { console.error("agents read failed:", error.message); return null; }
     if (!rows || rows.length === 0) return null;

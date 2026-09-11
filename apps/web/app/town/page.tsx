@@ -24,15 +24,15 @@ export default function Town() {
   }
   return (
     <Page>
-      <div className="relative grow min-h-[720px]">
+      <div className="relative grow min-h-[520px] sm:min-h-[720px]">
         <World mineId={follow && agent ? agent.id : null} onSelect={setSel} view={view} />
-        <div className="absolute left-6 top-6 flex gap-2 pointer-events-auto">
+        <div className="absolute left-3 top-3 sm:left-6 sm:top-6 flex gap-2 flex-wrap pointer-events-auto">
           <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={view === "street"} onClick={() => setView("street")}>Street</Chip><Chip active={view === "map"} onClick={() => setView("map")}>Map</Chip></div>
           {agent && <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={follow} onClick={() => setFollow(true)}>Follow {agent.name.split(" ")[0]}</Chip><Chip active={!follow} onClick={() => setFollow(false)}>Free camera</Chip></div>}
           {possessed && agent && <div className="flex items-center gap-2 bg-shell rounded-full px-4"><span className="w-2.5 h-2.5 rounded-full bg-coral" /><span className="font-bold text-sm">You are {agent.name.split(" ")[0]}</span></div>}
         </div>
         {sel && (
-          <div className="absolute right-6 top-6 bottom-6 w-[360px] bg-shell rounded-[28px] p-7 flex flex-col gap-4 pointer-events-auto">
+          <div className="absolute inset-x-3 bottom-3 sm:inset-x-auto sm:right-6 sm:top-6 sm:bottom-6 sm:w-[360px] max-h-[70%] sm:max-h-none overflow-auto bg-shell rounded-[28px] p-5 sm:p-7 flex flex-col gap-4 pointer-events-auto">
             <div><Label>{sel.asleep ? "Asleep" : `At ${sel.place}`}</Label><div className="display text-[30px] font-bold">{sel.name}</div><div className="text-sm text-drift">{sel.job ?? "no work"} · arrived day {sel.arrivedDay}{sel.ownerId ? "" : " · house-funded"}</div></div>
             {agent && sel.id !== agent.id && <div className="flex flex-col gap-2"><Label>What {agent.name.split(" ")[0]} knows</Label>{rel ? <><Tide name="Trust" trust={rel.trust} word={rel.tide} width={60} />{rel.opinion && <Bubble max={300}>“{rel.opinion}”</Bubble>}</> : <p className="text-sm text-drift">They have not met. {agent.name.split(" ")[0]} would have to be introduced, or introduce themselves.</p>}</div>}
             {selFull && "persona" in selFull && <div className="flex flex-col gap-1"><Label>Only you can see this</Label><p className="text-sm text-ink2">{String(selFull.persona.summary)}</p></div>}
@@ -46,7 +46,7 @@ export default function Town() {
           </div>
         )}
         {possessed && agent && (
-          <div className="absolute left-6 right-6 bottom-6 grid gap-4 items-end pointer-events-auto" style={{ gridTemplateColumns: "320px minmax(0,1fr)" }}>
+          <div className="absolute left-3 right-3 bottom-3 sm:left-6 sm:right-6 sm:bottom-6 grid gap-4 items-end pointer-events-auto grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)]">
             <div className="bg-shell rounded-card p-4 flex flex-col gap-1.5"><Label>You speak with {agent.name.split(" ")[0]}'s memory</Label><p className="text-sm text-ink2">{agent.memories[0]?.text ?? "Nothing yet."}</p><button onClick={() => setPossessed(false)} className="self-start mt-1 text-sm font-bold text-coral">Let {agent.name.split(" ")[0]} go</button></div>
             <div className="bg-shell rounded-card p-4 flex flex-col gap-3">
               <div className="flex gap-2 flex-wrap">{sel && sel.id !== agent.id && <Chip onClick={() => act({ kind: "move", to: sel.location })}>Walk to {sel.name.split(" ")[0]}</Chip>}<Chip onClick={() => act({ kind: "wait" })}>Wait</Chip><Chip onClick={() => act({ kind: "work" })}>Work</Chip><Chip onClick={() => act({ kind: "sleep" })}>Sleep</Chip></div>

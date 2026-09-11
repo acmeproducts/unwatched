@@ -12,7 +12,7 @@ export default function Profile() {
   const own = "coins" in a; const first = a.name.split(" ")[0];
   return (
     <Page>
-      <div className="grid gap-5 grow" style={{ gridTemplateColumns: "300px minmax(0,1fr) 360px" }}>
+      <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_360px]">
         <Card className="p-7 items-start">
           <div className="w-40 h-56 rounded-card bg-glass" />
           <div className="display text-[28px] font-bold">{a.name}</div>

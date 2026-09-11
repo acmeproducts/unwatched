@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, type Clock } from "@/lib/api";
 import { currentOwner, rememberedAgent } from "@/lib/auth";
+import { MobileTabs } from "./MobileTabs";
 
 export function Button({ kind = "primary", size = 44, className = "", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind?: "primary" | "secondary" | "tertiary" | "leaving"; size?: 36 | 44 | 52 }) {
   const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]", leaving: "bg-transparent text-coral border-2 border-coral hover:bg-[#FBEAE5]" }[kind];
@@ -68,22 +69,22 @@ export function TopBar() {
     <div className="flex items-center justify-between h-14 shrink-0">
       <div className="flex items-center gap-8">
         <Wordmark />
-        <div className="flex gap-1.5 bg-shell rounded-full p-1">
+        <div className="hidden lg:flex gap-1.5 bg-shell rounded-full p-1">
           {TABS.map(([t, h]) => <Link key={h} href={h} className={`h-9 px-4 rounded-full text-sm font-bold inline-flex items-center ${path.startsWith(h) ? "bg-teal text-sand" : "text-ink2 hover:bg-sand"}`}>{t}</Link>)}
         </div>
       </div>
       <div className="flex items-center gap-3.5 text-sm">
-        {c && <div className="text-drift">Day {c.day} · {String(c.hour).padStart(2, "0")}:{String(c.minute % 60).padStart(2, "0")} · {c.weather}</div>}
+        {c && <div className="text-drift hidden md:block">Day {c.day} · {String(c.hour).padStart(2, "0")}:{String(c.minute % 60).padStart(2, "0")} · {c.weather}</div>}
         <Link href="/account" className="flex items-center gap-2.5 bg-shell rounded-full py-1 pr-3.5 pl-1">
           <div className="w-9 h-9 rounded-full bg-glass text-teal flex items-center justify-center display font-bold">{me?.name?.[0] ?? "?"}</div>
-          <div className="leading-tight"><div className="font-bold">{me?.name ?? "Sign in"}</div><div className="text-xs text-drift">{me?.sub ?? "at the ferry office"}</div></div>
+          <div className="leading-tight hidden sm:block"><div className="font-bold">{me?.name ?? "Sign in"}</div><div className="text-xs text-drift">{me?.sub ?? "at the ferry office"}</div></div>
         </Link>
       </div>
     </div>
   );
 }
 export function Page({ children }: { children: React.ReactNode }) {
-  return <main className="max-w-[1440px] mx-auto px-8 pt-5 pb-6 flex flex-col gap-5 min-h-screen"><TopBar />{children}</main>;
+  return <><main className="max-w-[1440px] mx-auto px-4 sm:px-8 pt-3 sm:pt-5 pb-24 lg:pb-6 flex flex-col gap-4 sm:gap-5 min-h-screen"><TopBar />{children}</main><MobileTabs /></>;
 }
 export function Strip({ items }: { items: { t: string; changed: boolean; text: React.ReactNode }[] }) {
   return <div className="flex flex-col">{items.map((it, i) => <div key={i} className="grid items-center gap-x-3 py-2.5" style={{ gridTemplateColumns: "90px 16px minmax(0,1fr)" }}><div className="text-[13px] text-drift tabular">{it.t}</div><div className="justify-self-center"><Dot changed={it.changed} /></div><div className={`text-[15px] ${it.changed ? "font-semibold" : ""}`}>{it.text}</div></div>)}</div>;

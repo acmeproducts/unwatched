@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Assets, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
+import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
 
 /**
  * The island, drawn by PixiJS from the live event stream, in the Tide style.
@@ -17,33 +18,6 @@ type TownView = Clock & { size: { w: number; h: number }; places: PlaceView[] };
 const WIDTH: Record<string, number> = { "harbor-office": 150, inn: 240, stall: 170, bakery: 200, chandlery: 150, tavern: 190, council: 220, well: 90, mill: 200, field: 230, boatshed: 190, cottage: 150, house: 160, shop: 170, lamp: 30, bench: 70, rowboat: 90, searocks: 110, "tree-large": 160, "tree-small": 100, rock: 60, crates: 80, fence: 140, pier: 260, ferry: 170, bush: 70, fishhouse: 170, chapel: 170, smithy: 160, orchard: 220, sawpit: 150, quarry: 200, lighthouse: 120 };
 /** Until a sprite of its own is drawn, a new kind of place borrows a neighbour's. */
 const STAND_IN: Record<string, string> = { fishhouse: "boatshed", chapel: "council", smithy: "chandlery", orchard: "field", sawpit: "crates", quarry: "rock", lighthouse: "harbor-office", house: "cottage", shop: "stall" };
-
-const CHARS = ["char-mira", "char-innkeeper", "char-baker", "char-farmer", "char-elder", "char-young", "char-banker", "char-constable", "char-teen", "char-fisherman", "char-painter", "char-priest"];
-const ROLE: [RegExp, string][] = [[/rosa|dora/i, "char-innkeeper"], [/petar/i, "char-baker"], [/luka|franjo|goran/i, "char-farmer"], [/mara|vesna/i, "char-elder"], [/marko|jure|bruno/i, "char-young"], [/davor|ivana|teodor/i, "char-banker"], [/katarina/i, "char-constable"], [/iva /i, "char-teen"], [/nikola/i, "char-fisherman"], [/ana/i, "char-painter"], [/stjepan/i, "char-priest"]];
-/** An owner's person looks like what they chose at boarding, from the parts the atlas has. */
-function charFromLook(look: Record<string, unknown> | null): string | null {
-  if (!look) return null;
-  const hat = String(look.hat ?? ""), hair = String(look.hair ?? ""), carry = String(look.carrying ?? ""), build = String(look.build ?? "");
-  if (/baker/i.test(hat)) return "char-baker";
-  if (/knit/i.test(hat)) return "char-fisherman";
-  if (/wide/i.test(hat)) return "char-farmer";
-  if (/headscarf/i.test(hat)) return "char-elder";
-  if (/grey/i.test(hair)) return "char-elder";
-  if (/basket/i.test(carry)) return "char-innkeeper";
-  if (/tool/i.test(carry)) return build === "Sturdy" ? "char-farmer" : "char-fisherman";
-  if (/satchel/i.test(carry)) return "char-banker";
-  if (/suitcase/i.test(carry)) return "char-mira";
-  if (/curls/i.test(hair)) return "char-painter";
-  if (/bun/i.test(hair)) return "char-innkeeper";
-  if (/short/i.test(hair)) return "char-young";
-  return null;
-}
-function charFor(a: PublicAgent): string {
-  if (a.ownerId) return charFromLook(a.appearance) ?? "char-mira";
-  for (const [re, s] of ROLE) if (re.test(a.name + " ")) return s;
-  let h = 0; for (const ch of a.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return CHARS[1 + (h % (CHARS.length - 1))]!;
-}
 
 /** Trees, rocks and props laid by district so the island reads as a landscape and not a diagram. Positions are map units. */
 function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; w?: number; flip?: boolean }[] {
@@ -62,7 +36,7 @@ function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; 
   return out;
 }
 
-type Fig = { id: string; g: Container; sprite: Sprite; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string };
+type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1 };
 
 export function World({ mineId, onSelect, view }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" }) {
   const host = useRef<HTMLDivElement>(null);
@@ -170,21 +144,21 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         let f = figs.current.get(a.id);
         if (!f) {
           const g = new Container();
-          const s = new Sprite(tex(charFor(a))); const m = manifest[charFor(a)] ?? { w: 400, h: 600 };
-          s.anchor.set(0.5, 1); s.scale.set(72 / m.h); g.addChild(s);
+          const rig = new Citizen(lookFor(a.name, a.appearance as Partial<Look> | null)); g.addChild(rig);
           g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -20 && x < 20 && y > -80 && y < 0 } as never;
           g.on("pointertap", () => onSelect(agents.current.get(a.id) ?? null));
           scene.addChild(g);
           const seat = seatOf.current.get(a.location) ?? 0; seatOf.current.set(a.location, (seat + 1) % 10);
           const sp = spot(a.location, seat);
-          f = { id: a.id, g, sprite: s, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, mine: a.id === mineId, name: a.name };
+          f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1 };
           figs.current.set(a.id, f);
-        }
+        } else { f.asleep = a.asleep; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); if (a.location !== f.place) moveTo(a.id, a.location); }
         return f;
       };
       const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
       const refreshPlaces = async () => { try { const t = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView; for (const p of t.places) { const old = places.get(p.id); places.set(p.id, p); if (!old || old.kind !== p.kind || old.name !== p.name || JSON.stringify(old.site) !== JSON.stringify(p.site)) drawPlace(p); } } catch {} };
 
+      const poll = setInterval(() => { void fetch(`${API}/api/agents`, { cache: "no-store" }).then((r) => r.json()).then((list: PublicAgent[]) => { for (const a of list) ensure(a); }).catch(() => {}); }, 30000);
       ws = new WebSocket(WS);
       ws.onmessage = (m) => {
         const msg = JSON.parse(m.data as string) as { type: string; agents?: PublicAgent[]; recent?: TownEvent[]; event?: TownEvent; clock?: Clock };
@@ -193,8 +167,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (msg.type === "event" && msg.event) {
           const e = msg.event;
           if (e.kind === "agent.move" && e.place) moveTo(e.actors[0]!, e.place);
-          if (e.kind === "agent.sleep") { const f = figs.current.get(e.actors[0]!); if (f) f.asleep = true; }
-          if (e.kind === "agent.wake") { const f = figs.current.get(e.actors[0]!); if (f) f.asleep = false; }
+          if (e.kind === "agent.sleep") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = true; f.pose = "sleep"; } }
+          if (e.kind === "agent.wake") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = false; f.pose = "idle"; } }
+          if (e.kind === "agent.work" && /worked on|mornings done/.test(e.text)) { const f = figs.current.get(e.actors[0]!); if (f) f.pose = "work"; }
+          if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.g.destroy({ children: true }); figs.current.delete(e.actors[0]!); } }
           if (e.kind === "agent.say") { const q = /“([^”]+)”/.exec(e.text)?.[1]; if (q) bubbles.current.set(e.actors[0]!, { text: q, until: Date.now() + 7000 }); }
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
           if (e.kind === "ferry.dock") { ferry.position.x = awayX; ferryTarget = dockX; }
@@ -229,14 +205,17 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         night.alpha += (nightAmt - night.alpha) * 0.05;
         if (tick % 10 === 0) { lamps.clear(); if (night.alpha > 0.05) for (const d of decor) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.38) }); }
         // people
-        const now = Date.now(); const next: typeof labels = [];
+        const now = Date.now(); const next: typeof labels = []; const secs = now / 1000;
         for (const f of figs.current.values()) {
-          const moving = Math.abs(f.tx - f.x) > 1 || Math.abs(f.ty - f.y) > 1;
-          f.x += (f.tx - f.x) * 0.05; f.y += (f.ty - f.y) * 0.05;
-          f.g.position.set(f.x, f.y + (moving ? Math.abs(Math.sin(now / 120 + f.x)) * -3 : 0));
-          if (moving) f.sprite.scale.x = Math.abs(f.sprite.scale.x) * (f.tx < f.x ? -1 : 1);
-          f.g.alpha = f.asleep ? 0.3 : 1; f.g.zIndex = f.y;
+          const moving = Math.abs(f.tx - f.x) > 1.5 || Math.abs(f.ty - f.y) > 1.5;
+          // walk at a person's pace, not a spring's
+          const dx = f.tx - f.x, dy = f.ty - f.y, dist = Math.hypot(dx, dy), step = Math.min(dist, 1.6);
+          if (dist > 0.01) { f.x += (dx / dist) * step; f.y += (dy / dist) * step; }
+          f.g.position.set(f.x, f.y);
+          if (moving) f.facing = dx < 0 ? -1 : 1;
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
+          f.rig.face(f.facing); f.rig.setPose(f.asleep ? "sleep" : moving ? "walk" : b ? "talk" : f.pose); f.rig.update(secs);
+          f.g.zIndex = f.y;
           next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 78) * cam.zoom + cam.y, mine: f.mine, ...(b ? { bubble: b.text } : {}) });
         }
         if (tick % 2 === 0) setLabels(next);

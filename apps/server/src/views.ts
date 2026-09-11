@@ -9,6 +9,7 @@ export function publicAgent(town: Town, a: AgentState) {
     location: a.location, place: town.places.get(a.location)?.name ?? a.location, asleep: a.asleep,
     job, home: a.home?.place ?? null, arrivedDay: Math.floor(a.arrivedAt / 1440) + 1, funded: a.funded,
     ownerId: a.owner, appearance: a.appearance ?? null,
+    pose: poseOf(town, a),
   };
 }
 
@@ -36,4 +37,15 @@ export function serializeEvent(e: TownEvent) { return e; }
 
 export function clockOf(town: Town) {
   return { t: town.t, day: town.day, minute: town.minuteOfDay, hour: town.hour, label: town.clock(), weather: town.weather, season: town.season, population: town.agents.size, flourShortage: town.flourShortage };
+}
+
+/** What the body is doing this minute, for the world to draw: asleep, at work, on a site, at ease somewhere, or standing. */
+export function poseOf(town: Town, a: AgentState): "sleep" | "work" | "sit" | "idle" {
+  if (a.asleep) return "sleep";
+  const here = town.places.get(a.location);
+  if (here?.site && town.hour >= 8 && town.hour < 18 && (here.site.by === a.id || town.dueStep(a)?.place === here.id)) return "work";
+  const job = a.job ? town.jobs.get(a.job) : null;
+  if (job && job.place === a.location && town.hour >= job.hours[0] && town.hour < job.hours[1]) return "work";
+  if (here && (here.kind === "inn" || here.kind === "public") && town.hour >= 17) return "sit";
+  return "idle";
 }

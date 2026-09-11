@@ -12,13 +12,15 @@ export const supabase = hasSupabase ? createBrowserClient(url!, key!) : null;
 
 export async function authHeaders(): Promise<Record<string, string>> {
   if (supabase) { const { data } = await supabase.auth.getSession(); return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {}; }
-  try { const o = localStorage.getItem("ft.owner"); return o ? { "X-Owner": o } : {}; } catch { return {}; }
+  try { const o = localStorage.getItem("ft.owner"); return o ? { "X-Owner": devName(o) } : {}; } catch { return {}; }
 }
 export async function currentOwner(): Promise<{ id: string; email?: string } | null> {
   if (supabase) { const { data } = await supabase.auth.getUser(); return data.user ? { id: data.user.id, ...(data.user.email ? { email: data.user.email } : {}) } : null; }
   try { const o = localStorage.getItem("ft.owner"); return o ? { id: o } : null; } catch { return null; }
 }
-export async function signInDev(name: string) { localStorage.setItem("ft.owner", name.trim().toLowerCase().replace(/\s+/g, "-")); }
+/** A dev name travels in a header, which only carries Latin-1, so it becomes a plain slug: "Krešimir Galić" is "kresimir-galic". */
+export function devName(name: string): string { return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "visitor"; }
+export async function signInDev(name: string) { localStorage.setItem("ft.owner", devName(name)); }
 export async function signOut() { if (supabase) await supabase.auth.signOut(); try { localStorage.removeItem("ft.owner"); localStorage.removeItem("ft.agent"); } catch {} }
 export function rememberAgent(id: string) { try { localStorage.setItem("ft.agent", id); } catch {} }
 export function rememberedAgent(): string | null { try { return localStorage.getItem("ft.agent"); } catch { return null; } }

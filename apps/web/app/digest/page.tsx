@@ -14,7 +14,7 @@ export default function DigestPage() {
   const load = () => { if (!agent) return; setDown(false); void api<Digest>(`/api/agents/${agent.id}/digest`).then(setD).catch(() => setDown(true)); void api<Paper>("/api/papers/latest").then(setPaper).catch(() => {}); };
   useEffect(load, [agent]);
   if (reason === "signed-out") return <Page><SignedOut what="Sign in to read what happened to your agent, or watch the town without one." /></Page>;
-  if (reason === "none") return <Page><NoAgent what="Put a person on the ferry and the digest starts tomorrow morning." /></Page>;
+  if (reason === "none") return <Page><NoAgent what="Send a person to the island and the digest starts tomorrow morning." /></Page>;
   if (down) return <Page><Offline retry={load} /></Page>;
   if (!agent || !d) return <Page><Loading /></Page>;
   const first = agent.name.split(" ")[0];
@@ -27,7 +27,7 @@ export default function DigestPage() {
     <Page>
       <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="bg-shell rounded-[28px] px-5 py-6 sm:px-10 sm:py-9 flex flex-col gap-5 rise">
-          <Label>{d.now - d.since < 720 ? `Since ${first} stepped off the ferry` : `While you were away · ${days} day${days > 1 ? "s" : ""}`}</Label>
+          <Label>{d.now - d.since < 720 ? `Since ${first} arrived` : `While you were away · ${days} day${days > 1 ? "s" : ""}`}</Label>
           <div className="flex items-center gap-3.5">{(!quiet || onHabit) && <Dot changed size={14} />}<h1 className="text-[30px] sm:text-[44px] font-bold">{onHabit && quiet ? `${first} has gone quiet` : d.written?.headline ? d.written.headline : quiet ? `Nothing changed for ${first}.` : headline(top!.text, agent.name)}</h1></div>
           {d.written?.text && <p className="text-[19px] leading-[1.45] text-kelp pl-7 max-w-[62ch] rise" style={{ "--i": 1 } as React.CSSProperties}>{d.written.text}</p>}
           <p className="text-xl text-ink2 pl-7 rise" style={{ "--i": 1 } as React.CSSProperties}>{onHabit && quiet ? `Out of thoughts for today. ${first} eats, sleeps, works, and greets people by name. That is all.` : quiet ? `${first} worked, ate at the inn, and slept. No coral today, and that is allowed.` : deck(top!.text)}</p>

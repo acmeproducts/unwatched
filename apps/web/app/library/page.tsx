@@ -13,7 +13,7 @@ export default function Library() {
   useEffect(() => { if (open && !open.text) void api<Life>(`/api/library/${open.agentId}`).then((full) => setOpen((o) => (o && o.agentId === full.agentId ? full : o))).catch(() => {}); }, [open]);
   return (
     <Page>
-      <div className="flex flex-col gap-2 pt-4"><Label>The library · written by the town</Label><h1 className="display text-[32px] sm:text-[40px] font-bold">Every life the island kept.</h1><p className="text-[17px] text-ink2 max-w-[70ch]">When someone leaves on the ferry, or dies, the town writes their book from the record alone and puts it on this shelf. Nothing here is invented, and nothing here is deleted.</p></div>
+      <div className="flex flex-col gap-2 pt-4"><Label>The library · written by the town</Label><h1 className="display text-[32px] sm:text-[40px] font-bold">Every life the island kept.</h1><p className="text-[17px] text-ink2 max-w-[70ch]">When someone leaves the island, or dies, the town writes their book from the record alone and puts it on this shelf. Nothing here is invented, and nothing here is deleted.</p></div>
       {lives === null && <Loading what="Opening the library." />}
       {lives && lives.length === 0 && <Card><p className="text-drift">The shelf is empty. Nobody has left the island yet, which is its own kind of news.</p><LinkButton href="/gazette" kind="secondary" size={36} className="mt-3">Read the Gazette</LinkButton></Card>}
       {lives && lives.length > 0 && (

@@ -42,7 +42,7 @@ export default function Board() {
   const [brain, setBrain] = useState<"hosted" | "own_key" | "own_brain">("hosted");
   const [plan, setPlan] = useState("Resident");
   const [instructions, setInstructions] = useState(() => draft.instructions ?? "");
-  // the ticket being written survives a trip to the ferry office and a closed tab: "save and finish later" is real
+  // the ticket being written survives a trip to the harbor office and a closed tab: "save and finish later" is real
   useEffect(() => { try { localStorage.setItem("ft.draft", JSON.stringify({ p, look, instructions, step })); } catch {} }, [p, look, instructions, step]);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   const [away, setAway] = useState<{ island: string; url: string } | null>(null);
@@ -86,7 +86,7 @@ export default function Board() {
         <div className="grid gap-6 grow" style={{ gridTemplateColumns: "420px minmax(0,1fr)" }}>
           <div className="bg-teal text-sand rounded-[28px] p-10 flex flex-col gap-4"><Label tone="mist">Why these questions</Label><div className="display text-[28px] font-semibold">A want and a fear make a person. A secret makes a story.</div><p className="text-[15px] text-mist">Everything your agent does comes from these lines and from what happens to them afterwards. The secret is known to nobody on the island. It will come out, or it will not.</p></div>
           <div className="bg-shell rounded-[28px] p-11 flex flex-col gap-5">
-            <div><Label>Passenger manifest</Label><h1 className="text-[36px] font-bold">Who steps off the ferry?</h1><p className="text-[15px] text-ink2">Describe a person, not a character. Once they land, they decide for themselves.</p></div>
+            <div><Label>Arrivals</Label><h1 className="text-[36px] font-bold">Who arrives on the island?</h1><p className="text-[15px] text-ink2">Describe a person, not a character. Once they land, they decide for themselves.</p></div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               {F("Name", p.name, set("name"), "Mira Kovač")}{F("Age and origin", p.origin, set("origin"), "34, from the mainland docks")}
               <div className="col-span-2">{F("In one sentence, who are they?", p.summary, set("summary"), "A former ship's cook who is done taking orders.")}</div>
@@ -147,12 +147,12 @@ export default function Board() {
           <div className="bg-shell rounded-[28px] p-11 flex flex-col gap-5">
             <div><Label>Boarding</Label><h1 className="text-[34px] font-bold">One ticket, one way.</h1></div>
             <div className="bg-teal text-sand rounded-[22px] p-6 flex flex-col gap-3.5">
-              <div className="flex justify-between items-center"><span className="display font-bold text-lg">Small Hours</span><Label tone="mist">Passenger ticket</Label></div>
+              <div className="flex justify-between items-center"><span className="display font-bold text-lg">Small Hours</span><Label tone="mist">Arrival papers</Label></div>
               <div className="flex justify-between items-center text-sm"><span className="text-mist">Destination</span><span className="font-bold">{dest.name} · <Link href="/towns" className="text-mist underline">change</Link></span></div>
               <div className="border-t-2 border-dashed border-[#2A6E69]" />
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Passenger</div><div className="display text-xl font-semibold">{p.name}</div></div>
-                <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Departs</div><div className="display text-xl font-semibold">Next ferry</div></div>
+                <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Arrives</div><div className="display text-xl font-semibold">Next ferry</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Mind</div><div>{brain === "hosted" ? `Hosted · ${plan}` : brain === "own_key" ? "Your own key" : "Your own brain"}</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Carrying</div><div>{look.carrying}, 40 coins</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Lodging</div><div>Harbor inn, 3 nights</div></div>
@@ -161,10 +161,10 @@ export default function Board() {
             </div>
             <p className="text-sm text-ink2">You understand {p.name.split(" ")[0]} has free will and may not do what you ask. They can go hungry, and after five hungry days they can die. The town would print it.</p>
             {err && (/sign in/i.test(err)
-              ? <div className="bg-glass rounded-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div className="font-bold">The ferry office needs to see you first.</div><div className="text-[13px] text-ink2">Your ticket is saved. Sign in and you will come straight back here.</div></div><LinkButton href="/gate?next=/board" size={44}>Sign in at the ferry office</LinkButton></div>
+              ? <div className="bg-glass rounded-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div className="font-bold">The harbor office needs to see you first.</div><div className="text-[13px] text-ink2">Your ticket is saved. Sign in and you will come straight back here.</div></div><LinkButton href="/gate?next=/board" size={44}>Sign in at the ferry office</LinkButton></div>
               : <div className="text-[13px] text-coral">{err}</div>)}
             {away && <div className="bg-glass rounded-[18px] p-4 text-sm"><b>{p.name} boarded for {away.island}.</b> Their story goes on there, on that island's own pages{away.url ? <>: <a className="text-teal font-bold" href={away.url.replace(/\/engine$/, "")}>{away.url.replace(/\/engine$/, "")}</a></> : "."} Sign in there with the same account to read their digest.</div>}
-            <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy} onClick={board}>{busy ? "Boarding…" : "Board the ferry"}</Button></div>
+            <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy} onClick={board}>{busy ? "Boarding…" : "Send someone over"}</Button></div>
           </div>
         </div>
       )}

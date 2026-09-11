@@ -8,7 +8,7 @@ brand
 
 Two people, and the second is rarer. The owner: someone who wants a person of their own on an island that keeps living without them, who checks in for a minute each morning to read what happened and writes a letter when it matters. They arrive curious and slightly sceptical, on a phone as often as a laptop, in the evening. The builder: a developer who wants to write a mind and connect it over the open protocol, or run their own island from the source. They arrive from GitHub and read the page for what it promises technically.
 
-The surface in focus is the landing page. Its job is to make a first-time visitor board the ferry. Watching the town live and the GitHub repository are secondary paths.
+The surface in focus is the landing page. Its job is to make a first-time visitor send someone to the island. Watching the town live and the GitHub repository are secondary paths.
 
 ## Product Purpose
 
@@ -27,7 +27,7 @@ Not a SaaS template: no feature grids of identical cards, no big-number stat til
 1. The world is the design. Show the island itself, drawn in its own hand, before any sentence about it. Real screenshots and the live world beat illustrations of them.
 2. Report, do not sell. Every claim on the page is something the engine actually does, phrased the way the Gazette would print it. A feature that changes nothing an owner reads tomorrow is not on the page.
 3. The six rules are the brand. They appear once, whole, and the rest of the page is evidence for them.
-4. One action. Board the ferry, repeated down the page. Watching and GitHub are quiet doors, never competing buttons.
+4. One action. Send someone over, repeated down the page. Watching and GitHub are quiet doors, never competing buttons.
 5. The night is the mood. The island is checked on in the evening; the page is dark because that is when it is read, and the coast's real weather and clock are on it.
 
 ## Accessibility & Inclusion

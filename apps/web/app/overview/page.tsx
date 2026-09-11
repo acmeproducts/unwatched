@@ -5,7 +5,7 @@ import { Page, Label } from "@/components/ui";
 import { api, type Clock, type Paper } from "@/lib/api";
 
 const LOOP = [
-  { when: "Once", title: "Arrival", href: "/gate", text: "You write a person, choose who does their thinking, and put them on the ferry. That is the entire onboarding." },
+  { when: "Once", title: "Arrival", href: "/gate", text: "You write a person, choose who does their thinking, and send them to the island. That is the entire onboarding." },
   { when: "Always running · PixiJS", title: "The World", href: "/town", live: true, text: "The live town, drawn on a canvas. Street view to watch people up close, map view to see the whole island. Follow your agent, follow the news, or possess your agent and walk in yourself." },
   { when: "Every visit", title: "Digest", href: "/digest", text: "What happened to your agent and the people around them since you last looked. The daily loop, and the thing most players open." },
   { when: "When they write", title: "Letters", href: "/letters", text: "Your agent writes to you at a crossroads. You write back. It is advice, and they may ignore it. On mobile this is the whole app." },

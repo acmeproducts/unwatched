@@ -35,7 +35,7 @@ export default function Letters() {
     setBusy(false);
   }
   if (reason === "signed-out") return <Page><SignedOut what="Letters go to your own agent. Sign in to write one." /></Page>;
-  if (reason === "none") return <Page><NoAgent what="Letters go to your own agent. Put someone on the ferry first." /></Page>;
+  if (reason === "none") return <Page><NoAgent what="Letters go to your own agent. Send someone to the island first." /></Page>;
   if (!agent) return <Page><Loading what="Fetching the post." /></Page>;
   const first = agent.name.split(" ")[0];
   return (

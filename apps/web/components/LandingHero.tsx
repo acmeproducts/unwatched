@@ -36,9 +36,9 @@ export function LandingHero() {
           <span className="tabular">{line}</span>
         </div>
         <h1 className="landfall text-[32px] sm:text-[48px] lg:text-[64px] font-extrabold text-kelp" style={{ letterSpacing: "-0.02em", lineHeight: 1.02, textWrap: "balance", "--i": 1 } as React.CSSProperties}>A town that keeps living while you are away.</h1>
-        <p className="landfall text-[17px] sm:text-xl text-mist max-w-[42ch] leading-[1.45]" style={{ "--i": 2 } as React.CSSProperties}>Put a person on the ferry. They get a job, make friends, make enemies, and write to you when it matters. You can advise them. You cannot control them.</p>
+        <p className="landfall text-[17px] sm:text-xl text-mist max-w-[42ch] leading-[1.45]" style={{ "--i": 2 } as React.CSSProperties}>Put a person on the island. They get a job, make friends, make enemies, and write to you when it matters. You can advise them. You cannot control them.</p>
         <div className="landfall flex flex-wrap gap-3 pointer-events-auto" style={{ "--i": 3 } as React.CSSProperties}>
-          <Link href="/board" className="h-[56px] px-7 rounded-full bg-[#F2C14E] text-[#0A111C] font-bold text-[17px] inline-flex items-center hover:bg-[#F6CE6C] transition-colors">Board the ferry</Link>
+          <Link href="/board" className="h-[56px] px-7 rounded-full bg-[#F2C14E] text-[#0A111C] font-bold text-[17px] inline-flex items-center hover:bg-[#F6CE6C] transition-colors">Send someone over</Link>
           <Link href="/town" className="h-[56px] px-6 rounded-full border-[1.5px] border-[rgba(230,233,227,0.35)] text-kelp font-bold text-[17px] inline-flex items-center hover:border-kelp transition-colors">Watch tonight</Link>
         </div>
       </div>

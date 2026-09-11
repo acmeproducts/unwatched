@@ -23,7 +23,7 @@ export default function BrainSetup() {
   }
   async function rotate() { if (!agent) return; const r = await api<{ token: string }>(`/api/agents/${agent.id}/brain/token`, { method: "POST" }); setToken(r.token); }
   if (reason === "signed-out") return <Page><SignedOut what="Who thinks is a setting on your own agent." /></Page>;
-  if (reason === "none") return <Page><NoAgent what="Put someone on the ferry, then decide who does their thinking." /></Page>;
+  if (reason === "none") return <Page><NoAgent what="Send someone to the island, then decide who does their thinking." /></Page>;
   if (err) return <Page><Problem text={err} retry={load} /></Page>;
   if (!agent || !v) return <Page><Loading /></Page>;
   const first = agent.name.split(" ")[0];

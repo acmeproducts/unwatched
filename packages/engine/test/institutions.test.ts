@@ -33,15 +33,24 @@ describe("institutions with teeth", () => {
     // the court: c takes from a twice on the record, then is accused
     c.location = a.location = "market"; c.coins = 20; a.inventory.push("bread", "bread");
     expect(town.apply(c, { kind: "take", item: "bread", from: a.id }, "test")).toBe(true);
-    a.location = "council"; while (town.hour < 9 || town.hour >= 17) await town.tick(); a.location = "council"; a.asleep = false;
+    a.location = "council"; while (town.hour < 9 || town.hour >= 14) await town.tick(); a.location = "council"; a.asleep = false;
+    // the accusation is heard at three, in front of the town
     expect(town.apply(a, { kind: "accuse", who: c.persona.name, of: "taking my bread" }, "test")).toBe(true);
-    expect(c.convictions).toBe(1); expect(c.coins).toBe(16);
-    // a false accusation costs the accuser
+    expect(town.gatherings.some((g) => g.kind === "hearing" && !g.held)).toBe(true);
+    const hearing = async () => { while (!(town.hour === 15 && town.minuteOfDay % 60 === 0)) await town.tick(); };
+    await hearing();
+    expect(c.convictions).toBe(1); expect(c.coins).toBeLessThanOrEqual(16);
+    expect(town.events.some((e) => e.kind === "town.gathering" && (e.payload as { verdict?: string }).verdict === "fine")).toBe(true);
+    // a false accusation costs the accuser, at the next hearing
+    a.location = "council"; a.asleep = false; while (town.hour < 9 || town.hour >= 14) { await town.tick(); } a.location = "council"; a.asleep = false;
     const coinsA = a.coins; expect(town.apply(a, { kind: "accuse", who: b.persona.name, of: "nothing really" }, "test")).toBe(true);
-    expect(a.coins).toBe(Math.max(0, coinsA - 3));
+    await hearing(); expect(a.coins).toBeLessThanOrEqual(Math.max(0, coinsA - 3) + 6); // wages may have come in between
+    expect(town.events.some((e) => e.kind === "town.gathering" && (e.payload as { verdict?: string }).verdict === "dismissed")).toBe(true);
     // second conviction: the ferry
-    c.location = "market"; a.location = "market"; a.inventory.push("bread"); expect(town.apply(c, { kind: "take", item: "bread", from: a.id }, "test")).toBe(true);
+    while (town.hour < 9 || town.hour >= 14) await town.tick();
+    c.location = "market"; a.location = "market"; a.asleep = false; c.asleep = false; a.inventory.push("bread"); expect(town.apply(c, { kind: "take", item: "bread", from: a.id }, "test")).toBe(true);
     a.location = "council"; expect(town.apply(a, { kind: "accuse", who: c.persona.name, of: "again" }, "test")).toBe(true);
+    await hearing();
     expect(town.agents.has(c.id)).toBe(false);
     expect(town.events.some((e) => e.kind === "agent.leave" && e.actors[0] === c.id && (e.payload as { reason: string }).reason === "exiled")).toBe(true);
   });

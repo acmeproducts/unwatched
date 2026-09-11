@@ -194,6 +194,8 @@ export interface AgentSnapshot {
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];
 }
+/** Something the whole town comes to: a wedding, a funeral, a hearing, an election, a feast. Summoned an hour before, held on the hour, in front of everyone who came. */
+export interface Gathering { id: number; kind: "wedding" | "funeral" | "hearing" | "election" | "feast"; place: PlaceId; day: number; hour: number; actors: AgentId[]; note: string; held: boolean }
 export interface TownSnapshot {
   t: number; day: number; weather: string; flourShortage: boolean;
   /** Places whose state can change: plots, sites, what people built, beds and owners. Positions come from the code. */
@@ -204,5 +206,5 @@ export interface TownSnapshot {
   laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[];
   children?: Child[];
   /** The institutions: who is mayor, since when, and what the council has built. */
-  civic?: { mayor: AgentId | null; elected: number; works: string[] };
+  civic?: { mayor: AgentId | null; elected: number; works: string[]; gatherings?: Gathering[]; wedded?: string[] };
 }

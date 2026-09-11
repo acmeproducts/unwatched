@@ -292,8 +292,9 @@ app.get("/api/moments/:id", (c) => {
 app.get("/api/hall", (c) => {
   const mayor = town.mayor ? town.agents.get(town.mayor) : null;
   const daysToCouncil = town.dayOfMonth === 1 ? 0 : 31 - town.dayOfMonth; // the first of the month, by the island's calendar
-  const cases = town.events.filter((e) => e.kind === "town.verdict" || e.kind === "town.works" || e.kind === "town.mayor" || e.kind === "law.passed" || e.kind === "law.failed").slice(-30).reverse().map((e) => ({ id: e.id, day: e.day, t: e.t, kind: e.kind, text: e.text }));
-  return c.json({ laws: town.laws.map((l) => ({ ...l, by: town.agents.get(l.by)?.persona.name ?? l.by })), council: { mayor: mayor ? { id: mayor.id, name: mayor.persona.name, since: town.electedDay } : null, treasury: town.places.get("council")?.treasury ?? 0, works: town.works, nextSession: daysToCouncil === 0 ? "today at ten" : `council day, in ${daysToCouncil} day${daysToCouncil === 1 ? "" : "s"}` }, cases, population: town.agents.size, day: town.day });
+  const cases = town.events.filter((e) => e.kind === "town.verdict" || e.kind === "town.gathering" || e.kind === "town.works" || e.kind === "town.mayor" || e.kind === "law.passed" || e.kind === "law.failed").slice(-30).reverse().map((e) => ({ id: e.id, day: e.day, t: e.t, kind: e.kind, text: e.text }));
+  const calendar = town.gatherings.filter((g) => !g.held).sort((x, y) => x.day - y.day || x.hour - y.hour).slice(0, 8).map((g) => ({ id: g.id, kind: g.kind, day: g.day, hour: g.hour, place: town.places.get(g.place)?.name ?? g.place, who: g.actors.map((id) => town.agents.get(id)?.persona.name ?? g.note), note: g.note }));
+  return c.json({ calendar, laws: town.laws.map((l) => ({ ...l, by: town.agents.get(l.by)?.persona.name ?? l.by })), council: { mayor: mayor ? { id: mayor.id, name: mayor.persona.name, since: town.electedDay } : null, treasury: town.places.get("council")?.treasury ?? 0, works: town.works, nextSession: daysToCouncil === 0 ? "today at ten" : `council day, in ${daysToCouncil} day${daysToCouncil === 1 ? "" : "s"}` }, cases, population: town.agents.size, day: town.day });
 });
 app.post("/api/me/delete", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);

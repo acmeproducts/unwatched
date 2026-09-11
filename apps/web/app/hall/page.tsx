@@ -5,6 +5,7 @@ import { Loading, Offline } from "@/components/states";
 import { api, clock } from "@/lib/api";
 
 type Hall = {
+  calendar: { id: number; kind: string; day: number; hour: number; place: string; who: string[]; note: string }[];
   laws: { text: string; by: string; yes: number; no: number; open: boolean }[];
   council: { mayor: { id: string; name: string; since: number } | null; treasury: number; works: string[]; nextSession: string };
   cases: { id: number; day: number; t: number; kind: string; text: string }[];
@@ -19,8 +20,8 @@ export default function TownHall() {
   useEffect(load, []);
   if (down) return <Page><Offline retry={load} /></Page>;
   if (!h) return <Page><Loading /></Page>;
-  const verdicts = h.cases.filter((c) => c.kind === "town.verdict");
-  const minutes = h.cases.filter((c) => c.kind !== "town.verdict");
+  const verdicts = h.cases.filter((c) => c.kind === "town.verdict" || (c.kind === "town.gathering" && /council heard/.test(c.text)));
+  const minutes = h.cases.filter((c) => !verdicts.includes(c));
   return (
     <Page>
       <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
@@ -36,6 +37,7 @@ export default function TownHall() {
           </Card>
         </div>
         <div className="flex flex-col gap-4">
+          <Card><Label>The town's calendar</Label>{h.calendar.length === 0 && <p className="text-sm text-drift">Nothing planned. Weddings, funerals, hearings, the council and feasts all appear here, and the whole town goes.</p>}{h.calendar.map((g) => <div key={g.id} className="text-sm py-1.5 border-b border-line last:border-0"><span className="font-bold capitalize">{g.kind}</span> · day {g.day} at {String(g.hour).padStart(2, "0")}:00 · {g.place}{g.who.length ? ` · ${g.who.join(" and ")}` : ""}{g.kind === "hearing" || g.kind === "feast" ? ` · ${g.note}` : ""}</div>)}</Card>
           <Card><Label>The mayor</Label>{h.council.mayor ? <><div className="display text-2xl font-bold">{h.council.mayor.name}</div><p className="text-sm text-ink2">Chosen on day {h.council.mayor.since} as the person the island trusts most. Keeps the seat until the next council day, when the island chooses again.</p></> : <p className="text-sm text-ink2">No mayor yet. The council sits at ten on council day, the first of the month, and chooses the person the island trusts most.</p>}</Card>
           <Card><Label>Treasury and works</Label><div className="text-2xl font-bold tabular">{h.council.treasury} coins</div><p className="text-sm text-ink2">Land money and fines. Only the mayor can spend it, and only on the island.</p>
             {h.council.works.length === 0 && <p className="text-sm text-drift mt-2">Nothing built yet. A granary costs 50, a bathhouse 60, a bridge 40.</p>}

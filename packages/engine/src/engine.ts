@@ -1,7 +1,7 @@
-import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@ferrytown/protocol";
+import type { Action, ActionProposal, AgentId, PlaceId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
-import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext } from "./types.ts";
+import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext, Gathering } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, lookHash, siteName, ISLAND, type WorldPack } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
@@ -52,6 +52,8 @@ export class Town {
   readonly laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[] = [];
   /** The institutions. The mayor is whoever the island trusts most, chosen on council day; the works are what the council has paid for. */
   mayor: AgentId | null = null; electedDay = 0; works: string[] = [];
+  /** What the town will come to, and what it has: weddings, funerals, hearings, elections, feasts. */
+  gatherings: Gathering[] = []; wedded = new Set<string>(); private nextGatheringId = 1;
   t = 0;
   day: number;
   weather: string = "clear";
@@ -198,7 +200,7 @@ export class Town {
     this.papers = [...snap.papers];
     this.laws.splice(0, this.laws.length, ...snap.laws);
     this.children.splice(0, this.children.length, ...(snap.children ?? []));
-    if (snap.civic) { this.mayor = snap.civic.mayor && this.agents.has(snap.civic.mayor) ? snap.civic.mayor : null; this.electedDay = snap.civic.elected; this.works = [...snap.civic.works]; }
+    if (snap.civic) { this.mayor = snap.civic.mayor && this.agents.has(snap.civic.mayor) ? snap.civic.mayor : null; this.electedDay = snap.civic.elected; this.works = [...snap.civic.works]; this.gatherings = (snap.civic.gatherings ?? []).map((g) => ({ ...g })); this.wedded = new Set(snap.civic.wedded ?? []); this.nextGatheringId = 1 + Math.max(0, ...this.gatherings.map((g) => g.id)); }
     this.nextLetterId = 1 + Math.max(0, ...[...this.agents.values()].flatMap((a) => a.letters.map((l) => l.id)));
   }
 
@@ -213,7 +215,7 @@ export class Town {
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
-      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })), civic: { mayor: this.mayor, elected: this.electedDay, works: [...this.works] },
+      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })), civic: { mayor: this.mayor, elected: this.electedDay, works: [...this.works], gatherings: this.gatherings.filter((g) => !g.held).map((g) => ({ ...g })), wedded: [...this.wedded] },
     };
   }
 
@@ -224,7 +226,7 @@ export class Town {
     if (a.asleep) { const p = this.places.get(a.location); if (p?.beds) p.freeBeds = Math.min(p.beds.capacity, (p.freeBeds ?? 0) + 1); }
     this.agents.delete(agentId);
     if (this.mayor === agentId) { this.mayor = null; this.emit("town.mayor", [], "council", `${a.persona.name} is gone; the island has no mayor until the council sits again.`, 0.6); }
-    if (reason === "died") this.inherit(a);
+    if (reason === "died") { this.inherit(a); if (this.places.has("chapel")) this.gather("funeral", "chapel", this.day + 1, 10, [agentId], a.persona.name); }
     for (const c of this.children) if (c.parents.includes(agentId) && !c.parents.some((pid) => this.agents.has(pid))) c.orphan = true;
     for (const b of this.agents.values()) { const r = b.relationships.get(agentId); if (r) this.remember(b, `${a.persona.name} ${reason === "left" ? "left on the ferry" : reason === "died" ? "died" : "was sent away"}. ${r.trust > 0.5 ? "I will miss them." : ""}`.trim(), 0.6 + r.trust * 0.3); }
     const text = reason === "left" ? `${a.persona.name} left on the ferry.${note ? ` ${note}` : ""}` : reason === "died" ? `${a.persona.name} died.${note ? ` ${note}` : ""}` : `${a.persona.name} was sent away from the island.${note ? ` ${note}` : ""}`;
@@ -277,6 +279,8 @@ export class Town {
       if (s && this.spend(a, s.tier)) { thinkers.push({ a, tier: s.tier, why: s.why }); if (s.why.startsWith("plan")) this.dueStep(a)!.done = true; }
       else {
         let act = habit(a, this.habitView());
+        // whoever has come to a gathering waits for it to begin, instead of wandering off
+        if (act.kind !== "sleep" && act.kind !== "use" && this.pendingGatheringAt(a.location)) act = { kind: "wait" };
         if (a.heading && a.heading !== a.location && act.kind !== "sleep" && act.kind !== "use" && this.places.has(a.heading)) { const nx = this.path(a.location, a.heading); if (nx) act = { kind: "move", to: nx }; else a.heading = null; }
         if (a.heading === a.location) a.heading = null;
         const step = this.dueStep(a);
@@ -304,7 +308,10 @@ export class Town {
       for (const r of proposal.remember) this.remember(th.a, r, 0.4);
       th.a.heard = [];
       this.because = proposal.intent ?? null;
-      this.apply(th.a, proposal.action, `tier ${th.tier}: ${th.why}`);
+      // a mind that has nothing better to do than wait keeps walking to where it was going
+      let chosen = proposal.action;
+      if (chosen.kind === "wait" && th.a.heading && th.a.heading !== th.a.location && this.places.has(th.a.heading)) { const nx = this.path(th.a.location, th.a.heading); if (nx) chosen = { kind: "move", to: nx }; }
+      this.apply(th.a, chosen, `tier ${th.tier}: ${th.why}`);
       this.because = null;
     });
     // 4. conversations between co-located people
@@ -326,7 +333,7 @@ export class Town {
     const q = [a.persona.want, ...nearby.map((n) => n.name), here.name].join(" ");
     return {
       type: "perceive", agent_id: a.id,
-      time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather, weekday: this.weekdayName, ...(this.occasion ? { occasion: this.occasion } : {}), ...(this.temperatureC !== null ? { temperature_c: this.temperatureC } : {}) },
+      time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather, weekday: this.weekdayName, ...(this.occasion ? { occasion: this.occasion } : {}), ...(this.nextGathering() ? { gathering: this.nextGathering()! } : {}), ...(this.temperatureC !== null ? { temperature_c: this.temperatureC } : {}) },
       self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, family: { partner: this.partnerOf(a)?.persona.name ?? null, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => `${c.name}, ${this.day - c.bornDay} days old`) }, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null ,
         ...(this.mayor === a.id ? { mayor: true } : {}), ...(a.convictions ? { convictions: a.convictions } : {}),
         ...(Object.keys(a.secretsKnown).length ? { knows: Object.entries(a.secretsKnown).map(([id, secret]) => ({ who: this.agents.get(id)?.persona.name ?? id, secret })) } : {}), },
@@ -399,7 +406,8 @@ export class Town {
       case "move": {
         // one road a minute; a far place becomes a heading that habit follows until they arrive
         const next = here.exits.includes(action.to) ? action.to : this.path(a.location, action.to)!;
-        a.heading = next === action.to ? null : action.to;
+        // a far place becomes the heading; a single step keeps whatever heading was already set, until they arrive
+        if (next !== action.to) a.heading = action.to; else if (a.heading === action.to) a.heading = null;
         a.location = next;
         this.emit("agent.move", [a.id], next, `${name} went to ${this.places.get(next)!.name}${a.heading ? `, on the way to ${this.places.get(a.heading)!.name}` : ""}.`, 0.02);
         break;
@@ -581,28 +589,11 @@ export class Town {
       }
       case "accuse": {
         const b = this.agents.get(action.who) ?? [...this.agents.values()].find((x) => x.persona.name.toLowerCase() === action.who.toLowerCase()); if (!b) break;
-        const since = this.t - 10 * MINUTES_PER_DAY; const council = this.places.get("council")!;
-        const guilt = this.events.filter((e) => e.t >= since && e.actors[0] === b.id && (e.kind === "agent.take" || (e.kind === "agent.debt" && / still owes /.test(e.text)))).length;
-        this.emit("town.verdict", [a.id, b.id], here.id, `${name} accused ${b.persona.name} before the council: “${action.of}”`, 0.6, { stage: "charge" });
-        if (guilt === 0) {
-          const fine = Math.min(a.coins, 3); a.coins -= fine; council.treasury += fine;
-          this.emit("town.verdict", [a.id, b.id], here.id, `The record shows nothing against ${b.persona.name}. ${name} pays ${fine} coins for a false accusation.`, 0.7, { verdict: "dismissed", fine });
-          this.remember(a, `I accused ${b.persona.name} and the record cleared them. It cost me ${fine} coins and some standing.`, 0.8);
-          this.remember(b, `${name} accused me before the council and the record cleared me.`, 0.9);
-          const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.3);
-        } else if (b.convictions >= 1 || guilt >= 3) {
-          this.emit("town.verdict", [a.id, b.id], here.id, `The record shows ${guilt} offence${guilt === 1 ? "" : "s"} against ${b.persona.name}${b.convictions ? ", and a conviction already" : ""}. The council sends them off the island on the next ferry.`, 1, { verdict: "exile", guilt });
-          this.remember(a, `The council found against ${b.persona.name} on my word, and sent them away.`, 0.9);
-          for (const w of this.nearby(a)) this.remember(w, `The council exiled ${b.persona.name} for ${guilt} offence${guilt === 1 ? "" : "s"}.`, 0.8, "rumor");
-          this.removeAgent(b.id, "exiled", `Found against by the council, accused by ${name}.`);
-        } else {
-          const fine = Math.min(b.coins, 4 * guilt); b.coins -= fine; council.treasury += fine; b.convictions++;
-          this.emit("town.verdict", [a.id, b.id], here.id, `The record shows ${guilt} offence${guilt === 1 ? "" : "s"} against ${b.persona.name}. Fined ${fine} coins to the council. A second conviction means the ferry.`, 0.8, { verdict: "fine", fine, guilt });
-          this.remember(b, `The council fined me ${fine} coins on ${name}'s word. One more and they will put me on the ferry.`, 0.95);
-          this.remember(a, `The council fined ${b.persona.name} ${fine} coins on my word.`, 0.7);
-          const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.4);
-          for (const w of this.nearby(a)) this.remember(w, `The council fined ${b.persona.name} ${fine} coins.`, 0.6, "rumor");
-        }
+        const today = this.hour < 15; const day = today ? this.day : this.day + 1;
+        this.gather("hearing", "council", day, 15, [a.id, b.id], action.of);
+        this.emit("town.verdict", [a.id, b.id], here.id, `${name} accused ${b.persona.name} before the council: “${action.of}”. The council hears it ${today ? "today" : "tomorrow"} at three, in front of the town.`, 0.6, { stage: "charge" });
+        this.remember(b, `${name} has accused me before the council: "${action.of}". The hearing is ${today ? "today" : "tomorrow"} at three.`, 0.9);
+        for (const w of this.nearby(a)) this.remember(w, `${name} accused ${b.persona.name} before the council: "${action.of}".`, 0.6, "rumor");
         break;
       }
       case "leave": {
@@ -679,7 +670,8 @@ export class Town {
     }
     if (this.economyFrozen) return;
     if (h === 6) { this.cart(); this.prosper(); }
-    if (h === 10 && (this.dayOfMonth === 1 || (!this.mayor && this.day >= 2))) this.council();
+    if (h === 9 && (this.dayOfMonth === 1 || (!this.mayor && this.day >= 2)) && !this.gatherings.some((g) => g.kind === "election" && g.day === this.day)) this.gather("election", "council", this.day, 10, [], this.mayor ? "the council chooses its mayor for the month" : "the council chooses the island's first mayor");
+    this.summon(h); this.holdGatherings(h);
     if (this.weekday === 0) return; // Sunday: no shifts, no wages
     for (const job of this.jobs.values()) {
       if (h === job.hours[1]) for (const id of job.holders) {
@@ -921,6 +913,9 @@ export class Town {
     for (const a of this.agents.values()) {
       const b = this.partnerOf(a); if (!b || seen.has(b.id)) continue; seen.add(a.id);
       const ra = a.relationships.get(b.id), rb = b.relationships.get(a.id); if (!ra || !rb) continue;
+      // a couple who trust each other under their own roof marry, at the chapel, on a Saturday, in front of the town
+      const pair = [a.id, b.id].sort().join("+");
+      if (!this.wedded.has(pair) && ra.trust >= 0.5 && rb.trust >= 0.5 && ra.affection >= 0.5 && rb.affection >= 0.5 && this.places.has("chapel") && !this.gatherings.some((g) => g.kind === "wedding" && !g.held && g.actors.includes(a.id))) { const ahead = ((6 - this.weekday) + 7) % 7 || 7; this.gather("wedding", "chapel", this.day + ahead, 11, [a.id, b.id], `${a.persona.name} and ${b.persona.name}`); }
       const youngest = this.children.filter((c) => c.parents.includes(a.id) || c.parents.includes(b.id)).reduce((m, c) => Math.max(m, c.bornDay), -999);
       if (ra.affection < 0.6 || rb.affection < 0.6 || ra.trust < 0.5 || rb.trust < 0.5 || a.coins + b.coins < 20 || this.day - youngest < 30 || a.starving || b.starving) continue;
       if (!this.rng.chance(0.06)) continue;
@@ -1052,6 +1047,98 @@ export class Town {
   flush(place: Place): boolean { return !place.owner && place.treasury > 3 * (this.pack.float[place.id] ?? 0) + 60; }
   bedPrice(place: Place): number { const p = place.beds?.price ?? 0; return p > 0 && this.flush(place) ? Math.max(1, p - 1) : p; }
   crowd(placeId: string): number { let n = 0; for (const b of this.agents.values()) if (b.location === placeId && !b.asleep) n++; return n; }
+  /** A gathering about to be held here, within the hour. */
+  pendingGatheringAt(place: PlaceId): Gathering | null { return this.gatherings.find((g) => !g.held && g.place === place && g.day === this.day && g.hour >= this.hour && g.hour <= this.hour + 1) ?? null; }
+  /** The next thing on the town's calendar, in words, for the minds and the hall. */
+  nextGathering(): string | null {
+    const g = this.gatherings.filter((x) => !x.held && (x.day > this.day || (x.day === this.day && x.hour >= this.hour))).sort((x, y) => x.day - y.day || x.hour - y.hour)[0]; if (!g) return null;
+    const when = g.day === this.day ? `today at ${g.hour}:00` : g.day === this.day + 1 ? `tomorrow at ${g.hour}:00` : `on day ${g.day} at ${g.hour}:00`;
+    return `${this.describeGathering(g)}, ${when}, at ${this.places.get(g.place)?.name ?? g.place}; the whole town goes`;
+  }
+  /** Put something on the town's calendar. */
+  gather(kind: Gathering["kind"], place: PlaceId, day: number, hour: number, actors: AgentId[], note: string): Gathering {
+    const g: Gathering = { id: this.nextGatheringId++, kind, place, day, hour, actors, note, held: false }; this.gatherings.push(g);
+    const when = day === this.day ? `today at ${hour}:00` : day === this.day + 1 ? `tomorrow at ${hour}:00` : `on day ${day} at ${hour}:00`;
+    this.emit("town.notice", actors, place, `${this.describeGathering(g)}, ${when}, at ${this.places.get(place)?.name ?? place}. The town is expected.`, 0.5, { gathering: g.id, kind });
+    return g;
+  }
+  private describeGathering(g: Gathering): string {
+    const names = g.actors.map((id) => this.agents.get(id)?.persona.name ?? g.note);
+    switch (g.kind) {
+      case "wedding": return `The wedding of ${g.note}`;
+      case "funeral": return `The funeral of ${g.note}`;
+      case "hearing": return `The hearing of ${names[1] ?? "someone"}, accused by ${names[0] ?? "someone"}`;
+      case "election": return `The council sits`;
+      case "feast": return `The feast: ${g.note}`;
+    }
+  }
+  /** An hour before, everyone awake is called; they walk, and habit takes them there. */
+  private summon(h: number): void {
+    for (const g of this.gatherings) {
+      if (g.held || g.day !== this.day || g.hour !== h + 1 || !this.places.has(g.place)) continue;
+      const what = this.describeGathering(g); const at = this.places.get(g.place)!.name;
+      for (const a of this.agents.values()) { if (a.asleep || a.location === g.place) continue; if (this.path(a.location, g.place)) { a.heading = g.place; a.hint = `${what} is at ${at} at ${g.hour}:00. The whole town is going; so are you, unless you have a reason not to.`; } }
+    }
+  }
+  /** On the hour, in front of whoever came. */
+  private holdGatherings(h: number): void {
+    for (const g of this.gatherings) {
+      if (g.held || g.day > this.day || (g.day === this.day && g.hour > h)) continue;
+      g.held = true; const place = this.places.get(g.place); if (!place) continue;
+      const crowd = [...this.agents.values()].filter((a) => a.location === g.place && !a.asleep);
+      for (const a of crowd) if (a.heading === g.place) a.heading = null;
+      const who = crowd.length; const what = this.describeGathering(g);
+      const names = g.actors.map((id) => this.agents.get(id)?.persona.name ?? g.note);
+      if (g.kind === "wedding") {
+        const [a, b] = g.actors.map((id) => this.agents.get(id)); if (!a || !b) { this.emit("town.gathering", g.actors, g.place, `${what} did not happen: ${!a ? names[0] : names[1]} was not there to be married.`, 0.6, { kind: g.kind, crowd: crowd.map((c) => c.id), held: false }); continue; }
+        this.wedded.add([a.id, b.id].sort().join("+"));
+        // the couple feed whoever came, a coin a head, as far as their purses go; the market's till takes it
+        const feast = Math.min(a.coins + b.coins, crowd.length); const fromA = Math.min(a.coins, feast); a.coins -= fromA; b.coins -= feast - fromA; const market = this.places.get("market"); if (market) market.treasury += feast;
+        for (const c of crowd) { c.needs.hunger = Math.max(0, c.needs.hunger - 0.5); c.needs.social = 0; if (c !== a && c !== b) { this.remember(c, `${a.persona.name} and ${b.persona.name} were married at ${place.name}; the town came, and there was food.`, 0.7); this.nudge(c, a.id, 0.05, 0.05); this.nudge(c, b.id, 0.05, 0.05); } }
+        this.remember(a, `${b.persona.name} and I were married at ${place.name}, with ${who} of the town there.`, 1); this.remember(b, `${a.persona.name} and I were married at ${place.name}, with ${who} of the town there.`, 1);
+        this.nudge(a, b.id, 0.1, 0.1); this.nudge(b, a.id, 0.1, 0.1);
+        this.emit("town.gathering", g.actors, g.place, `${a.persona.name} and ${b.persona.name} were married at ${place.name}. ${who} came${feast ? `, and the couple fed them` : ""}.`, 0.95, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });
+      } else if (g.kind === "funeral") {
+        const book = [...this.events].reverse().find((e) => e.kind === "town.book" && e.actors[0] === g.actors[0]); const epitaph = (book?.payload as { epitaph?: string } | undefined)?.epitaph;
+        for (const c of crowd) { this.remember(c, `We buried ${g.note} from ${place.name}.${epitaph ? ` The book said: ${epitaph}` : ""}`, 0.8); c.needs.social = Math.max(0, c.needs.social - 0.3); }
+        this.emit("town.gathering", g.actors, g.place, `${g.note} was buried from ${place.name}; ${who} came.${epitaph ? ` The book was read: “${epitaph}”` : ""}`, 0.95, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true, epitaph: epitaph ?? null });
+      } else if (g.kind === "hearing") {
+        this.verdict(g, crowd);
+      } else if (g.kind === "election") {
+        this.council(); const m = this.mayor ? this.agents.get(this.mayor) : null;
+        this.emit("town.gathering", m ? [m.id] : [], g.place, `The council sat at ${place.name} in front of ${who}${m ? `; ${m.persona.name} is mayor` : ""}.`, 0.9, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });
+      } else if (g.kind === "feast") {
+        for (const c of crowd) { c.needs.hunger = 0; c.needs.social = 0; this.remember(c, `${g.note}: the whole town at ${place.name}, and enough for everyone.`, 0.7); for (const d of crowd) if (d !== c) this.nudge(c, d.id, 0.02, 0.02); }
+        this.emit("town.gathering", [], g.place, `${g.note}: ${who} came to ${place.name}, and everyone ate.`, 0.95, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });
+      }
+    }
+    if (this.gatherings.length > 200) this.gatherings = this.gatherings.filter((g) => !g.held || g.day >= this.day - 7);
+  }
+  /** The court, in front of the town: the record decides. */
+  private verdict(g: Gathering, crowd: AgentState[]): void {
+    const a = this.agents.get(g.actors[0]!), b = this.agents.get(g.actors[1]!); const council = this.places.get("council")!; const place = this.places.get(g.place)!;
+    if (!b) { this.emit("town.gathering", g.actors, g.place, `The hearing at ${place.name} did not happen: the accused is gone.`, 0.6, { kind: g.kind, crowd: crowd.map((c) => c.id), held: false }); return; }
+    const accuser = a?.persona.name ?? "the accuser"; const since = this.t - 10 * MINUTES_PER_DAY;
+    const guilt = this.events.filter((e) => e.t >= since && e.actors[0] === b.id && (e.kind === "agent.take" || (e.kind === "agent.debt" && / still owes /.test(e.text)))).length;
+    const witnesses = crowd.filter((c) => c !== a && c !== b); const who = crowd.length;
+    if (guilt === 0) {
+      const fine = a ? Math.min(a.coins, 3) : 0; if (a) { a.coins -= fine; council.treasury += fine; this.remember(a, `I accused ${b.persona.name} and the record cleared them, in front of everyone. It cost me ${fine} coins and some standing.`, 0.8); }
+      this.remember(b, `${accuser} accused me before the council and the record cleared me, with the town watching.`, 0.9);
+      if (a) { const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.3); for (const w of witnesses) { this.nudge(w, a.id, -0.08, -0.02); this.remember(w, `The council cleared ${b.persona.name}; ${accuser} had accused them of "${g.note}" and paid for it.`, 0.6, "rumor"); } }
+      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows nothing; ${accuser} pays ${fine} coins for a false accusation.`, 0.9, { kind: g.kind, verdict: "dismissed", fine, crowd: crowd.map((c) => c.id), held: true });
+    } else if (b.convictions >= 1 || guilt >= 3) {
+      if (a) this.remember(a, `The council found against ${b.persona.name} on my word, and sent them away.`, 0.9);
+      for (const w of witnesses) this.remember(w, `The council exiled ${b.persona.name} for ${guilt} offence${guilt === 1 ? "" : "s"}.`, 0.8, "rumor");
+      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows ${guilt} offence${guilt === 1 ? "" : "s"}${b.convictions ? " and a conviction already" : ""}: the ferry.`, 1, { kind: g.kind, verdict: "exile", guilt, crowd: crowd.map((c) => c.id), held: true });
+      this.removeAgent(b.id, "exiled", `Found against by the council, accused by ${accuser}.`);
+    } else {
+      const fine = Math.min(b.coins, 4 * guilt); b.coins -= fine; council.treasury += fine; b.convictions++;
+      this.remember(b, `The council fined me ${fine} coins on ${accuser}'s word, in front of everyone. One more and they will put me on the ferry.`, 0.95);
+      if (a) { this.remember(a, `The council fined ${b.persona.name} ${fine} coins on my word.`, 0.7); const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.4); }
+      for (const w of witnesses) { this.nudge(w, b.id, -0.1, -0.05); this.remember(w, `The council fined ${b.persona.name} ${fine} coins for "${g.note}".`, 0.6, "rumor"); }
+      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows ${guilt} offence${guilt === 1 ? "" : "s"}: fined ${fine} coins. A second conviction means the ferry.`, 0.95, { kind: g.kind, verdict: "fine", fine, guilt, crowd: crowd.map((c) => c.id), held: true });
+    }
+  }
   /** The council sits: open laws close on their votes, and the island chooses a mayor by the trust it holds in each person. */
   private council(): void {
     for (const law of this.laws) { if (!law.open) continue; law.open = false; const by = this.agents.get(law.by)?.persona.name ?? "someone"; if (law.yes > law.no) this.emit("law.passed", [law.by], "council", `The council passed ${by}'s proposal, ${law.yes} to ${law.no}: “${law.text}”`, 0.7); else this.emit("law.failed", [law.by], "council", `The council let ${by}'s proposal fall, ${law.yes} to ${law.no}: “${law.text}”`, 0.5); }

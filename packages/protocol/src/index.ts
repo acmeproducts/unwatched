@@ -36,7 +36,7 @@ export const ActionKind = z.enum([
   "move", "say", "give", "take", "use", "work", "apply", "quit", "trade",
   "propose", "vote", "write", "build", "message_owner", "sleep", "wait",
   "hire", "lend", "lodge", "leave",
-  "fund", "accuse",
+  "fund", "accuse", "search",
 ]);
 export type ActionKind = z.infer<typeof ActionKind>;
 
@@ -52,7 +52,10 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("trade"), with: AgentRef, buy: z.string().optional(), sell: z.string().optional(), coins: z.number().int().nonnegative() }),
   z.object({ kind: z.literal("propose"), law: z.string().max(200) }),
   z.object({ kind: z.literal("vote"), proposal: z.string(), yes: z.boolean() }),
-  z.object({ kind: z.literal("write"), title: z.string().max(80), text: z.string().max(2000) }),
+  /** Write something. Name someone in "about" and, if you know their secret, it is an exposé: the whole island reads it by evening. */
+  z.object({ kind: z.literal("write"), title: z.string().max(80), text: z.string().max(2000), about: AgentRef.optional() }),
+  /** Go through someone's things where they sleep, while they are out. You learn what nobody knows; anyone present sees you do it. */
+  z.object({ kind: z.literal("search") }),
   z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId, name: z.string().max(60).optional() }),
   z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
   z.object({ kind: z.literal("sleep") }),
@@ -127,6 +130,8 @@ export const Perception = z.object({
     /** Days without a proper meal, and whether the body has begun to fail. */
     days_hungry: z.number().int().optional(), weak: z.boolean().optional(),
     mayor: z.boolean().optional(), convictions: z.number().int().optional(),
+    /** Secrets learned by going through someone's things, or read in an exposé. Heavy to carry; heavier to use. */
+    knows: z.array(z.object({ who: z.string(), secret: z.string() })).optional(),
     owns: z.array(z.string()).optional(),
     housing: z.object({ kind: z.string(), nights_left: z.number().int() }).nullable(),
   }),
@@ -161,7 +166,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
+  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

@@ -8,7 +8,7 @@ export interface ValidatorView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   agents: Map<string, AgentState>;
-  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[];
+  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; residentsOf?: (p: Place) => AgentState[];
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
 }
@@ -98,6 +98,13 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "propose": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "proposals are made at the council hall" };
     case "vote": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "votes are cast at the council hall" };
     case "write": return { ok: true };
+    case "search": {
+      if (!here.beds && here.kind !== "home") return { ok: false, reason: "nobody keeps their things here" };
+      const residents = v.residentsOf ? v.residentsOf(here).filter((r) => r.id !== a.id) : [];
+      if (!residents.length) return { ok: false, reason: "nobody lives here but you" };
+      if (residents.some((r) => r.location === here.id)) return { ok: false, reason: `${residents.find((r) => r.location === here.id)!.persona.name} is here` };
+      return { ok: true };
+    }
     case "build": {
       if (action.at !== a.location) return { ok: false, reason: "must be standing on the plot" };
       if (here.kind !== "plot") return { ok: false, reason: "no land to build on here" };

@@ -102,6 +102,8 @@ export interface AgentState {
   starving: number; roofless: number;
   /** Times the council found against them. The second time is the ferry. */
   convictions: number;
+  /** Other people's secrets this person has learned, by whose id. */
+  secretsKnown: Record<AgentId, string>;
 }
 
 /** A DayPlan once the engine has it: dated, with each step ticked off as its thought is spent. */
@@ -183,7 +185,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number; secretsKnown?: Record<AgentId, string>;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

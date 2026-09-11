@@ -29,11 +29,12 @@ export const BUILDS: Record<"house" | "shop", { coins: number; labor: number; pl
 };
 /** Loose words a person might use for what they mean to build. */
 export function buildKind(what: string): keyof typeof BUILDS | null {
-  const w = what.toLowerCase();
-  if (/shop|store|stall|bakery|tavern|inn|cafe|café|kitchen|smithy|workshop|forge|boatyard|yard/.test(w)) return "shop";
-  if (/house|home|cottage|hut|cabin|room|place to live|roof/.test(w)) return "house";
-  return null;
+  const w = what.toLowerCase().trim(); if (!w) return null;
+  if (/shop|store|stall|bakery|tavern|inn|cafe|café|kitchen|smithy|workshop|forge|boatyard|yard|shed|mill|press|studio|office|school|library|chapel|hall/.test(w)) return "shop";
+  return "house"; // anything else someone wants to raise is a place to live in
 }
+/** A short stable name for how a building looks, from the builder's own words. The sprite is "look:<hash>"; the island keeps the drawing under it. */
+export function lookHash(look: string): string { let h = 5381; for (const ch of look.trim().toLowerCase()) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0; return h.toString(36); }
 /** The site's name once someone names it, else the builder's. */
 export function siteName(kind: keyof typeof BUILDS, by: string, name: string | undefined): string {
   if (name && name.trim()) return name.trim().slice(0, 60);

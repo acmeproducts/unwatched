@@ -58,7 +58,8 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("write"), title: z.string().max(80), text: z.string().max(2000), about: AgentRef.optional() }),
   /** Go through someone's things where they sleep, while they are out. You learn what nobody knows; anyone present sees you do it. */
   z.object({ kind: z.literal("search") }),
-  z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId, name: z.string().max(60).optional() }),
+  /** Build on the plot you stand on. "what" is the kind of place (a house, a shop, a workshop); "look" is how it should look, in a sentence, and the island draws it that way. */
+  z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId, name: z.string().max(60).optional(), look: z.string().max(200).optional() }),
   z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
   z.object({ kind: z.literal("sleep") }),
   z.object({ kind: z.literal("wait") }),

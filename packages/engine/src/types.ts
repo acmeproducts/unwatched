@@ -22,7 +22,9 @@ export interface Place {
   /** The day a broken place works again, if a storm took its roof. */
   brokenUntil?: number;
   /** An unfinished building on a plot. Work adds labor; at laborNeeded it becomes a place. */
-  site: { what: "house" | "shop"; name: string; by: AgentId; labor: number; laborNeeded: number; startedDay: number } | null;
+  site: { what: "house" | "shop"; name: string; by: AgentId; labor: number; laborNeeded: number; startedDay: number; look?: string } | null;
+  /** How the builder wanted it to look, in their words. The island draws it from this; the hash of it names the sprite. */
+  look?: string;
 }
 
 export interface Job {

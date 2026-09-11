@@ -1,0 +1,87 @@
+/**
+ * Looks. When a citizen builds something and says how it should look, the island draws it: Recraft's vector model
+ * paints an SVG in the island's palette and projection, and a deterministic pass after it strips what does not belong
+ * (metadata, gradients, a painted background) and snaps every colour to the palette. The result is kept on disk and,
+ * when there is a shared record, in it, and served to every viewer as a scalable drawing. No key, no drawing: the street
+ * shows the plain house or shop until a drawing exists, and a drawing can be dropped into the looks folder by hand.
+ */
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+/** The island's palette, the same hexes the code-drawn buildings use. */
+export const PALETTE = ["#F7F5EE", "#E9E5D8", "#1F5F5B", "#174A47", "#E8735A", "#B9D9C6", "#9FC2AD", "#1E2A2B", "#C9B58F", "#8A6A45"];
+const BACKGROUND = "#EFEDE4";
+const MODEL = process.env.FT_LOOK_MODEL ?? "recraftv4_1_vector";
+
+export interface LookStore { saveLook(row: { hash: string; look: string; svg: string; source: string }): Promise<void>; loadLook(hash: string): Promise<{ look: string; svg: string } | null>; listLooks(): Promise<{ hash: string; look: string; created_at: string }[]> }
+
+export function looksEnabled(): boolean { return !!process.env.RECRAFT_API_KEY; }
+
+/** The prompt that keeps every generated building in the island's hand. */
+export function lookPrompt(look: string, kind: "house" | "shop"): string {
+  return `Flat vector illustration of ${look}, a small ${kind === "shop" ? "shop or workshop" : "house"} on a Mediterranean island, drawn in dimetric projection (2:1 isometric, seen from the front-right corner at a 30 degree angle), for a hand-drawn game map. Style: clean flat fills with a single thin dark outline of even weight, no gradients, no textures, no shading except a slightly darker right-facing wall; cream walls, dark teal roof, coral red for a door or a shutter, muted sage accents, wood in warm tan. Centered, the whole building visible, nothing else in the frame: no ground, no shadow, no people, no text, no background.`;
+}
+
+const hexOf = (m: RegExpMatchArray) => "#" + [m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, "0")).join("").toUpperCase();
+const dist = (a: string, b: string) => { const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const [r1, g1, b1] = p(a), [r2, g2, b2] = p(b); return (r1! - r2!) ** 2 + (g1! - g2!) ** 2 + (b1! - b2!) ** 2; };
+const nearest = (hex: string) => PALETTE.reduce((best, c) => (dist(c, hex) < dist(best, hex) ? c : best), PALETTE[0]!);
+
+/** The deterministic pass: nothing the model adds survives unless it belongs. */
+export function disciplineSvg(svg: string): string {
+  let s = svg.replace(/<metadata>[\s\S]*?<\/metadata>/g, "").replace(/\s*xmlns:c2pa="[^"]*"/g, "").replace(/<defs>[\s\S]*?<\/defs>/g, "");
+  s = s.replace(/\s*preserveAspectRatio="none"/g, "").replace(/\s*style="display:\s*block;?"/g, "");
+  // rgb() and hex fills snap to the palette; gradients become the wall colour
+  s = s.replace(/fill="rgb\((\d+),\s*(\d+),\s*(\d+)\)"/g, (_m, r, g, b) => `fill="${nearest(hexOf([_m, r, g, b] as unknown as RegExpMatchArray))}"`);
+  s = s.replace(/fill="(#[0-9a-fA-F]{6})"/g, (_m, h: string) => `fill="${nearest(h.toUpperCase())}"`);
+  s = s.replace(/fill="url\(#[^)]*\)"/g, `fill="${PALETTE[0]}"`);
+  // a painted background: the first path when it is the background colour or white, or covers the whole canvas
+  s = s.replace(/(<svg[^>]*>)\s*(<path[^>]*>)/, (_m, open: string, first: string) => { const fill = /fill="(#[0-9A-F]{6})"/.exec(first)?.[1]; const bg = fill === nearest(BACKGROUND) || fill === "#FFFFFF" || fill === PALETTE[0] && /M ?0[ ,]0/.test(first); return bg ? open : `${open}${first}`; });
+  return s.trim();
+}
+
+export class Looks {
+  private mem = new Map<string, string>(); private inflight = new Map<string, Promise<string | null>>();
+  constructor(private dir: string, private store: LookStore | null, private log: (l: string) => void) { mkdirSync(dir, { recursive: true }); }
+  private file(hash: string) { return join(this.dir, `${hash}.svg`); }
+  /** The drawing for a look, if the island has it. */
+  async get(hash: string): Promise<string | null> {
+    const m = this.mem.get(hash); if (m) return m;
+    const f = this.file(hash); if (existsSync(f)) { const s = readFileSync(f, "utf8"); this.mem.set(hash, s); return s; }
+    const row = await this.store?.loadLook(hash).catch(() => null); if (row) { this.mem.set(hash, row.svg); try { writeFileSync(f, row.svg); } catch { /* memory is enough */ } return row.svg; }
+    return null;
+  }
+  /** What is on the shelf: every look the island has drawn. */
+  async list(): Promise<{ hash: string; look: string }[]> {
+    const rows = this.store ? await this.store.listLooks().catch(() => []) : [];
+    const local = existsSync(this.dir) ? readdirSync(this.dir).filter((n) => n.endsWith(".svg")).map((n) => ({ hash: n.slice(0, -4), look: "" })) : [];
+    const seen = new Set(rows.map((r) => r.hash)); return [...rows.map((r) => ({ hash: r.hash, look: r.look })), ...local.filter((l) => !seen.has(l.hash))];
+  }
+  /** Make sure a drawing exists for a look: draw it once, keep it, and never draw it twice. */
+  ensure(hash: string, look: string, kind: "house" | "shop"): Promise<string | null> {
+    const going = this.inflight.get(hash); if (going) return going;
+    const p = (async () => {
+      const have = await this.get(hash); if (have) return have;
+      if (!looksEnabled()) { this.log(`no drawing for “${look}” (${hash}); set RECRAFT_API_KEY, or drop ${hash}.svg into ${this.dir}`); return null; }
+      try {
+        const svg = disciplineSvg(await this.draw(look, kind));
+        this.mem.set(hash, svg); writeFileSync(this.file(hash), svg);
+        await this.store?.saveLook({ hash, look, svg, source: MODEL }).catch((e: Error) => this.log(`look not recorded: ${e.message}`));
+        this.log(`drew “${look}” as ${hash} (${svg.length} bytes)`); return svg;
+      } catch (err) { this.log(`could not draw “${look}”: ${(err as Error).message}`); return null; }
+      finally { this.inflight.delete(hash); }
+    })();
+    this.inflight.set(hash, p); return p;
+  }
+  /** Recraft's vector model, straight from the documented endpoint. */
+  private async draw(look: string, kind: "house" | "shop"): Promise<string> {
+    const res = await fetch("https://external.api.recraft.ai/v1/images/generations", {
+      method: "POST", headers: { Authorization: `Bearer ${process.env.RECRAFT_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: lookPrompt(look, kind), model: MODEL, style: "vector_illustration", size: "1024x1024", n: 1, response_format: "url", negative_prompt: "ground, shadow, people, text, watermark, gradient, texture, perspective", controls: { colors: PALETTE.map((h) => ({ rgb: [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)] })) } }),
+      signal: AbortSignal.timeout(90000),
+    });
+    if (!res.ok) throw new Error(`recraft ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = (await res.json()) as { data?: { url?: string }[] }; const url = data.data?.[0]?.url; if (!url) throw new Error("recraft returned no image");
+    const svg = await (await fetch(url, { signal: AbortSignal.timeout(30000) })).text(); if (!/<svg/i.test(svg)) throw new Error("recraft did not return an SVG");
+    return svg;
+  }
+}

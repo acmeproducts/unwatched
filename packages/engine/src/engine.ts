@@ -2,7 +2,7 @@ import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind,
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext } from "./types.ts";
-import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, siteName, ISLAND, type WorldPack } from "./world.ts";
+import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, lookHash, siteName, ISLAND, type WorldPack } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
 import { habit } from "./habit.ts";
@@ -173,7 +173,7 @@ export class Town {
     // what people built, over the map the code lays out: the code owns positions and roads, the record owns everything else
     for (const sp of snap.places ?? []) {
       const p = this.places.get(sp.id);
-      if (p) { p.name = sp.name; p.kind = sp.kind; p.sells = sp.sells; p.owner = sp.owner ?? null; p.site = sp.site ?? null; p.treasury = sp.treasury ?? p.treasury; if (sp.stock) p.stock = { ...sp.stock }; if (sp.brokenUntil) p.brokenUntil = sp.brokenUntil; if (sp.beds) p.beds = sp.beds; else delete p.beds; if (sp.sprite) p.sprite = sp.sprite; }
+      if (p) { p.name = sp.name; p.kind = sp.kind; p.sells = sp.sells; p.owner = sp.owner ?? null; p.site = sp.site ?? null; p.treasury = sp.treasury ?? p.treasury; if (sp.stock) p.stock = { ...sp.stock }; if (sp.look) p.look = sp.look; else delete p.look; if (sp.brokenUntil) p.brokenUntil = sp.brokenUntil; if (sp.beds) p.beds = sp.beds; else delete p.beds; if (sp.sprite) p.sprite = sp.sprite; }
     }
     for (const sj of snap.jobs ?? []) if (!this.jobs.has(sj.id) && this.places.has(sj.place)) this.jobs.set(sj.id, { ...sj, holders: [] });
     for (const p of this.places.values()) if (p.beds) p.freeBeds = p.beds.capacity;
@@ -460,7 +460,8 @@ export class Town {
         a.coins -= spec.coins; const council = this.places.get("council"); const sawpit = this.places.get("sawpit");
         const forPlanks = sawpit ? Math.min(spec.planks, spec.coins) : 0; if (council) council.treasury += spec.coins - forPlanks;
         if (sawpit) { sawpit.stock.planks = Math.max(0, (sawpit.stock.planks ?? 0) - spec.planks); const sawyer = sawpit.owner ? this.agents.get(sawpit.owner) : null; if (sawyer) sawyer.coins += forPlanks; else sawpit.treasury += forPlanks; }
-        here.site = { what: kind, name: siteName(kind, name, action.name), by: a.id, labor: 0, laborNeeded: spec.labor, startedDay: this.day };
+        const look = (action.look ?? (/\s/.test(action.what.trim()) ? action.what : "")).trim().slice(0, 200);
+        here.site = { what: kind, name: siteName(kind, name, action.name), by: a.id, labor: 0, laborNeeded: spec.labor, startedDay: this.day, ...(look ? { look } : {}) };
         this.emit("agent.build", [a.id], here.id, `${name} paid ${spec.coins} coins for ${here.name} and marked out ${kind === "house" ? "a house" : "a shop"}: ${here.site.name}.`, 0.7, { what: kind, site: here.id });
         this.remember(a, `I bought ${here.name} and started building ${here.site.name}. It needs ${spec.labor} mornings of work.`, 0.8);
         for (const w of this.nearby(a)) this.remember(w, `${name} is building ${here.site.name} on ${here.name}.`, 0.5, "rumor");
@@ -783,9 +784,10 @@ export class Town {
     // finished: the plot becomes a place
     const builder = this.agents.get(site.by); const bname = builder?.persona.name ?? site.by;
     here.name = site.name; here.owner = site.by; here.site = null;
-    if (site.what === "house") { here.kind = "home"; here.sprite = "house"; here.beds = { price: 2, capacity: 2 }; here.freeBeds = 2; if (builder) builder.home = { place: here.id, nightsPaid: 36500 }; }
-    else { here.kind = "shop"; here.sprite = "shop"; here.sells = [{ item: "bread", base: 1 }, { item: "soup", base: 2 }, { item: "drink", base: 1 }]; const jid = `${here.id}.help`; if (!this.jobs.has(jid)) this.jobs.set(jid, { id: jid, title: `help at ${here.name}`, place: here.id, wage: 2, hours: [9, 17], slots: 1, holders: [] }); }
-    this.emit("town.built", [site.by, ...(a.id !== site.by ? [a.id] : [])], here.id, `${bname} finished ${here.name}${site.what === "house" ? ", a new house" : ", a new shop"} on the ${here.district}. It took ${site.laborNeeded} mornings.`, 0.9, { what: site.what, place: here.id });
+    if (site.look) { here.look = site.look; here.sprite = `look:${lookHash(site.look)}`; } else delete here.look;
+    if (site.what === "house") { here.kind = "home"; if (!site.look) here.sprite = "house"; here.beds = { price: 2, capacity: 2 }; here.freeBeds = 2; if (builder) builder.home = { place: here.id, nightsPaid: 36500 }; }
+    else { here.kind = "shop"; if (!site.look) here.sprite = "shop"; here.sells = [{ item: "bread", base: 1 }, { item: "soup", base: 2 }, { item: "drink", base: 1 }]; const jid = `${here.id}.help`; if (!this.jobs.has(jid)) this.jobs.set(jid, { id: jid, title: `help at ${here.name}`, place: here.id, wage: 2, hours: [9, 17], slots: 1, holders: [] }); }
+    this.emit("town.built", [site.by, ...(a.id !== site.by ? [a.id] : [])], here.id, `${bname} finished ${here.name}${site.what === "house" ? ", a new house" : ", a new shop"} on the ${here.district}. It took ${site.laborNeeded} mornings.`, 0.9, { what: site.what, place: here.id, ...(site.look ? { look: site.look, hash: lookHash(site.look) } : {}) });
     if (builder) this.remember(builder, `${here.name} is finished. It is mine.`, 0.95);
     for (const w of this.agents.values()) if (w.id !== site.by && (w.location === here.id || this.rng.chance(0.4))) this.remember(w, `${bname} built ${here.name} on the ${here.district}.`, 0.5, "rumor");
   }

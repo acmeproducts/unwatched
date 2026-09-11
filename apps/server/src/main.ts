@@ -9,6 +9,7 @@ import { serve } from "@hono/node-server";
 import { WebSocketServer, type WebSocket } from "ws";
 import { z } from "zod";
 import { Voices, voiceOf, voicesEnabled } from "./voice.ts";
+import { Looks, looksEnabled } from "./looks.ts";
 import { createClient } from "@supabase/supabase-js";
 import { Town, Rng, MINUTES_PER_DAY } from "@ferrytown/engine";
 import type { Brain } from "@ferrytown/engine";
@@ -68,7 +69,7 @@ const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: ferryTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
+const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: ferryTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.built" && e.payload && (e.payload as { hash?: string }).hash) { const p = e.payload as { hash: string; look: string; what: "house" | "shop" }; void looks.ensure(p.hash, p.look, p.what); } if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
 let saved: Awaited<ReturnType<NonNullable<typeof store>["loadSnapshot"]>> = null;
 try { saved = store ? await store.loadSnapshot() : null; }
 catch (err) { log(`${(err as Error).message}; not starting, so the island on record is not seeded over. Apply the migrations, then start again.`); process.exit(1); }
@@ -154,7 +155,7 @@ async function ownerOf(req: Request): Promise<string | null> {
 }
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
-const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
+const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(p.look ? { look: p.look } : {}), ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
 const childView = (ch: import("@ferrytown/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
 /** The far end of the ferry. Another island puts a passenger here; they step off at our harbor with what they carry and what they remember. */
 app.post("/api/ferry/arrive", async (c) => {
@@ -262,6 +263,11 @@ app.get("/api/agents/:id/book", async (c) => {
   const life = store ? await store.lifeOf(id) : { events: town.events.filter((e) => e.actors.includes(id)), memories: live.memory, letters: [] };
   return c.json({ id, name: live.persona.name, persona: live.persona, arrivedT: live.arrivedAt, leftT: null, ...life });
 });
+// looks: what a citizen built, drawn the way they described it, for everyone
+const looks = new Looks(resolve(process.env.FT_DATA_DIR ?? "out/town", "looks", TOWN_ID), store, log);
+for (const p of town.places.values()) if (p.look && p.sprite.startsWith("look:")) void looks.ensure(p.sprite.slice(5), p.look, p.kind === "shop" ? "shop" : "house");
+app.get("/api/looks", async (c) => c.json({ enabled: looksEnabled(), looks: await looks.list() }));
+app.get("/api/looks/:hash", async (c) => { const svg = await looks.get(c.req.param("hash").replace(/\.svg$/, "")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no drawing yet" }, 404); });
 // voices: a letter home, read aloud in the writer's own voice, for the owner who asked
 const voices = new Voices(resolve(process.env.FT_DATA_DIR ?? "out/town", "voices", TOWN_ID));
 app.get("/api/events/:id/voice", async (c) => {

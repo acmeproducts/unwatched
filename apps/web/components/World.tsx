@@ -14,7 +14,7 @@ import { Interior, type InteriorPerson } from "./Interior";
  */
 const C = { water: 0xc3dcd6, waterDeep: 0xb0cec7, shallow: 0xd2e5de, foam: 0xf7f5ee, sand: 0xe9e0c8, wetSand: 0xdccfb0, shell: 0xf7f5ee, grass: 0xcadcc2, sage: 0xb9d9c6, earth: 0xe0d4b8, earthEdge: 0xcfc1a3, cobble: 0xe1dbcb, teal: 0x1f5f5b, kelp: 0x1e2a2b, coral: 0xe8735a, drift: 0x6f7a78 };
 
-type PlaceView = { id: string; name: string; kind: string; exits: string[]; x: number; y: number; district: string; sprite: string; stock?: Record<string, number>; owner: string | null; site: { what: string; name: string; by: string; done: number; of: number } | null; crowd: number };
+type PlaceView = { id: string; name: string; kind: string; exits: string[]; x: number; y: number; district: string; sprite: string; stock?: Record<string, number>; look?: string; owner: string | null; site: { what: string; name: string; by: string; done: number; of: number } | null; crowd: number };
 type TownView = Clock & { size: { w: number; h: number }; places: PlaceView[] };
 
 
@@ -35,6 +35,14 @@ function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; 
   // a few more trees where the land is empty, so the island is not bare between districts
   for (const [x, y] of [[h.x + 420, h.y - 260], [m.x - 420, m.y + 260], [ln.x + 300, ln.y + 40], [o.x - 300, o.y - 160], [sh.x + 380, sh.y + 120], [q.x - 320, q.y + 220]] as const) out.push({ sprite: "tree-large", x, y }, { sprite: "tree-small", x: x + 70, y: y + 30 });
   return out;
+}
+
+/** The island's drawings of described buildings, fetched once each. */
+const lookCache = new Map<string, Promise<string | null>>();
+function lookSvg(hash: string): Promise<string | null> {
+  let p = lookCache.get(hash);
+  if (!p) { p = fetch(`${API}/api/looks/${hash}`, { cache: "force-cache" }).then((r) => (r.ok ? r.text() : null)).catch(() => null); lookCache.set(hash, p); }
+  return p;
 }
 
 type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1 };
@@ -158,6 +166,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (done >= 0.8) r.moveTo(-76, -70).lineTo(0, -120).lineTo(76, -70).closePath().fill(C.teal);
           g.addChild(r); const c = local("crates", 60); if (c) c.position.set(95, 4);
           const t = new Text({ text: `${p.site.name} · ${p.site.done} of ${p.site.of}`, style: smallStyle }); t.anchor.set(0.5, 0); t.position.set(0, 6); g.addChild(t);
+        } else if (p.sprite.startsWith("look:")) {
+          // a building someone described: the plain kind stands in until the island's drawing of it arrives
+          const stand = local(p.kind === "shop" ? "shop" : "house");
+          void lookSvg(p.sprite.slice(5)).then((svg) => { if (!svg || g.destroyed) return; const d = new Graphics(); try { d.svg(svg); } catch { return; } const b = d.getLocalBounds(); if (b.width < 1) return; const target = p.kind === "shop" ? 120 : 104; const sc = target / b.width; d.scale.set(sc); d.position.set(-(b.x + b.width / 2) * sc, -(b.y + b.height) * sc); d.zIndex = 0; stand?.destroy(); g.addChild(d); });
         } else {
           local(p.sprite);
           if (p.stock) { const st = drawStock(p.sprite, p.stock); if (st) { st.zIndex = 1; g.addChild(st); } }

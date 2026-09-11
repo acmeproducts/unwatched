@@ -198,6 +198,10 @@ export class TownStore {
     return (data ?? []).map((d) => ({ ownerId: d.owner_id, plan: d.plan, credits: d.credits, stripeCustomer: d.stripe_customer }));
   }
 
+  /** The drawing of a building a citizen described. */
+  async saveLook(row: { hash: string; look: string; svg: string; source: string }): Promise<void> { const { error } = await this.sb.from("looks").upsert({ town_id: this.townId, hash: row.hash, look: row.look, svg: row.svg, source: row.source }, { onConflict: "town_id,hash" }); if (error) console.error("look save failed:", error.message); }
+  async loadLook(hash: string): Promise<{ look: string; svg: string } | null> { const { data } = await this.sb.from("looks").select("look, svg").eq("town_id", this.townId).eq("hash", hash).maybeSingle(); return data ? { look: data.look, svg: data.svg } : null; }
+  async listLooks(): Promise<{ hash: string; look: string; created_at: string }[]> { const { data } = await this.sb.from("looks").select("hash, look, created_at").eq("town_id", this.townId).order("created_at", { ascending: false }).limit(200); return (data ?? []).map((r) => ({ hash: r.hash, look: r.look, created_at: r.created_at })); }
   /** The book of a life, on the shelf for anyone to read. */
   async saveLife(row: LifeRow): Promise<void> {
     const { error } = await this.sb.from("lives").upsert({ town_id: this.townId, agent_id: row.agentId, name: row.name, title: row.title, text: row.text, epitaph: row.epitaph, how: row.how, arrived_day: row.arrivedDay, left_day: row.leftDay }, { onConflict: "town_id,agent_id" });

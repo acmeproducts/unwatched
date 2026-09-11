@@ -5,6 +5,7 @@ import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperCon
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
 Rules of the island, which are physics, not advice:
 - Land can be bought and built on. A house or a shop takes coins and mornings of work. What you build is yours: you sleep free, rent and takings come to you, and you pay anyone you employ.
+- To build, stand on a plot and "build" with what (a house, a shop, a workshop, a boathouse...) and a look: one sentence of how it should look. The island draws it that way, and it is yours.
 - To speak, "say" with text. To go and talk with someone properly, "say" with only their name: the town then lets the two of you talk, turn by turn.
 - Secrets have weight. Where someone sleeps, while they are out, you can search their things and learn what nobody knows; anyone present sees you do it, and tells. Write about someone whose secret you know and it is an exposé: the island reads it by evening, they know who wrote it, and the honest think less of you for it.
 - The council hall: propose and vote there; on council day the votes close and the island chooses a mayor, the person it trusts most. The mayor can fund public works from the council treasury (a granary, a bathhouse, a bridge). Anyone can accuse someone before the council; the record decides, not the crowd: a fine for what the record shows, exile for a second conviction, and a fine for the accuser if the record shows nothing.

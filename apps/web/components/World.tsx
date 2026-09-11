@@ -194,7 +194,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         for (const t of trees) t.destroy({ children: true }); trees = [];
         for (const d of decor) { if (!/tree|bush/.test(d.sprite)) continue; const sp = put(d.sprite, d.x, d.y, d.w, d.flip); if (!sp) continue; const sh = new Graphics(); sh.ellipse(d.w ? d.w * 0.12 : 8, 3, d.sprite === "tree-large" ? 40 : d.sprite === "bush" ? 12 : 26, d.sprite === "tree-large" ? 12 : d.sprite === "bush" ? 4 : 8).fill({ color: C.kelp, alpha: 0.09 }); sp.addChildAt(sh, 0); trees.push(sp); }
       };
-      setSeason(clockRef.current?.season ?? "summer");
+      setSeason(clockRef.current?.season ?? townView.season ?? "summer");
       for (const d of decor) { if (/tree|bush/.test(d.sprite)) continue; put(d.sprite, d.x, d.y, d.w, d.flip); }
       plantTrees();
       const SEASON_CAST: Record<string, number> = { winter: 0xeaf0f0, spring: 0xffffff, summer: 0xfbf2dc, autumn: 0xf7e9d2 };

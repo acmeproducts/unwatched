@@ -1,6 +1,6 @@
 import Stripe from "stripe";
-import type { AgentState, Tier } from "@ferrytown/engine";
-import type { Store, Wallet, Plan } from "@ferrytown/store";
+import type { AgentState, Tier } from "@smallhours/engine";
+import type { Store, Wallet, Plan } from "@smallhours/store";
 
 /** What each plan buys per day, per citizen, per month. Set from the cost audit of September 2026: a Resident costs us about $6 a month in thinking at typical use and $9.40 if every thought is spent; a Patron $12 and $20. */
 export const PLANS: Record<Plan, { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string }> = {

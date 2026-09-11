@@ -2,7 +2,7 @@
 
 ## Reporting
 
-If you find a vulnerability in Small Hours, please report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kresogalic8/ferry-town/security/advisories/new). Do not open a public issue for it.
+If you find a vulnerability in Small Hours, please report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kresogalic8/small-hours/security/advisories/new). Do not open a public issue for it.
 
 You will hear back within three days. When the fix ships, the advisory is published and you are credited unless you ask not to be.
 

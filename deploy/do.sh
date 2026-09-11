@@ -4,8 +4,8 @@
 #   deploy/do.sh secrets    push the secrets from .env into the app (run once, and after rotating a key)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-REG=${DO_REGISTRY:-ferry-town}
-APP=ferry-town
+REG=${DO_REGISTRY:-small-hours}
+APP=small-hours
 need() { command -v "$1" >/dev/null || { echo "missing $1"; exit 1; }; }
 need doctl; need docker
 doctl account get >/dev/null || { echo "run: doctl auth init"; exit 1; }
@@ -22,7 +22,7 @@ if [[ "${1:-}" == "secrets" ]]; then
   python3 - "$ID" <<'PY'
 import os, sys, yaml
 spec = yaml.safe_load(open("/tmp/ft-spec.yaml"))
-secrets = ["OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "FT_OPS_TOKEN", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_RESIDENT", "STRIPE_PRICE_PATRON", "FT_OR_MODEL_ROUTINE", "FT_OR_MODEL_STAKES", "FT_OR_MODEL_REFLECT", "GEMINI_API_KEY", "FT_FERRY_SECRET", "RECRAFT_API_KEY"]
+secrets = ["OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SH_OPS_TOKEN", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_RESIDENT", "STRIPE_PRICE_PATRON", "SH_OR_MODEL_ROUTINE", "SH_OR_MODEL_STAKES", "SH_OR_MODEL_REFLECT", "GEMINI_API_KEY", "SH_BOAT_SECRET", "RECRAFT_API_KEY"]
 for svc in spec["services"]:
     if svc["name"] != "town": continue
     envs = [e for e in svc.get("envs", []) if e["key"] not in secrets]
@@ -41,8 +41,8 @@ REGURL=$(doctl registry get --format Endpoint --no-header)
 TAG="$(git rev-parse --short HEAD 2>/dev/null || echo dev)-$(date +%s)"   # a fresh tag each time, so the platform pulls the new image instead of trusting `latest`
 export TAG
 echo "building the town"
-docker build --platform linux/amd64 -t "$REGURL/ferry-town-town:$TAG" -f Dockerfile .
-docker push "$REGURL/ferry-town-town:$TAG"
+docker build --platform linux/amd64 -t "$REGURL/small-hours-town:$TAG" -f Dockerfile .
+docker push "$REGURL/small-hours-town:$TAG"
 
 ID=$(app_id)
 if [[ -z "$ID" ]]; then
@@ -61,11 +61,11 @@ NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY:-}}
 if [[ -n "${SUPABASE_URL:-}" && -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]]; then echo "SUPABASE_URL is set but no anon key: put SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY) in .env, or nobody can sign in on the deployed site"; exit 1; fi
 export NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY
-docker build --platform linux/amd64 -t "$REGURL/ferry-town-web:$TAG" -f apps/web/Dockerfile \
+docker build --platform linux/amd64 -t "$REGURL/small-hours-web:$TAG" -f apps/web/Dockerfile \
   --build-arg NEXT_PUBLIC_API_URL="$URL/engine" \
   --build-arg NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-}" \
   --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" .
-docker push "$REGURL/ferry-town-web:$TAG"
+docker push "$REGURL/small-hours-web:$TAG"
 
 echo "deploying both services, keeping the town's secrets"
 doctl apps spec get "$ID" > /tmp/ft-live.yaml

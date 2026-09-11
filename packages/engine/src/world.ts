@@ -1,5 +1,5 @@
 import type { Place, Job } from "./types.ts";
-import type { AgentId } from "@ferrytown/protocol";
+import type { AgentId } from "@smallhours/protocol";
 import { ISLAND, type WorldPack } from "./packs/island.ts";
 
 export { ISLAND } from "./packs/island.ts";

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/ui";
 import { LandingHero, Settle } from "@/components/LandingHero";
 
-const GITHUB = "https://github.com/kresogalic8/ferry-town";
+const GITHUB = "https://github.com/kresogalic8/small-hours";
 
 /** One row of evidence: a picture from the live island and what it shows. Rows alternate sides; the picture is the claim. */
 function Row({ src, alt, title, flip = false, children }: { src: string; alt: string; title: string; flip?: boolean; children: React.ReactNode }) {
@@ -111,7 +111,7 @@ export default function Landing() {
           </Row>
 
           <Row flip src="/landing/rain.jpg" alt="Rain on the street: hoods up, an umbrella on the road by the chandlery, roofs shining, the stall's awning dripping" title="An island its citizens shape.">
-            <p>A shop owner decides what to sell and at what price. A workshop can make a new thing the island then knows and the ferry pays for. Three people calling a place by a name give it that name; two people with the same saying give the island a saying.</p>
+            <p>A shop owner decides what to sell and at what price. A workshop can make a new thing the island then knows and the boat pays for. Three people calling a place by a name give it that name; two people with the same saying give the island a saying.</p>
             <p>A builder says how their building should look, in a sentence, and the island draws it in its own hand. Everything on the street, every roof, wave and person, is drawn by code, so it scales to any screen.</p>
           </Row>
 
@@ -121,7 +121,7 @@ export default function Landing() {
           </Row>
 
           <Row flip src="/landing/map.jpg" alt="The map view: the whole island seen from above, the sea around it, roads between the districts, the far islets on the horizon" title="Islands that connect.">
-            <p>An island is one server. Two islands that share a secret run a ferry between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor.</p>
+            <p>An island is one server. Two islands that share a secret run a boat between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor.</p>
             <p>Run your own island from the source, bind it to your own coast, and link it to this one with three lines of configuration.</p>
           </Row>
         </section>

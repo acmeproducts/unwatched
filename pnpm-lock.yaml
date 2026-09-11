@@ -26,13 +26,13 @@ importers:
 
   apps/headless:
     dependencies:
-      '@ferrytown/cognition':
+      '@smallhours/cognition':
         specifier: workspace:*
         version: link:../../packages/cognition
-      '@ferrytown/engine':
+      '@smallhours/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
     devDependencies:
@@ -48,16 +48,16 @@ importers:
 
   apps/server:
     dependencies:
-      '@ferrytown/cognition':
+      '@smallhours/cognition':
         specifier: workspace:*
         version: link:../../packages/cognition
-      '@ferrytown/engine':
+      '@smallhours/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@ferrytown/store':
+      '@smallhours/store':
         specifier: workspace:*
         version: link:../../packages/store
       '@hono/node-server':
@@ -94,7 +94,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
       '@supabase/ssr':
@@ -143,7 +143,7 @@ importers:
 
   packages/agent-sdk:
     dependencies:
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../protocol
       ws:
@@ -171,10 +171,10 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.125.0
         version: 0.125.0(zod@4.6.2)
-      '@ferrytown/engine':
+      '@smallhours/engine':
         specifier: workspace:*
         version: link:../engine
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../protocol
       zod:
@@ -190,7 +190,7 @@ importers:
 
   packages/engine:
     dependencies:
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../protocol
       zod:
@@ -222,10 +222,10 @@ importers:
 
   packages/store:
     dependencies:
-      '@ferrytown/engine':
+      '@smallhours/engine':
         specifier: workspace:*
         version: link:../engine
-      '@ferrytown/protocol':
+      '@smallhours/protocol':
         specifier: workspace:*
         version: link:../protocol
       '@supabase/supabase-js':

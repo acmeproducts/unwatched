@@ -1,5 +1,5 @@
-import type { Persona } from "@ferrytown/protocol";
-import { Rng } from "@ferrytown/engine";
+import type { Persona } from "@smallhours/protocol";
+import { Rng } from "@smallhours/engine";
 
 /** Twenty house-funded citizens for the first soak. Every one has a want, a fear, and a secret. */
 const SEED: Omit<Persona, "traits">[] = [

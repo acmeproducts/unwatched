@@ -22,7 +22,7 @@ export default function Library() {
             {lives.map((l) => (
               <button key={l.agentId} onClick={() => setOpen(l)} className={`text-left rounded-[20px] px-4 py-3 border transition-colors ${open?.agentId === l.agentId ? "bg-teal text-sand border-teal" : "bg-shell border-line hover:bg-sand"}`}>
                 <div className="flex items-center gap-2"><Portrait name={l.name} age={40} size={28} /><div className="font-bold leading-tight">{l.title}</div></div>
-                <div className={`text-[13px] ${open?.agentId === l.agentId ? "text-mist" : "text-drift"}`}>{l.name} · day {l.arrivedDay} to {l.leftDay} · {l.how === "died" ? "died" : l.how === "left" ? "left on the ferry" : "sent away"}</div>
+                <div className={`text-[13px] ${open?.agentId === l.agentId ? "text-mist" : "text-drift"}`}>{l.name} · day {l.arrivedDay} to {l.leftDay} · {l.how === "died" ? "died" : l.how === "left" ? "left on the boat" : "sent away"}</div>
               </button>
             ))}
           </div>

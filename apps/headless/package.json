@@ -1,5 +1,5 @@
 {
-  "name": "@ferrytown/headless",
+  "name": "@smallhours/headless",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@ferrytown/cognition": "workspace:*",
-    "@ferrytown/engine": "workspace:*",
-    "@ferrytown/protocol": "workspace:*"
+    "@smallhours/cognition": "workspace:*",
+    "@smallhours/engine": "workspace:*",
+    "@smallhours/protocol": "workspace:*"
   },
   "devDependencies": { "tsx": "^4.23.0", "typescript": "^5.8.0", "@types/node": "^22.15.0" }
 }

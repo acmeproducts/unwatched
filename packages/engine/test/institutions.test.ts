@@ -46,7 +46,7 @@ describe("institutions with teeth", () => {
     const coinsA = a.coins; expect(town.apply(a, { kind: "accuse", who: b.persona.name, of: "nothing really" }, "test")).toBe(true);
     await hearing(); expect(a.coins).toBeLessThanOrEqual(Math.max(0, coinsA - 3) + 6); // wages may have come in between
     expect(town.events.some((e) => e.kind === "town.gathering" && (e.payload as { verdict?: string }).verdict === "dismissed")).toBe(true);
-    // second conviction: the ferry
+    // second conviction: the boat
     while (town.hour < 9 || town.hour >= 14) await town.tick();
     c.location = "market"; a.location = "market"; a.asleep = false; c.asleep = false; a.inventory.push("bread"); expect(town.apply(c, { kind: "take", item: "bread", from: a.id }, "test")).toBe(true);
     a.location = "council"; expect(town.apply(a, { kind: "accuse", who: c.persona.name, of: "again" }, "test")).toBe(true);

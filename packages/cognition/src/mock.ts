@@ -1,6 +1,6 @@
-import type { LifeText, Judgement, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@ferrytown/engine";
-import { Rng } from "@ferrytown/engine";
+import type { LifeText, Judgement, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@smallhours/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@smallhours/engine";
+import { Rng } from "@smallhours/engine";
 
 /**
  * A mind that costs nothing. Deterministic given the seed, opinionated enough to make a town.
@@ -42,7 +42,7 @@ export class MockBrain implements Brain {
       const h = p.heard[p.heard.length - 1]!;
       const rel = p.nearby.find((n) => n.agent === h.from)?.relation;
       const cold = rel && rel.trust < 0.25;
-      const text = cold ? this.rng.pick(["I have nothing to say to you.", "Not now.", "Say that again and mean it."]) : this.rng.pick([`Morning, ${h.name.split(" ")[0]}.`, "Is that so.", "You heard that from Rosa, I suppose.", "The ferry was late again.", `${a.persona.want.split(".")[0]}. That is all I want.`]);
+      const text = cold ? this.rng.pick(["I have nothing to say to you.", "Not now.", "Say that again and mean it."]) : this.rng.pick([`Morning, ${h.name.split(" ")[0]}.`, "Is that so.", "You heard that from Rosa, I suppose.", "The boat was late again.", `${a.persona.want.split(".")[0]}. That is all I want.`]);
       return { action: { kind: "say", to: h.from, text }, remember: [`${h.name} said "${h.text.slice(0, 60)}" and I answered.`] };
     }
     // Intentions from last night.
@@ -68,7 +68,7 @@ export class MockBrain implements Brain {
     const heat = (a.persona.traits.pride + b.persona.traits.pride) / 2;
     const argue = (ra < 0.3 || rb < 0.3) && this.rng.chance(0.25 + heat * 0.4);
     const warm = !argue && this.rng.chance(0.5 + (a.persona.traits.warmth + b.persona.traits.warmth) / 4);
-    const topic = this.rng.pick(["the mill roof", "the surveyor", "the price of bread", "the election", "the last ferry", "Rosa's ledger", "the room above the chandlery"]);
+    const topic = this.rng.pick(["the mill roof", "the surveyor", "the price of bread", "the election", "the last boat", "Rosa's ledger", "the room above the chandlery"]);
     const lines = argue ? [
       { speaker: a.id, text: `You had a good thing and you threw it in the harbor.` },
       { speaker: b.id, text: `I set it down. There is a difference, and you would know it if you had ever been told what to do at five in the morning.` },
@@ -150,7 +150,7 @@ export class MockBrain implements Brain {
     };
     return {
       edition: ctx.edition, date: ctx.date, weather: ctx.weather,
-      lead: lead ? { headline: headline(lead.text), deck: `Reported from ${lead.actors.join(" and ") || "the harbor"}.`, body: lead.text.slice(0, 1200) } : { headline: "A quiet day on the island", deck: "Nothing changed, and that is allowed.", body: `The ferry came and went. ${ctx.population} people live here.` },
+      lead: lead ? { headline: headline(lead.text), deck: `Reported from ${lead.actors.join(" and ") || "the harbor"}.`, body: lead.text.slice(0, 1200) } : { headline: "A quiet day on the island", deck: "Nothing changed, and that is allowed.", body: `The boat came and went. ${ctx.population} people live here.` },
       briefs: evs.slice(1, 5).map((e) => ({ headline: headline(e.text), body: e.text.slice(0, 400) })),
       notices: [`Population ${ctx.population}. ${ctx.arrivals} arrived, ${ctx.departures} left.`, ...ctx.laws.slice(0, 2).map((l) => `Proposed at the council: ${l}`), `Weather: ${ctx.weather}.`].slice(0, 6),
     };
@@ -168,7 +168,7 @@ export class MockBrain implements Brain {
       ctx.events.length ? `The record has it that ${ctx.events.slice(0, 4).map((e) => e.replace(/^day \d+: /, "")).join(" ")}` : `The days were quiet. The record keeps ${first}'s comings and goings and little else.`,
       ctx.people.length ? `${first} knew ${ctx.people.slice(0, 3).map((x) => x.name).join(", ")}${ctx.people[0] && ctx.people[0].trust > 0.6 ? `, and ${ctx.people[0].name} best of all` : ""}.` : `${first} kept to themself.`,
       ctx.memories.length ? `In their own words: “${ctx.memories[ctx.memories.length - 1]}”` : "",
-      `${ctx.how === "died" ? `${first} died on day ${ctx.day}${ctx.note ? `, ${ctx.note.replace(/\.$/, "").toLowerCase()}` : ""}` : ctx.how === "left" ? `${first} left on the ferry on day ${ctx.day}` : `${first} was sent away on day ${ctx.day}`}, after ${days} day${days === 1 ? "" : "s"} on the island, with ${ctx.coins} coins${ctx.job ? ` and work as ${ctx.job}` : ""}.${ctx.children.length ? ` ${ctx.children.join(" and ")} stayed.` : ""}`,
+      `${ctx.how === "died" ? `${first} died on day ${ctx.day}${ctx.note ? `, ${ctx.note.replace(/\.$/, "").toLowerCase()}` : ""}` : ctx.how === "left" ? `${first} left on the boat on day ${ctx.day}` : `${first} was sent away on day ${ctx.day}`}, after ${days} day${days === 1 ? "" : "s"} on the island, with ${ctx.coins} coins${ctx.job ? ` and work as ${ctx.job}` : ""}.${ctx.children.length ? ` ${ctx.children.join(" and ")} stayed.` : ""}`,
     ].filter(Boolean);
     return { title: `${days} days of ${first}`.slice(0, 90), text: paras.join("\n\n").slice(0, 2800), epitaph: (ctx.how === "died" ? `Wanted ${p.want.replace(/\.$/, "").toLowerCase()}; the island gave less.` : `Came for ${p.want.replace(/\.$/, "").toLowerCase()}; went on.`).slice(0, 140) };
   }

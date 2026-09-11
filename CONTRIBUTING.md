@@ -2,10 +2,10 @@
 
 Small Hours is a persistent island of AI citizens with free will. Owners write letters, not orders. The town runs on real time whether or not anyone is watching. Thank you for wanting to work on it.
 
-- Questions go to [Discussions → Q&A](https://github.com/kresogalic8/ferry-town/discussions/categories/q-a).
-- Ideas go to [Discussions → Ideas](https://github.com/kresogalic8/ferry-town/discussions/categories/ideas) before they become pull requests.
-- Things your citizen did go to [Discussions → Show and tell](https://github.com/kresogalic8/ferry-town/discussions/categories/show-and-tell), or to an issue if you think it is a bug.
-- Security problems go to [a private report](https://github.com/kresogalic8/ferry-town/security/advisories/new), never to a public issue. See `SECURITY.md`.
+- Questions go to [Discussions → Q&A](https://github.com/kresogalic8/small-hours/discussions/categories/q-a).
+- Ideas go to [Discussions → Ideas](https://github.com/kresogalic8/small-hours/discussions/categories/ideas) before they become pull requests.
+- Things your citizen did go to [Discussions → Show and tell](https://github.com/kresogalic8/small-hours/discussions/categories/show-and-tell), or to an issue if you think it is a bug.
+- Security problems go to [a private report](https://github.com/kresogalic8/small-hours/security/advisories/new), never to a public issue. See `SECURITY.md`.
 
 Everyone here follows the [code of conduct](CODE_OF_CONDUCT.md).
 
@@ -30,18 +30,18 @@ The engine's tests are the contract. They assert the physics: coins are accounte
 
 ```bash
 cp .env.example .env                  # leave the keys empty for the mock brain, or add OPENROUTER_API_KEY for real minds
-pnpm --filter @ferrytown/server dev   # the town, its API and streams, on :4000
-pnpm --filter @ferrytown/web dev      # the client on :3000
+pnpm --filter @smallhours/server dev   # the town, its API and streams, on :4000
+pnpm --filter @smallhours/web dev      # the client on :3000
 ```
 
-Set `FT_DEV_OWNER=1` and `NEXT_PUBLIC_DEV_OWNER=1` to sign in with a plain name locally. Without Supabase the record is a JSON file under `out/town`, so your island survives restarts. `FT_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second, which is what you want while developing; the deployed island runs at `60000`.
+Set `SH_DEV_OWNER=1` and `NEXT_PUBLIC_DEV_OWNER=1` to sign in with a plain name locally. Without Supabase the record is a JSON file under `out/town`, so your island survives restarts. `SH_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second, which is what you want while developing; the deployed island runs at `60000`.
 
 Useful while you work:
 
 | | |
 |---|---|
 | `pnpm typecheck` | strict TypeScript across every package; must pass |
-| `pnpm --filter @ferrytown/engine test -- --watch` | the physics, re-run on save |
+| `pnpm --filter @smallhours/engine test -- --watch` | the physics, re-run on save |
 | `pnpm soak -- --days 30 --seed 3` | a month on the mock brain when you touch the economy |
 | `http://localhost:3000/rig` | the model sheet: every pose, face, trade, age and building drawn from the same rig |
 | `http://localhost:3000/town?hour=22&weather=storm&view=cinema` | preview any hour, weather and view without waiting for it |
@@ -79,7 +79,7 @@ So: no referee, no karma score, no "good ending", no purchase that makes a citiz
 - **Verbs.** A new action is a schema entry in `packages/protocol`, a rule in `packages/engine/src/validator.ts`, an effect in `apply`, one event sentence, and a line in the rules prompt. Look at `lend` for the shape, or `do` for how the town's own mind judges a free action.
 - **Brains.** Anything that implements the `Brain` interface, or anything that speaks the own-brain protocol over a WebSocket. `examples/python/agent.py` is a citizen in one file.
 - **Buildings, props and the rig.** Drawn in code, one function each, in one projection with the Tide palette. See `apps/web/components/world/buildings.ts`, `citizen.ts`, and the model sheet at `/rig`; `docs/world-packs.md` has the style guide.
-- **Islands.** Two servers that share a secret run a ferry. `docs/federation.md`.
+- **Islands.** Two servers that share a secret run a boat. `docs/federation.md`.
 
 Issues labelled `good first issue` are sized for a first afternoon. `help wanted` ones are bigger and we would love company on them.
 

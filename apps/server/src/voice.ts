@@ -5,10 +5,10 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Persona } from "@ferrytown/protocol";
+import type { Persona } from "@smallhours/protocol";
 
 const VOICES = ["Kore", "Puck", "Charon", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr", "Achird", "Algenib", "Callirrhoe", "Despina", "Enceladus", "Gacrux", "Iapetus", "Laomedeia", "Rasalgethi", "Sadachbia", "Schedar", "Sulafat", "Umbriel", "Vindemiatrix", "Zubenelgenubi"];
-const MODEL = process.env.FT_TTS_MODEL ?? "gemini-2.5-flash-preview-tts";
+const MODEL = process.env.SH_TTS_MODEL ?? "gemini-2.5-flash-preview-tts";
 
 export function voiceOf(name: string): string { let h = 7; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return VOICES[h % VOICES.length]!; }
 export function voicesEnabled(): boolean { return !!(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY); }

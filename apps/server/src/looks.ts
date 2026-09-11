@@ -11,13 +11,13 @@ import { join } from "node:path";
 /** The island's palette, the same hexes the code-drawn buildings use. */
 export const PALETTE = ["#F7F5EE", "#E9E5D8", "#1F5F5B", "#174A47", "#E8735A", "#B9D9C6", "#9FC2AD", "#1E2A2B", "#C9B58F", "#8A6A45"];
 const BACKGROUND = "#EFEDE4";
-const MODEL = process.env.FT_LOOK_MODEL ?? "recraftv4_1_vector";
+const MODEL = process.env.SH_LOOK_MODEL ?? "recraftv4_1_vector";
 
 export interface LookStore { saveLook(row: { hash: string; look: string; svg: string; source: string }): Promise<void>; loadLook(hash: string): Promise<{ look: string; svg: string } | null>; listLooks(): Promise<{ hash: string; look: string; created_at: string }[]> }
 
 export function looksEnabled(): boolean { return !!process.env.RECRAFT_API_KEY; }
-/** Generated drawings are off unless asked for: the hand-drawn set is the island's look, and a described build shows the plain house or shop. Set FT_LOOKS=patterns to open the pattern book, or a Recraft key for exact drawings. */
-export function looksWanted(): boolean { return looksEnabled() || process.env.FT_LOOKS === "patterns"; }
+/** Generated drawings are off unless asked for: the hand-drawn set is the island's look, and a described build shows the plain house or shop. Set SH_LOOKS=patterns to open the pattern book, or a Recraft key for exact drawings. */
+export function looksWanted(): boolean { return looksEnabled() || process.env.SH_LOOKS === "patterns"; }
 
 /** The pattern book: buildings drawn ahead of time, in the island's hand, for the looks people most often ask for. Each pattern is a file in apps/server/patterns and a few words that call it. */
 export const PATTERNS: { name: string; words: RegExp }[] = [

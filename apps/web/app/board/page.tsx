@@ -152,7 +152,7 @@ export default function Board() {
               <div className="border-t-2 border-dashed border-[#2A6E69]" />
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Passenger</div><div className="display text-xl font-semibold">{p.name}</div></div>
-                <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Arrives</div><div className="display text-xl font-semibold">Next ferry</div></div>
+                <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Arrives</div><div className="display text-xl font-semibold">Next boat</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Mind</div><div>{brain === "hosted" ? `Hosted · ${plan}` : brain === "own_key" ? "Your own key" : "Your own brain"}</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Carrying</div><div>{look.carrying}, 40 coins</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Lodging</div><div>Harbor inn, 3 nights</div></div>

@@ -13,7 +13,7 @@ COPY packages/agent-sdk/package.json packages/agent-sdk/
 COPY apps/server/package.json apps/server/
 COPY apps/headless/package.json apps/headless/
 COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile --filter @ferrytown/server... --prod=false
+RUN pnpm install --frozen-lockfile --filter @smallhours/server... --prod=false
 
 FROM base AS run
 ENV NODE_ENV=production

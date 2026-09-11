@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement } from "@smallhours/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@smallhours/engine";
 import { MockBrain } from "./mock.ts";
 import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, judgeSystem, judgePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
@@ -28,9 +28,9 @@ export class OpenRouterBrain implements Brain {
     const key = o.apiKey ?? process.env.OPENROUTER_API_KEY;
     if (!key) throw new Error("OPENROUTER_API_KEY is not set");
     this.key = key;
-    this.routine = o.routine ?? process.env.FT_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5";
-    this.stakes = o.stakes ?? process.env.FT_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5";
-    this.reflectModel = o.reflect ?? process.env.FT_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5";
+    this.routine = o.routine ?? process.env.SH_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5";
+    this.stakes = o.stakes ?? process.env.SH_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5";
+    this.reflectModel = o.reflect ?? process.env.SH_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5";
     this.log = o.log ?? (() => {});
   }
 

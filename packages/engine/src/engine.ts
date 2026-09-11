@@ -1,5 +1,5 @@
-import type { Action, ActionProposal, AgentId, PlaceId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@ferrytown/protocol";
-import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
+import type { Action, ActionProposal, AgentId, PlaceId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@smallhours/protocol";
+import { OPTIONS_DEFAULT } from "@smallhours/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext, Gathering, Seal, JudgeContext, Rule } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, lookHash, siteName, ISLAND, type WorldPack } from "./world.ts";
@@ -20,7 +20,7 @@ export interface TownOptions {
   ageOfMajority?: number;
   /** This island's name, printed on tickets and carried by passengers. */
   name?: string;
-  /** Other islands a ferry runs to, and how to put someone on it. Resolves true when they arrived there. */
+  /** Other islands a boat runs to, and how to put someone on it. Resolves true when they arrived there. */
   harbors?: { id: string; name: string }[];
   onDepart?: (passenger: Passenger, to: string) => Promise<boolean>;
   /** Sim minutes per tick. 1 is the real town. Higher is coarser, not just faster. */
@@ -72,9 +72,9 @@ export class Town {
   temperatureC: number | null = null;
   /** A season set from the real calendar, when the island keeps our time. */
   seasonOverride: string | null = null;
-  /** The hours the ferry docks. Hourly from six to eight by default; a real timetable when the island keeps our time. */
-  ferryTimes: number[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-  /** Other islands, by id, that a ferry crosses to. */
+  /** The hours the boat docks. Hourly from six to eight by default; a real timetable when the island keeps our time. */
+  boatTimes: number[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  /** Other islands, by id, that a boat crosses to. */
   harbors: { id: string; name: string }[];
   name: string;
   private onDepart: ((passenger: Passenger, to: string) => Promise<boolean>) | null;
@@ -84,7 +84,7 @@ export class Town {
   /** Island days from birth to citizenship. Twenty by default; tests shorten it. */
   ageOfMajority: number;
   /** Ops switches. Each flip is an act of God and gets printed. */
-  paused = false; economyFrozen = false; ferryHeld = false;
+  paused = false; economyFrozen = false; boatHeld = false;
   /** Coins that entered the island (arrivals, the mainland paying for produce) and left it (departures), so the books can be checked. */
   minted = 0; burned = 0;
   private nextId = 1;
@@ -143,10 +143,10 @@ export class Town {
     if (w === this.weather) return; this.weather = w;
     this.emit("weather.change", [], undefined, note ?? `The weather turned to ${w}.`, w === "storm" ? 0.5 : 0.1);
   }
-  /** The next hour the ferry docks, and whether that is tomorrow. */
-  nextFerry(): { hour: number; tomorrow: boolean } {
-    const later = this.ferryTimes.filter((h) => h > this.hour).sort((a, b) => a - b)[0];
-    return later !== undefined ? { hour: later, tomorrow: false } : { hour: [...this.ferryTimes].sort((a, b) => a - b)[0] ?? 6, tomorrow: true };
+  /** The next hour the boat docks, and whether that is tomorrow. */
+  nextBoat(): { hour: number; tomorrow: boolean } {
+    const later = this.boatTimes.filter((h) => h > this.hour).sort((a, b) => a - b)[0];
+    return later !== undefined ? { hour: later, tomorrow: false } : { hour: [...this.boatTimes].sort((a, b) => a - b)[0] ?? 6, tomorrow: true };
   }
   /** Let minutes pass without anyone thinking: the island catching up with the real clock after a slow stretch or a restart. */
   skip(minutes: number): void {
@@ -175,8 +175,8 @@ export class Town {
     };
     const inn = this.places.get("inn")!; inn.freeBeds = Math.max(0, (inn.freeBeds ?? 0) - 1);
     this.agents.set(id, a);
-    this.remember(a, `Stepped off the ferry with a suitcase and ${a.coins} coins. Three nights paid at the harbor inn.`, 0.7);
-    this.emit("agent.arrive", [id], "harbor", `${a.persona.name} arrived on the ferry.`, 0.5);
+    this.remember(a, `Stepped off the boat with a suitcase and ${a.coins} coins. Three nights paid at the harbor inn.`, 0.7);
+    this.emit("agent.arrive", [id], "harbor", `${a.persona.name} arrived on the boat.`, 0.5);
     this.arrivalsToday++; this.minted += a.coins;
     return a;
   }
@@ -242,8 +242,8 @@ export class Town {
     if (this.mayor === agentId) { this.mayor = null; this.emit("town.mayor", [], "council", `${a.persona.name} is gone; the island has no mayor until the council sits again.`, 0.6); }
     if (reason === "died") { this.inherit(a); if (this.places.has("chapel")) this.gather("funeral", "chapel", this.day + 1, 10, [agentId], a.persona.name); }
     for (const c of this.children) if (c.parents.includes(agentId) && !c.parents.some((pid) => this.agents.has(pid))) c.orphan = true;
-    for (const b of this.agents.values()) { const r = b.relationships.get(agentId); if (r) this.remember(b, `${a.persona.name} ${reason === "left" ? "left on the ferry" : reason === "died" ? "died" : "was sent away"}. ${r.trust > 0.5 ? "I will miss them." : ""}`.trim(), 0.6 + r.trust * 0.3); }
-    const text = reason === "left" ? `${a.persona.name} left on the ferry.${note ? ` ${note}` : ""}` : reason === "died" ? `${a.persona.name} died.${note ? ` ${note}` : ""}` : `${a.persona.name} was sent away from the island.${note ? ` ${note}` : ""}`;
+    for (const b of this.agents.values()) { const r = b.relationships.get(agentId); if (r) this.remember(b, `${a.persona.name} ${reason === "left" ? "left on the boat" : reason === "died" ? "died" : "was sent away"}. ${r.trust > 0.5 ? "I will miss them." : ""}`.trim(), 0.6 + r.trust * 0.3); }
+    const text = reason === "left" ? `${a.persona.name} left on the boat.${note ? ` ${note}` : ""}` : reason === "died" ? `${a.persona.name} died.${note ? ` ${note}` : ""}` : `${a.persona.name} was sent away from the island.${note ? ` ${note}` : ""}`;
     this.emit("agent.leave", [agentId], "harbor", text, 0.9, { reason, note });
     this.departuresToday++; this.burned += a.coins;
     void this.writeLife(a, reason, note);
@@ -366,13 +366,13 @@ export class Town {
         ...(here.kind === "civic" ? { council: { mayor: this.mayor ? (this.agents.get(this.mayor)?.persona.name ?? null) : null, treasury: here.treasury, works: [...this.works], can_fund: this.mayor === a.id ? Object.entries(WORKS).filter(([w]) => !this.works.includes(w)).map(([what, w]) => ({ what, coins: w.coins })) : [], open_laws: this.laws.filter((l) => l.open).map((l) => l.text) } } : {}),
         ...(here.kind === "plot" && !here.site ? { plot: { free: true, house: { coins: BUILDS.house.coins, mornings: BUILDS.house.labor }, shop: { coins: BUILDS.shop.coins, mornings: BUILDS.shop.labor } } } : {}),
         ...(here.site ? { site: { what: here.site.what, name: here.site.name, by: this.agents.get(here.site.by)?.persona.name ?? here.site.by, done: here.site.labor, of: here.site.laborNeeded } } : {}),
-        ...(here.kind === "harbor" && this.harbors.length ? { ferries_to: this.harbors.map((h) => ({ id: h.id, name: h.name })) } : {}) },
+        ...(here.kind === "harbor" && this.harbors.length ? { boats_to: this.harbors.map((h) => ({ id: h.id, name: h.name })) } : {}) },
       heard: a.heard.map((h) => ({ from: h.from, name: h.name, text: h.text })),
       recent: retrieve(a.memory, q, this.t, 8).map((m) => this.recall(a, m)),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
       ...(a.hint ? { hint: a.hint } : {}),
       today: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
-      options: [...OPTIONS_DEFAULT, ...(here.kind === "plot" && !here.site ? ["build" as const] : []), ...(here.owner === a.id ? ["hire" as const] : []), ...([...this.places.values()].some((p) => p.owner === a.id && p.beds) && nearby.length ? ["lodge" as const] : []), ...(nearby.length && a.coins > 0 ? ["lend" as const] : []), ...(here.kind === "harbor" && !this.ferryHeld ? ["leave" as const] : []), ...(here.kind === "civic" ? ["accuse" as const, ...(this.mayor === a.id ? ["fund" as const] : [])] : []), ...(here.owner === a.id ? ["stock" as const] : []), ...((here.owner === a.id || (a.job && this.jobs.get(a.job)?.place === here.id)) && Object.keys(here.stock).length ? ["make" as const] : []), ...(here.kind !== "wild" ? ["call" as const] : []), ...(this.residentsOf(here).some((r) => r.id !== a.id) && !this.residentsOf(here).some((r) => r.id !== a.id && r.location === here.id) ? ["search" as const] : [])],
+      options: [...OPTIONS_DEFAULT, ...(here.kind === "plot" && !here.site ? ["build" as const] : []), ...(here.owner === a.id ? ["hire" as const] : []), ...([...this.places.values()].some((p) => p.owner === a.id && p.beds) && nearby.length ? ["lodge" as const] : []), ...(nearby.length && a.coins > 0 ? ["lend" as const] : []), ...(here.kind === "harbor" && !this.boatHeld ? ["leave" as const] : []), ...(here.kind === "civic" ? ["accuse" as const, ...(this.mayor === a.id ? ["fund" as const] : [])] : []), ...(here.owner === a.id ? ["stock" as const] : []), ...((here.owner === a.id || (a.job && this.jobs.get(a.job)?.place === here.id)) && Object.keys(here.stock).length ? ["make" as const] : []), ...(here.kind !== "wild" ? ["call" as const] : []), ...(this.residentsOf(here).some((r) => r.id !== a.id) && !this.residentsOf(here).some((r) => r.id !== a.id && r.location === here.id) ? ["search" as const] : [])],
       deadline_ms: 8000,
     };
   }
@@ -654,8 +654,8 @@ export class Town {
       case "leave": {
         const harbor = action.to ? this.harbors.find((h) => h.id === action.to || h.name.toLowerCase() === action.to!.toLowerCase() || h.name.toLowerCase().includes(action.to!.toLowerCase())) : null;
         if (harbor && this.onDepart) { this.sailing.push({ a, to: harbor.id, why: action.why ?? null }); return true; } // the crossing happens at the end of the minute
-        this.emit("agent.leave", [a.id], "harbor", `${name} boarded the ferry and left the island${action.why ? `: “${action.why}”` : "."}`, 0.9, { why: action.why ?? null });
-        for (const w of this.nearby(a)) this.remember(w, `${name} left on the ferry${action.why ? `, saying "${action.why}"` : ""}.`, 0.7, "rumor");
+        this.emit("agent.leave", [a.id], "harbor", `${name} boarded the boat and left the island${action.why ? `: “${action.why}”` : "."}`, 0.9, { why: action.why ?? null });
+        for (const w of this.nearby(a)) this.remember(w, `${name} left on the boat${action.why ? `, saying "${action.why}"` : ""}.`, 0.7, "rumor");
         this.removeAgent(a.id, "left", action.why ?? "");
         return true;
       }
@@ -718,10 +718,10 @@ export class Town {
   // ---------- hourly and nightly ----------
   private hourly(): void {
     const h = this.hour;
-    if (this.ferryTimes.includes(h)) {
-      if (this.ferryHeld) this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not come.`, 0.2);
-      else if (this.weather === "storm") this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not cross; the sea was too high.`, 0.25);
-      else this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry docked.`, 0.03);
+    if (this.boatTimes.includes(h)) {
+      if (this.boatHeld) this.emit("boat.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 boat did not come.`, 0.2);
+      else if (this.weather === "storm") this.emit("boat.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 boat did not cross; the sea was too high.`, 0.25);
+      else this.emit("boat.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 boat docked.`, 0.03);
     }
     if (this.economyFrozen) return;
     if (h === 6) { this.cart(); this.prosper(); }
@@ -736,8 +736,8 @@ export class Town {
       if (h === job.hours[1]) for (const id of job.holders) {
         const a = this.agents.get(id); if (!a) continue;
         const place = this.places.get(job.place)!; const owner = place.owner ? this.agents.get(place.owner) : null;
-        // produce goes out on the evening ferry: the mainland pays the workplace a little more than the shift cost
-        // a place that makes nothing the ferry can carry (the harbor, the chandlery) still earns the mainland's coin for a day's handling
+        // produce goes out on the evening boat: the mainland pays the workplace a little more than the shift cost
+        // a place that makes nothing the boat can carry (the harbor, the chandlery) still earns the mainland's coin for a day's handling
         if (a.workedToday && !owner && !this.pack.produce.some((pr) => pr.place === place.id) && (place.kind === "workplace" || place.kind === "harbor")) { const paid = Math.round(job.wage * 1.25); place.treasury += paid; this.minted += paid; }
         const purse = owner && owner.id !== id ? owner.coins : owner ? Infinity : place.treasury;
         if (a.workedToday && purse < job.wage) {
@@ -815,7 +815,7 @@ export class Town {
       const wasWeak = a.starving >= 2;
       a.starving = hungry ? a.starving + 1 : 0; a.roofless = roof ? 0 : a.roofless + 1;
       if (a.starving >= 2 && !wasWeak) { this.emit("agent.weak", [a.id], a.location, `${a.persona.name} is weak with hunger and cannot work.`, 0.6); this.remember(a, "I have not eaten properly in two days. I am too weak to work.", 0.9); for (const w of this.nearby(a)) this.remember(w, `${a.persona.name} looks weak with hunger.`, 0.6, "rumor"); }
-      if (a.starving === 3) a.hint = "You have not eaten in three days and you will not survive many more. Something must change today: ask for help, steal, sell something, write home, or take the ferry.";
+      if (a.starving === 3) a.hint = "You have not eaten in three days and you will not survive many more. Something must change today: ask for help, steal, sell something, write home, or take the boat.";
       const winterRough = this.season === "winter" && a.roofless >= 3 && a.starving >= 3;
       if (a.starving >= 5 || winterRough) {
         const how = winterRough ? "of hunger and cold, sleeping rough in winter" : "of hunger";
@@ -885,7 +885,7 @@ export class Town {
     return null;
   }
 
-  /** What a person takes with them on the ferry: who they are, what they carry, what they remember, and the news from here. */
+  /** What a person takes with them on the boat: who they are, what they carry, what they remember, and the news from here. */
   passengerOf(a: AgentState, why: string | null): Passenger {
     const paper = this.papers[this.papers.length - 1];
     return {
@@ -897,7 +897,7 @@ export class Town {
       news: paper ? [paper.lead.headline, ...paper.briefs.slice(0, 3).map((b) => b.headline)] : [],
     };
   }
-  /** Put the minute's leavers on the ferry. If the far harbor does not answer, they stay, and it is news. */
+  /** Put the minute's leavers on the boat. If the far harbor does not answer, they stay, and it is news. */
   private async sail(): Promise<void> {
     if (!this.sailing.length) return;
     const queue = this.sailing.splice(0, this.sailing.length);
@@ -905,23 +905,23 @@ export class Town {
       if (!this.agents.has(a.id)) continue;
       const harbor = this.harbors.find((h) => h.id === to)!; const name = a.persona.name;
       let ok = false;
-      try { ok = await this.onDepart!(this.passengerOf(a, why), to); } catch (err) { this.log(`ferry to ${to} failed: ${(err as Error).message}`); }
-      if (!ok) { this.emit("ferry.dock", [a.id], "harbor", `The ferry to ${harbor.name} did not sail today. ${name} stayed on the pier.`, 0.4); this.remember(a, `The ferry to ${harbor.name} did not sail. Tomorrow, maybe.`, 0.6); continue; }
-      this.emit("agent.leave", [a.id], "harbor", `${name} boarded the ferry for ${harbor.name}${why ? `: “${why}”` : "."}`, 0.9, { why, to });
-      for (const w of this.nearby(a)) this.remember(w, `${name} left on the ferry for ${harbor.name}${why ? `, saying "${why}"` : ""}.`, 0.7, "rumor");
+      try { ok = await this.onDepart!(this.passengerOf(a, why), to); } catch (err) { this.log(`boat to ${to} failed: ${(err as Error).message}`); }
+      if (!ok) { this.emit("boat.dock", [a.id], "harbor", `The boat to ${harbor.name} did not sail today. ${name} stayed on the pier.`, 0.4); this.remember(a, `The boat to ${harbor.name} did not sail. Tomorrow, maybe.`, 0.6); continue; }
+      this.emit("agent.leave", [a.id], "harbor", `${name} boarded the boat for ${harbor.name}${why ? `: “${why}”` : "."}`, 0.9, { why, to });
+      for (const w of this.nearby(a)) this.remember(w, `${name} left on the boat for ${harbor.name}${why ? `, saying "${why}"` : ""}.`, 0.7, "rumor");
       this.removeAgent(a.id, "left", `For ${harbor.name}.${why ? ` ${why}` : ""}`);
     }
   }
-  /** Someone steps off the ferry from another island, with what they carry and what they remember. The news they bring becomes rumor. */
+  /** Someone steps off the boat from another island, with what they carry and what they remember. The news they bring becomes rumor. */
   arrive(p: Passenger): AgentState {
     const a = this.addAgent({ persona: p.persona, owner: p.owner, funded: true, coins: p.coins });
     a.appearance = p.appearance; a.inventory.push(...p.inventory); a.instructions = p.instructions;
     a.memory = p.memories.map((m) => ({ t: Math.min(m.t, this.t) - 1, text: m.text, importance: m.importance, kind: (m.kind as "obs") ?? "obs" }));
-    this.remember(a, `I came here from ${p.from.name} on the ferry${p.why ? ` because ${p.why}` : ""}. Nobody here knows me.`, 0.9);
+    this.remember(a, `I came here from ${p.from.name} on the boat${p.why ? ` because ${p.why}` : ""}. Nobody here knows me.`, 0.9);
     for (const o of p.opinions.slice(0, 12)) if (o.opinion) this.remember(a, `${o.name}, back on ${p.from.name}: ${o.opinion}`, 0.4);
-    const arrival = this.events[this.events.length - 1]; if (arrival && arrival.kind === "agent.arrive") arrival.text = `${p.persona.name} arrived on the ferry from ${p.from.name}.`;
+    const arrival = this.events[this.events.length - 1]; if (arrival && arrival.kind === "agent.arrive") arrival.text = `${p.persona.name} arrived on the boat from ${p.from.name}.`;
     if (p.news.length) {
-      this.emit("ferry.news", [a.id], "harbor", `The ferry from ${p.from.name} brought news: ${p.news.join("; ")}.`, 0.5, { from: p.from.id, news: p.news });
+      this.emit("boat.news", [a.id], "harbor", `The boat from ${p.from.name} brought news: ${p.news.join("; ")}.`, 0.5, { from: p.from.id, news: p.news });
       for (const w of this.nearby(a)) for (const n of p.news.slice(0, 2)) this.remember(w, `News from ${p.from.name}, a day old: ${n}`, 0.45, "rumor");
     }
     return a;
@@ -961,9 +961,9 @@ export class Town {
       const seller = from.owner ? this.agents.get(from.owner) : null; if (seller) seller.coins += paid; else from.treasury += paid;
       void cost;
     }
-    // the ferry: whatever is over what a place keeps back goes across the water. Other islands that want it are served first, at seven, by the server; what is left goes to the mainland at eight.
+    // the boat: whatever is over what a place keeps back goes across the water. Other islands that want it are served first, at seven, by the server; what is left goes to the mainland at eight.
   }
-  /** What the island could put on the ferry this morning: the surplus above what each place keeps back. */
+  /** What the island could put on the boat this morning: the surplus above what each place keeps back. */
   cargoOffers(): { item: string; qty: number; price: number; place: PlaceId }[] {
     const out: { item: string; qty: number; price: number; place: PlaceId }[] = [];
     for (const place of this.places.values()) for (const ex of this.pack.exports) { const surplus = (place.stock[ex.item] ?? 0) - ex.keep; if (surplus > 0) out.push({ item: ex.item, qty: surplus, price: ex.price, place: place.id }); }
@@ -979,7 +979,7 @@ export class Town {
   ship(items: { item: string; qty: number; price: number; place: PlaceId }[], to: string): number {
     let sold = 0; const took: string[] = []; const harbor = this.places.get("harbor");
     for (const it of items) { const place = this.places.get(it.place); if (!place) continue; const have = place.stock[it.item] ?? 0; const qty = Math.min(it.qty, have); if (qty <= 0) continue; place.stock[it.item] = have - qty; const paid = qty * it.price; const cut = Math.floor(paid / 10); const owner = place.owner ? this.agents.get(place.owner) : null; if (owner) owner.coins += paid - cut; else place.treasury += paid - cut; if (harbor) harbor.treasury += cut; this.minted += paid; sold += paid; took.push(`${qty} ${it.item}`); }
-    if (sold > 0) this.emit(to === "the mainland" ? "ferry.depart" : "ferry.cargo", [], "harbor", `The ${to === "the mainland" ? "morning ferry" : "ferry"} took ${took.join(", ")} to ${to}, for ${sold} coins.`, to === "the mainland" ? 0.2 : 0.35, { to, coins: sold, items: took });
+    if (sold > 0) this.emit(to === "the mainland" ? "boat.depart" : "boat.cargo", [], "harbor", `The ${to === "the mainland" ? "morning boat" : "boat"} took ${took.join(", ")} to ${to}, for ${sold} coins.`, to === "the mainland" ? 0.2 : 0.35, { to, coins: sold, items: took });
     return sold;
   }
   /** Goods arrive from another island: the shelves that wanted them fill, and their tills pay (the coins leave this island). Returns what was paid; nothing is taken that cannot be paid for. */
@@ -992,7 +992,7 @@ export class Town {
       const cost = qty * it.price; if (buyer) buyer.coins -= cost; else to.treasury -= cost; this.burned += cost; paid += cost;
       to.stock[it.item] = (to.stock[it.item] ?? 0) + qty; taken.push({ item: it.item, qty });
     }
-    if (taken.length) this.emit("ferry.cargo", [], "harbor", `The ferry brought ${taken.map((t) => `${t.qty} ${t.item}`).join(", ")} from ${from}, for ${paid} coins.`, 0.35, { from, coins: paid, items: taken });
+    if (taken.length) this.emit("boat.cargo", [], "harbor", `The boat brought ${taken.map((t) => `${t.qty} ${t.item}`).join(", ")} from ${from}, for ${paid} coins.`, 0.35, { from, coins: paid, items: taken });
     return taken;
   }
   /** What no island wanted goes to the mainland, which always buys. */
@@ -1131,8 +1131,8 @@ export class Town {
     if (plan.goals[0]) { this.remember(a, `What I meant to do today: ${plan.goals.join("; ")}`, 0.35, "plan"); this.emit("agent.plan", [a.id], a.location, `${a.persona.name} set out to ${lower(plan.goals[0])}`, 0.15, { goals: plan.goals, mood: plan.mood }); }
   }
 
-  /** No ferry runs in a storm, or when the ops room holds it. */
-  get ferryRunning(): boolean { return !this.ferryHeld && this.weather !== "storm"; }
+  /** No boat runs in a storm, or when the ops room holds it. */
+  get boatRunning(): boolean { return !this.boatHeld && this.weather !== "storm"; }
 
   /** People who boarded today and have not yet stepped off. */
   pendingArrivals(): number { return this.arrivalsToday; }
@@ -1211,7 +1211,7 @@ export class Town {
     for (const a of this.agents.values()) {
       const t = a.persona.traits; const mine = today.filter((e) => e.actors[0] === a.id);
       const paid = mine.filter((e) => e.kind === "agent.work").length; const took = mine.filter((e) => e.kind === "agent.take").length;
-      const fined = today.some((e) => e.kind === "town.gathering" && e.actors[1] === a.id && /fined|the ferry/.test(e.text)); const robbed = today.some((e) => e.kind === "agent.take" && e.actors[1] === a.id);
+      const fined = today.some((e) => e.kind === "town.gathering" && e.actors[1] === a.id && /fined|the boat/.test(e.text)); const robbed = today.some((e) => e.kind === "agent.take" && e.actors[1] === a.id);
       if (paid >= 1 && a.coins > 40) t.ambition = clampT(t.ambition + 0.004);
       if (fined || robbed || a.starving >= 2) t.caution = clampT(t.caution + 0.01);
       if (this.partnerOf(a) || this.children.some((c) => c.parents.includes(a.id))) t.warmth = clampT(t.warmth + 0.003);
@@ -1335,14 +1335,14 @@ export class Town {
     } else if (b.convictions >= 1 || guilt >= 3) {
       if (a) this.remember(a, `The council found against ${b.persona.name} on my word, and sent them away.`, 0.9);
       for (const w of witnesses) this.remember(w, `The council exiled ${b.persona.name} for ${guilt} offence${guilt === 1 ? "" : "s"}.`, 0.8, "rumor");
-      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows ${guilt} offence${guilt === 1 ? "" : "s"}${b.convictions ? " and a conviction already" : ""}: the ferry.`, 1, { kind: g.kind, verdict: "exile", guilt, crowd: crowd.map((c) => c.id), held: true });
+      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows ${guilt} offence${guilt === 1 ? "" : "s"}${b.convictions ? " and a conviction already" : ""}: the boat.`, 1, { kind: g.kind, verdict: "exile", guilt, crowd: crowd.map((c) => c.id), held: true });
       this.removeAgent(b.id, "exiled", `Found against by the council, accused by ${accuser}.`);
     } else {
       const fine = Math.min(b.coins, 4 * guilt); b.coins -= fine; council.treasury += fine; b.convictions++;
-      this.remember(b, `The council fined me ${fine} coins on ${accuser}'s word, in front of everyone. One more and they will put me on the ferry.`, 0.95);
+      this.remember(b, `The council fined me ${fine} coins on ${accuser}'s word, in front of everyone. One more and they will put me on the boat.`, 0.95);
       if (a) { this.remember(a, `The council fined ${b.persona.name} ${fine} coins on my word.`, 0.7); const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.4); }
       for (const w of witnesses) { this.nudge(w, b.id, -0.1, -0.05); this.remember(w, `The council fined ${b.persona.name} ${fine} coins for "${g.note}".`, 0.6, "rumor"); }
-      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows ${guilt} offence${guilt === 1 ? "" : "s"}: fined ${fine} coins. A second conviction means the ferry.`, 0.95, { kind: g.kind, verdict: "fine", fine, guilt, crowd: crowd.map((c) => c.id), held: true });
+      this.emit("town.gathering", g.actors, g.place, `The council heard ${accuser} against ${b.persona.name} (“${g.note}”) in front of ${who}. The record shows ${guilt} offence${guilt === 1 ? "" : "s"}: fined ${fine} coins. A second conviction means the boat.`, 0.95, { kind: g.kind, verdict: "fine", fine, guilt, crowd: crowd.map((c) => c.id), held: true });
     }
   }
   /** The council sits: open laws close on their votes, and the island chooses a mayor by the trust it holds in each person. */

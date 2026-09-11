@@ -229,12 +229,12 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const sails = findParts("sails"), bells = findParts("bell"), cloths = findParts("cloth"); let millSpeed = 0;
       const boats = [...scene.children].filter((ch) => decor.some((d) => d.sprite === "rowboat" && Math.abs(ch.position.x - d.x) < 1 && Math.abs(ch.position.y - d.y) < 1)) as (Container & { userData: number })[]; for (const bt of boats) bt.userData = bt.position.y;
       const wake = new Graphics(); wake.zIndex = 0.6; scene.addChild(wake);
-      const aboard: Container[] = []; // figures riding the ferry, parented to it
+      const aboard: Container[] = []; // figures riding the boat, parented to it
       const gulls = new Graphics(); gulls.zIndex = 180000; scene.addChild(gulls);
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
       const dockX = harbor.x - 420, awayX = -760;
-      const ferry = put("ferry", dockX, harbor.y + 20)!; ferry.zIndex = harbor.y - 30; let ferryTarget = dockX;
+      const boat = put("boat", dockX, harbor.y + 20)!; boat.zIndex = harbor.y - 30; let boatTarget = dockX;
 
       // weather and time
       const rain = new Graphics(); rain.zIndex = 200000; scene.addChild(rain);
@@ -296,13 +296,13 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (e.kind === "agent.sleep") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = true; f.pose = "sleep"; } }
           if (e.kind === "agent.wake") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = false; f.pose = "idle"; } }
           if (e.kind === "agent.work" && /worked on|mornings done/.test(e.text)) { const f = figs.current.get(e.actors[0]!); if (f) f.pose = "work"; }
-          // whoever leaves walks to the ferry and rides away on it; the deck carries them until the boat is out of sight
-          if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.boarding = true; f.bench = false; f.asleep = false; f.tx = ferry.position.x + 12; f.ty = ferry.position.y - 2; } }
+          // whoever leaves walks to the boat and rides away on it; the deck carries them until the boat is out of sight
+          if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.boarding = true; f.bench = false; f.asleep = false; f.tx = boat.position.x + 12; f.ty = boat.position.y - 2; } }
           if (e.kind === "agent.say") { const q = /“([^”]+)”/.exec(e.text)?.[1]; if (q) bubbles.current.set(e.actors[0]!, { text: q, until: Date.now() + 7000 }); }
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
-          if (e.kind === "ferry.dock") { if (/docked/.test(e.text)) { ferry.position.x = awayX; ferryTarget = dockX; ambience.horn(); } }
-          if (e.kind === "ferry.depart") ferryTarget = awayX;
-          if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) { const f = ensure(a); f.x = ferry.position.x + 40; f.y = ferry.position.y - 10; f.g.position.set(f.x, f.y); } }); }
+          if (e.kind === "boat.dock") { if (/docked/.test(e.text)) { boat.position.x = awayX; boatTarget = dockX; ambience.horn(); } }
+          if (e.kind === "boat.depart") boatTarget = awayX;
+          if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) { const f = ensure(a); f.x = boat.position.x + 40; f.y = boat.position.y - 10; f.g.position.set(f.x, f.y); } }); }
           if (e.kind === "agent.build" || e.kind === "town.built" || (e.kind === "agent.work" && /mornings done/.test(e.text))) void refreshPlaces();
           if (e.importance >= 0.1 && e.kind !== "agent.move") setFeed((f) => [e, ...f].slice(0, 12));
         }
@@ -344,13 +344,13 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (rough > 0) for (let i = 0; i < 70 * rough; i++) { const xx = ((i * 811 + tick * 3) % (W + 1400)) - 700, yy = ((i * 1237) % (H + 1000)) - 500; if (inside(xx, yy) < 1.12) continue; const ph = Math.sin(tick / 12 + i); if (ph < 0.2) continue; seaLife.moveTo(xx, yy).lineTo(xx + 14 + ph * 10, yy - 2).stroke({ width: 2.2, color: C.foam, alpha: 0.5 + ph * 0.4, cap: "round" }); }
           if (weather === "rain" || weather === "storm") for (let i = 0; i < 60; i++) { const xx = ((i * 947 + Math.floor(tick / 9) * 131) % (W + 1400)) - 700, yy = ((i * 1543 + Math.floor(tick / 9) * 71) % (H + 1000)) - 500; if (inside(xx, yy) < 1.1) continue; const age = ((tick + i * 7) % 9) / 9; seaLife.ellipse(xx, yy, 3 + age * 14, 1.5 + age * 6).stroke({ width: 1, color: C.foam, alpha: 0.5 * (1 - age) }); }
         }
-        // ferry: it crosses at a boat's pace, bobs, and leaves a wake; the rowboats bob beside the quay
-        const sailing = Math.abs(ferryTarget - ferry.position.x) > 2;
-        if (sailing) ferry.position.x += Math.sign(ferryTarget - ferry.position.x) * Math.min(Math.abs(ferryTarget - ferry.position.x), 2.2);
-        ferry.position.y = harbor.y + 20 + Math.sin(tick / 40) * 1.5; ferry.rotation = Math.sin(tick / 55) * 0.012;
-        if (tick % 2 === 0) { wake.clear(); if (sailing) { const dir = Math.sign(ferryTarget - ferry.position.x); for (let i = 1; i <= 7; i++) { const x = ferry.position.x - dir * (70 + i * 26), y = ferry.position.y + 6 + Math.sin(tick / 9 + i) * 2; wake.moveTo(x, y - i * 1.5).lineTo(x - dir * 18, y - i * 1.5).moveTo(x, y + i * 1.5).lineTo(x - dir * 18, y + i * 1.5).stroke({ width: 2, color: C.foam, alpha: Math.max(0, 0.7 - i * 0.09), cap: "round" }); } } }
+        // boat: it crosses at a boat's pace, bobs, and leaves a wake; the rowboats bob beside the quay
+        const sailing = Math.abs(boatTarget - boat.position.x) > 2;
+        if (sailing) boat.position.x += Math.sign(boatTarget - boat.position.x) * Math.min(Math.abs(boatTarget - boat.position.x), 2.2);
+        boat.position.y = harbor.y + 20 + Math.sin(tick / 40) * 1.5; boat.rotation = Math.sin(tick / 55) * 0.012;
+        if (tick % 2 === 0) { wake.clear(); if (sailing) { const dir = Math.sign(boatTarget - boat.position.x); for (let i = 1; i <= 7; i++) { const x = boat.position.x - dir * (70 + i * 26), y = boat.position.y + 6 + Math.sin(tick / 9 + i) * 2; wake.moveTo(x, y - i * 1.5).lineTo(x - dir * 18, y - i * 1.5).moveTo(x, y + i * 1.5).lineTo(x - dir * 18, y + i * 1.5).stroke({ width: 2, color: C.foam, alpha: Math.max(0, 0.7 - i * 0.09), cap: "round" }); } } }
         // out of sight, the passengers are gone
-        if (aboard.length && Math.abs(ferry.position.x - awayX) < 4) { for (const g of aboard) g.destroy({ children: true }); aboard.length = 0; }
+        if (aboard.length && Math.abs(boat.position.x - awayX) < 4) { for (const g of aboard) g.destroy({ children: true }); aboard.length = 0; }
         for (let i = 0; i < boats.length; i++) { const bt = boats[i]!; bt.position.y = bt.userData + Math.sin(tick / 35 + i * 2) * 1.2; bt.rotation = Math.sin(tick / 50 + i) * 0.03; }
         // the mill turns while it is worked; the chapel bell swings at ten on Sunday; the washing sways in the wind
         const millP = places.get("mill"); const millOn = !!millP && millP.crowd > 0 && (c?.hour ?? 12) >= 7 && (c?.hour ?? 12) < 15 && c?.weekday !== "Sunday";
@@ -437,7 +437,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           // walk at a person's pace, not a spring's
           const dx = f.tx - f.x, dy = f.ty - f.y, dist = Math.hypot(dx, dy), step = Math.min(dist, f.weak ? 0.9 : 1.6);
           if (dist > 0.01) { f.x += (dx / dist) * step; f.y += (dy / dist) * step; }
-          if (f.boarding) { f.tx = ferry.position.x + 12; f.ty = ferry.position.y - 2; if (dist < 4) { scene.removeChild(f.g); f.g.position.set(-20 + aboard.length * 16, -14); f.g.scale.set(0.9); f.rig.setPose("idle"); f.rig.face(-1); ferry.addChild(f.g); aboard.push(f.g); figs.current.delete(f.id); continue; } }
+          if (f.boarding) { f.tx = boat.position.x + 12; f.ty = boat.position.y - 2; if (dist < 4) { scene.removeChild(f.g); f.g.position.set(-20 + aboard.length * 16, -14); f.g.scale.set(0.9); f.rig.setPose("idle"); f.rig.face(-1); boat.addChild(f.g); aboard.push(f.g); figs.current.delete(f.id); continue; } }
           f.g.position.set(f.x, f.y);
           if (moving) f.facing = dx < 0 ? -1 : 1;
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);

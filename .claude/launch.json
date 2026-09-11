@@ -1,7 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "server", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@ferrytown/server", "dev"], "port": 4000 },
-    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@ferrytown/web", "dev"], "port": 3000 }
+    { "name": "server", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@smallhours/server", "dev"], "port": 4000 },
+    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@smallhours/web", "dev"], "port": 3000 }
   ]
 }

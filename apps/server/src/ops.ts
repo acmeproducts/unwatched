@@ -1,6 +1,6 @@
-import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, JudgeContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Judgement, Perception, Persona, Reflection } from "@ferrytown/protocol";
-import { OpenRouterBrain } from "@ferrytown/cognition";
+import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, JudgeContext, PlanContext, ReflectContext, Tier } from "@smallhours/engine";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Judgement, Perception, Persona, Reflection } from "@smallhours/protocol";
+import { OpenRouterBrain } from "@smallhours/cognition";
 
 const PRICE: Record<string, [number, number]> = { "anthropic/claude-haiku-4.5": [1, 5], "anthropic/claude-sonnet-5": [2, 10], "anthropic/claude-opus-5": [5, 25], "claude-haiku-4-5": [1, 5], "claude-sonnet-5": [2, 10], "claude-opus-5": [5, 25] };
 

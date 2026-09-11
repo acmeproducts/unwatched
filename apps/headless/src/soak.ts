@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync, createWriteStream, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Town, MINUTES_PER_DAY } from "@ferrytown/engine";
-import type { Brain } from "@ferrytown/engine";
-import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferrytown/cognition";
-import { Rng } from "@ferrytown/engine";
+import { Town, MINUTES_PER_DAY } from "@smallhours/engine";
+import type { Brain } from "@smallhours/engine";
+import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@smallhours/cognition";
+import { Rng } from "@smallhours/engine";
 
 function arg(name: string, def: string): string {
   const i = process.argv.indexOf(`--${name}`);

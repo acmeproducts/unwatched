@@ -23,7 +23,7 @@ describe("cargo between islands", () => {
     const coinsNorthAfter = [...north.places.values()].reduce((s, p) => s + p.treasury, 0), coinsSouthAfter = [...south.places.values()].reduce((s, p) => s + p.treasury, 0);
     expect(coinsNorthBefore - coinsNorthAfter).toBe(12); expect(coinsSouthAfter - coinsSouthBefore).toBe(12);
     expect(north.burned).toBe(12); expect(south.minted).toBe(12);
-    expect(north.events.some((e) => e.kind === "ferry.cargo" && /brought 12 grain/.test(e.text))).toBe(true);
+    expect(north.events.some((e) => e.kind === "boat.cargo" && /brought 12 grain/.test(e.text))).toBe(true);
     // a shelf that cannot pay takes nothing
     north.places.get("mill")!.treasury = 0; north.places.get("mill")!.stock.grain = 0;
     expect(north.receive(load, "the south island")).toEqual([]);

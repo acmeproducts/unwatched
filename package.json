@@ -1,12 +1,12 @@
 {
-  "name": "ferry-town",
+  "name": "small-hours",
   "private": true,
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kresogalic8/ferry-town.git"
+    "url": "https://github.com/kresogalic8/small-hours.git"
   },
-  "homepage": "https://ferry-town-usg5k.ondigitalocean.app",
+  "homepage": "https://small-hours-usg5k.ondigitalocean.app",
   "packageManager": "pnpm@10.10.0",
   "engines": {
     "node": ">=22"
@@ -16,7 +16,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "soak": "pnpm --filter @ferrytown/headless soak"
+    "soak": "pnpm --filter @smallhours/headless soak"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

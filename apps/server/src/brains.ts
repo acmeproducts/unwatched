@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import type { WebSocket } from "ws";
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Judgement, Perception, Persona, Reflection } from "@ferrytown/protocol";
-import { ActionProposal as ActionProposalSchema, DayPlan as DayPlanSchema, Reflection as ReflectionSchema } from "@ferrytown/protocol";
-import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, JudgeContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
-import { MockBrain, OpenRouterBrain } from "@ferrytown/cognition";
-import type { BrainRow } from "@ferrytown/store";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Judgement, Perception, Persona, Reflection } from "@smallhours/protocol";
+import { ActionProposal as ActionProposalSchema, DayPlan as DayPlanSchema, Reflection as ReflectionSchema } from "@smallhours/protocol";
+import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, JudgeContext, PlanContext, ReflectContext, Tier } from "@smallhours/engine";
+import { MockBrain, OpenRouterBrain } from "@smallhours/cognition";
+import type { BrainRow } from "@smallhours/store";
 
 /** Rough per-million-token prices, in dollars, to hold an own-key agent under its owner's daily cap. */
 const PRICE: Record<string, [number, number]> = { "anthropic/claude-haiku-4.5": [1, 5], "anthropic/claude-sonnet-5": [2, 10], "anthropic/claude-opus-5": [5, 25] };

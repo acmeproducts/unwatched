@@ -1,24 +1,24 @@
 # Islands that connect
 
-An island is one server. Two islands that share a secret can run a ferry between them. A citizen who boards it leaves one island and steps off at the other with their persona, their coins and things, their standing instructions, their memories, and their opinions of the people they left; the news from home crosses with them and spreads as rumor. Anyone who runs Small Hours can link their island to yours.
+An island is one server. Two islands that share a secret can run a boat between them. A citizen who boards it leaves one island and steps off at the other with their persona, their coins and things, their standing instructions, their memories, and their opinions of the people they left; the news from home crosses with them and spreads as rumor. Anyone who runs Small Hours can link their island to yours.
 
 ## Linking two islands
 
 On each server, name the other islands and share one secret:
 
 ```
-FT_TOWN_NAME=Northreach
-FT_HARBORS=island=https://ferry-town.example/engine,cove=https://cove.example/engine
-FT_FERRY_SECRET=<the same long random string on every linked island>
+SH_TOWN_NAME=Northreach
+SH_HARBORS=island=https://small-hours.example/engine,cove=https://cove.example/engine
+SH_BOAT_SECRET=<the same long random string on every linked island>
 ```
 
-The id before `=` is what citizens see in `ferries_to` and what `leave` takes as `to`. The url is the other island's engine, the base of its `/api`. Names are fetched from the other island at start, so a citizen sees "Northreach", not "north".
+The id before `=` is what citizens see in `boats_to` and what `leave` takes as `to`. The url is the other island's engine, the base of its `/api`. Names are fetched from the other island at start, so a citizen sees "Northreach", not "north".
 
 An island with no secret set refuses every arrival. Keep the secret out of the repo, as with every other key.
 
 ## What crosses
 
-`POST /api/ferry/arrive` with header `X-Ferry: <secret>` and a body shaped like this:
+`POST /api/boat/arrive` with header `X-Boat: <secret>` and a body shaped like this:
 
 ```json
 {
@@ -33,7 +33,7 @@ An island with no secret set refuses every arrival. Keep the secret out of the r
 }
 ```
 
-The receiving island answers `{ "ok": true, "id": "ag_north1", "island": "Northreach" }` and the passenger is standing at its harbor within the minute. It refuses with 503 when its own ferry is held or a storm is blowing, and the sender keeps the passenger and prints that the ferry did not sail.
+The receiving island answers `{ "ok": true, "id": "ag_north1", "island": "Northreach" }` and the passenger is standing at its harbor within the minute. It refuses with 503 when its own boat is held or a storm is blowing, and the sender keeps the passenger and prints that the boat did not sail.
 
 ## What the passenger keeps and loses
 
@@ -43,7 +43,7 @@ The receiving island answers `{ "ok": true, "id": "ag_north1", "island": "Northr
 
 ## How a citizen decides to go
 
-At the harbor, a citizen's perception lists `ferries_to`. The rules prompt tells them they may leave for one of those islands and arrive with what they carry and what they remember. The `leave` action takes `to` by id or by name. The crossing happens at the end of that minute; if the far harbor does not answer, they stay on the pier and the record says so.
+At the harbor, a citizen's perception lists `boats_to`. The rules prompt tells them they may leave for one of those islands and arrive with what they carry and what they remember. The `leave` action takes `to` by id or by name. The crossing happens at the end of that minute; if the far harbor does not answer, they stay on the pier and the record says so.
 
 Owners cannot send anyone. They can suggest it in a letter.
 
@@ -53,8 +53,8 @@ The boarding page lists the far islands with live population and weather. A tick
 
 ## What does not cross yet
 
-Trade and letters. A ferry that carries flour from a farming island to a hungry bakery, and a letter from a citizen to a friend who emigrated, are the obvious next two. The manifest shape above is what they would ride on.
+Trade and letters. A boat that carries flour from a farming island to a hungry bakery, and a letter from a citizen to a friend who emigrated, are the obvious next two. The manifest shape above is what they would ride on.
 
 ## Cargo
 
-Linked islands trade. At seven each morning, before the mainland buys anything, an island asks each harbour it is linked to what that island is short of (`GET /api/ferry/wants`, with the shared secret), sends what it has spare (`POST /api/ferry/cargo`), and is paid by the shelves that wanted it. The buying island's tills pay in coins that leave it; the selling island's producers are paid in coins that arrive, so across the federation nothing is minted by the trade itself. What no island wanted goes to the mainland at eight, as before.
+Linked islands trade. At seven each morning, before the mainland buys anything, an island asks each harbour it is linked to what that island is short of (`GET /api/boat/wants`, with the shared secret), sends what it has spare (`POST /api/boat/cargo`), and is paid by the shelves that wanted it. The buying island's tills pay in coins that leave it; the selling island's producers are paid in coins that arrive, so across the federation nothing is minted by the trade itself. What no island wanted goes to the mainland at eight, as before.

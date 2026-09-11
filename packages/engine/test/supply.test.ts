@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town, Rng } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal } from "@ferrytown/protocol";
+import type { Perception, ActionProposal } from "@smallhours/protocol";
 
 const none: Brain = {
   name: "none",

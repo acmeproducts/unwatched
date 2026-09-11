@@ -1,4 +1,4 @@
-import type { Action } from "@ferrytown/protocol";
+import type { Action } from "@smallhours/protocol";
 import type { AgentState, Place, Job } from "./types.ts";
 import { FOOD_ITEMS } from "./world.ts";
 

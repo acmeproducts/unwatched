@@ -14,3 +14,4 @@ apps/web/public/sound/*.wav
 # build output
 .next
 apps/headless/out-or
+apps/headless/out-mock

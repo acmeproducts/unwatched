@@ -1,5 +1,5 @@
 {
-  "name": "@ferrytown/cognition",
+  "name": "@smallhours/cognition",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
   "scripts": { "typecheck": "tsc -p tsconfig.json" },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
-    "@ferrytown/engine": "workspace:*",
-    "@ferrytown/protocol": "workspace:*",
+    "@smallhours/engine": "workspace:*",
+    "@smallhours/protocol": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": { "typescript": "^5.8.0", "@types/node": "^22.15.0" }

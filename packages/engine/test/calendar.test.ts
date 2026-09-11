@@ -15,11 +15,11 @@ describe("the island's own year", () => {
     for (let i = 0; i < 8; i++) town.addAgent({ persona: persona(`P${i}`, rng) });
     const people = [...town.agents.values()]; let i = 0; for (const job of town.jobs.values()) { const a = people[i++]; if (!a) break; a.job = job.id; job.holders.push(a.id); }
     expect(town.month).toBe(1); expect(town.inSeason()).toEqual([]);
-    // June: lavender in the fields, gone to the ferry by the next morning
+    // June: lavender in the fields, gone to the boat by the next morning
     town.monthOverride = 6; expect(town.inSeason()).toContain("lavender");
     await town.run(4);
-    const fields = town.places.get("fields")!; expect(town.events.some((e) => e.kind === "ferry.depart" && /lavender/.test(e.text))).toBe(true);
-    while (town.hour < 9) await town.tick(); expect(fields.stock.lavender ?? 0).toBe(0); // keep is nothing: after the eight o'clock ferry, none is left
+    const fields = town.places.get("fields")!; expect(town.events.some((e) => e.kind === "boat.depart" && /lavender/.test(e.text))).toBe(true);
+    while (town.hour < 9) await town.tick(); expect(fields.stock.lavender ?? 0).toBe(0); // keep is nothing: after the eight o'clock boat, none is left
     // the island's day: the feast at one, no shifts after noon, everyone fed
     town.monthOverride = 7; town.dayOfMonthOverride = 24; const feastDay = town.day + 1; await town.run(feastDay);
     for (const a of town.agents.values()) a.needs.hunger = 0.9;

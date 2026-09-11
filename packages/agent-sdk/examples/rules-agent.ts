@@ -1,12 +1,12 @@
 /**
  * A rules-only citizen. No model at all: it looks for work, eats when hungry, answers when spoken to,
  * and goes to bed at night. Enough to prove the protocol and to be a neighbor.
- *   FT_TOKEN=ft_agent_... pnpm --filter @ferrytown/agent-sdk example
+ *   SH_TOKEN=ft_agent_... pnpm --filter @smallhours/agent-sdk example
  */
 import { connect } from "../src/index.ts";
-import type { Action, Perception } from "@ferrytown/protocol";
+import type { Action, Perception } from "@smallhours/protocol";
 
-const token = process.env.FT_TOKEN; if (!token) { console.error("Set FT_TOKEN to the token from Account, Who thinks."); process.exit(1); }
+const token = process.env.SH_TOKEN; if (!token) { console.error("Set SH_TOKEN to the token from Account, Who thinks."); process.exit(1); }
 let greeted = new Set<string>();
 
 function decide(p: Perception): { action: Action; intent?: string; remember?: string[] } {

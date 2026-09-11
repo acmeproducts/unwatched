@@ -10,7 +10,7 @@ const none: Brain = {
 const persona = (name: string, rng: Rng) => ({ name, age: 30, origin: "the mainland", summary: "A person.", want: "A room.", fear: "Debt.", secret: "None.", strangers: "Polite.", advice: "Considers it.", traits: { warmth: rng.next(), pride: rng.next(), caution: rng.next(), honesty: rng.next(), ambition: rng.next() } });
 
 describe("an island its citizens shape", () => {
-  it("a shop sets its stock, a workshop learns a recipe the ferry pays for, three voices name a place, and a passed law bites", () => {
+  it("a shop sets its stock, a workshop learns a recipe the boat pays for, three voices name a place, and a passed law bites", () => {
     const town = new Town({ seed: 12, brain: none }); const rng = new Rng(12);
     const [a, b, c] = Array.from({ length: 3 }, (_, i) => town.addAgent({ persona: persona(`P${i}`, rng) })) as [ReturnType<Town["addAgent"]>, ReturnType<Town["addAgent"]>, ReturnType<Town["addAgent"]>];
     // stock: only the owner, only things the island has

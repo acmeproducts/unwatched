@@ -1,5 +1,5 @@
-import type { LifeText, DayPlan, DigestText, Child, Judgement } from "@ferrytown/protocol";
-import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@ferrytown/protocol";
+import type { LifeText, DayPlan, DigestText, Child, Judgement } from "@smallhours/protocol";
+import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@smallhours/protocol";
 
 export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic" | "plot" | "wild";
 
@@ -107,7 +107,7 @@ export interface AgentState {
   heading: PlaceId | null;
   /** Days in a row that ended hungry, and days in a row that ended without a roof. Two hungry days makes you weak; five can kill. */
   starving: number; roofless: number;
-  /** Times the council found against them. The second time is the ferry. */
+  /** Times the council found against them. The second time is the boat. */
   convictions: number;
   /** Other people's secrets this person has learned, by whose id. */
   secretsKnown: Record<AgentId, string>;

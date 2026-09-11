@@ -4,17 +4,17 @@ import { authHeaders } from "./auth";
 export const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 export const WS = API.replace(/^http/, "ws") + "/stream";
 
-/** A binary answer from the ferry office, with the same sign-in: a voice, a file. */
+/** A binary answer from the boat office, with the same sign-in: a voice, a file. */
 export async function apiBlob(path: string): Promise<Blob> {
   const res = await fetch(`${API}${path}`, { headers: await authHeaders(), cache: "no-store" });
-  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error((body as { error?: string }).error ?? `The ferry office answered ${res.status}.`); }
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error((body as { error?: string }).error ?? `The boat office answered ${res.status}.`); }
   return res.blob();
 }
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = { "Content-Type": "application/json", ...(await authHeaders()), ...(init?.headers as Record<string, string> | undefined) };
   const res = await fetch(`${API}${path}`, { ...init, headers, cache: "no-store" });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string }).error ?? `The ferry office answered ${res.status}.`);
+  if (!res.ok) throw new Error((body as { error?: string }).error ?? `The boat office answered ${res.status}.`);
   return body as T;
 }
 

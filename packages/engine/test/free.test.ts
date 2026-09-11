@@ -7,7 +7,7 @@ const mind: Brain = {
   name: "mind",
   async decide(p) { return p.self.watching?.length ? { action: { kind: "do", what: "whistle the old harbour tune for whoever is here" }, remember: [] } : { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async plan() { throw new Error("no"); },
-  async reflect(ctx) { return { summary: `Day ${ctx.day}.`, insights: [], opinions: [], intentions: [], letter_to_owner: null, watch: ["the market square", "Vesna"], self: { want: "to stay, now, and to be known here", fear: "the ferry" }, projects: [{ title: "A shop of my own", why: "so nobody can let me go", progress: ctx.day >= 2 ? "eleven coins saved" : "just a thought" }], beliefs: ctx.day === 1 ? [{ about: "the mill", belief: "the mill roof will not last the winter", confidence: 0.6 }, { about: "Vesna", belief: "Vesna wants the same plot I do", confidence: 0.4 }] : [{ about: "the mill", belief: "the mill roof will not last the winter", confidence: 0.7 }] }; },
+  async reflect(ctx) { return { summary: `Day ${ctx.day}.`, insights: [], opinions: [], intentions: [], letter_to_owner: null, watch: ["the market square", "Vesna"], self: { want: "to stay, now, and to be known here", fear: "the boat" }, projects: [{ title: "A shop of my own", why: "so nobody can let me go", progress: ctx.day >= 2 ? "eleven coins saved" : "just a thought" }], beliefs: ctx.day === 1 ? [{ about: "the mill", belief: "the mill roof will not last the winter", confidence: 0.6 }, { about: "Vesna", belief: "Vesna wants the same plot I do", confidence: 0.4 }] : [{ about: "the mill", belief: "the mill roof will not last the winter", confidence: 0.7 }] }; },
   async digest() { return { text: "", headline: "" }; }, async child() { throw new Error("no"); }, async writePaper() { throw new Error("no"); }, async life() { throw new Error("no"); },
   async judge(ctx) { return { happened: `${ctx.agent.persona.name} whistled; two heads turned.`, plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases: "social", trust: ctx.nearby.slice(0, 1).map((who) => ({ who, delta: 0.05 })) }; },
 };
@@ -19,7 +19,7 @@ describe("free minds", () => {
     const a = town.addAgent({ persona: persona("Mira", rng), funded: true }); town.addAgent({ persona: persona("Vesna", rng), funded: true });
     a.budget.tier2Max = 5;
     await town.run(2); // midnight: reflection
-    expect(a.persona.want).toBe("to stay, now, and to be known here"); expect(a.persona.fear).toBe("the ferry"); expect(a.persona.summary).toBe("A person.");
+    expect(a.persona.want).toBe("to stay, now, and to be known here"); expect(a.persona.fear).toBe("the boat"); expect(a.persona.summary).toBe("A person.");
     expect(a.selves.length).toBe(1); expect(a.selves[0]!.want).toBe("A room.");
     expect(town.events.some((e) => e.kind === "agent.became" && /now wants/.test(e.text))).toBe(true);
     expect(a.watch).toEqual(["the market square", "Vesna"]);

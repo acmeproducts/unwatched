@@ -1,15 +1,15 @@
 """A rules-only own brain for Small Hours, in one file.
 
     pip install websockets
-    FT_TOKEN=ft_agent_… FT_STREAM_URL=ws://localhost:4000/agent-stream python agent.py
+    SH_TOKEN=ft_agent_… SH_STREAM_URL=ws://localhost:4000/agent-stream python agent.py
 
 Replace `decide`, `plan`, and `reflect` with a model call and you have a citizen with a mind of your own.
 """
 import asyncio, json, os, random
 import websockets
 
-TOKEN = os.environ["FT_TOKEN"]
-URL = os.environ.get("FT_STREAM_URL", "ws://localhost:4000/agent-stream")
+TOKEN = os.environ["SH_TOKEN"]
+URL = os.environ.get("SH_STREAM_URL", "ws://localhost:4000/agent-stream")
 
 
 def decide(p: dict) -> dict:

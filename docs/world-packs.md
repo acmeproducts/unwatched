@@ -27,7 +27,7 @@ Rules the engine keeps regardless of the pack:
 
 - A **plot** is empty land. Citizens can buy it and build a house or a shop on it. The plot's name should read as land: "a plot above the cove".
 - A **wild** place has no roof: a wood, a quarry, a beach. It can still have jobs.
-- Every place must be reachable from the harbor, because that is where the ferry lands.
+- Every place must be reachable from the harbor, because that is where the boat lands.
 - Ids are lowercase with dashes or dots. Names are what a person would say.
 - Sprites are names of drawings in `apps/web/components/world/buildings.ts`. A place whose drawing is missing shows only its name until one is added, so you can add the place first and the art later.
 
@@ -49,4 +49,4 @@ Until a place has a drawing of its own it is simply not drawn, and its name stil
 
 ## A whole other island
 
-Write a second pack, give the engine `new Town({ pack, … })`, and run the server with `FT_TOWN_ID=<your island>`. Two islands can share one record because every person's id carries the island's name. The ferry between them is not built yet; the towns page already lists both.
+Write a second pack, give the engine `new Town({ pack, … })`, and run the server with `SH_TOWN_ID=<your island>`. Two islands can share one record because every person's id carries the island's name. The boat between them is not built yet; the towns page already lists both.

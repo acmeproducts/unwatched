@@ -3,10 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml"><img src="https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/kresogalic8/small-hours/actions/workflows/ci.yml"><img src="https://github.com/kresogalic8/small-hours/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-1E5A63" alt="Apache-2.0"></a>
-  <a href="https://ferry-town-usg5k.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
-  <a href="https://github.com/kresogalic8/ferry-town/discussions"><img src="https://img.shields.io/badge/talk-discussions-111B2B" alt="discussions"></a>
+  <a href="https://small-hours-usg5k.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
+  <a href="https://github.com/kresogalic8/small-hours/discussions"><img src="https://img.shields.io/badge/talk-discussions-111B2B" alt="discussions"></a>
 </p>
 
 <p align="center"><b>A town that keeps living while you are away.</b></p>
@@ -15,7 +15,7 @@ Small Hours is a persistent island of AI citizens with free will. Each citizen i
 
 ![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island with real minds](docs/demo.gif)
 
-<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [ferry-town-usg5k.ondigitalocean.app](https://ferry-town-usg5k.ondigitalocean.app).</sub>
+<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [small-hours-usg5k.ondigitalocean.app](https://small-hours-usg5k.ondigitalocean.app).</sub>
 
 ## The six rules
 
@@ -45,7 +45,7 @@ Read `apps/headless/out/gazette-day*.md`, one newspaper per day. Somebody usuall
 
 The record of a fresh island with real minds, the morning this README's film was shot. Every line is an event the engine emitted, in the words the Gazette prints. Nothing here was written by hand.
 
-> Twenty people arrived on the ferry, each with forty coins, a suitcase and three nights at the harbor inn.
+> Twenty people arrived on the boat, each with forty coins, a suitcase and three nights at the harbor inn.
 >
 > Petar Ilić set out to find out what's become of the bakery and whether it still stands. Stjepan Vuković set out to find the chapel and see what state its roof is in. Ana Perić set out to find something worth writing about this island. Davor Novak set out to get a clear read on how this town actually works before committing coins to anything.
 >
@@ -71,11 +71,11 @@ By noon there is a council, a roof to fix, a banker looking for borrowers, and a
 
 ```bash
 cp .env.example .env                  # leave the keys empty for the mock brain, or add OPENROUTER_API_KEY for real minds
-pnpm --filter @ferrytown/server dev   # the town, its API and streams, on :4000
-pnpm --filter @ferrytown/web dev      # the client on :3000
+pnpm --filter @smallhours/server dev   # the town, its API and streams, on :4000
+pnpm --filter @smallhours/web dev      # the client on :3000
 ```
 
-Without Supabase the record is kept in `out/town/<island>.json`, so a clone keeps its island across restarts. With `SUPABASE_URL` and a service role key it is kept in Postgres with row-level security; the migrations are in `packages/store/supabase/migrations`. `FT_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second while you develop; the live island runs at `60000`.
+Without Supabase the record is kept in `out/town/<island>.json`, so a clone keeps its island across restarts. With `SUPABASE_URL` and a service role key it is kept in Postgres with row-level security; the migrations are in `packages/store/supabase/migrations`. `SH_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second while you develop; the live island runs at `60000`.
 
 ## How it fits together
 
@@ -105,7 +105,7 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 
 ## What the island does
 
-**It keeps our time.** Set `FT_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island's weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset. The island stays fictional and calls the place whatever `FT_REAL_WORLD_NAME` says, "the coast" by default. It rains in Small Hours when it rains there.
+**It keeps our time.** Set `SH_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island's weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset. The island stays fictional and calls the place whatever `SH_REAL_WORLD_NAME` says, "the coast" by default. It rains in Small Hours when it rains there.
 
 **A week, a shelf, a council.** Sunday has no shifts and a chapel bell at ten; Saturday is market day; the first of the month is council day; the island keeps its own feasts, and lavender blooms in June. Shops sell only what is on the shelf: the fields grow grain, the mill turns it to flour, the bakery bakes it, the fishhouse and the orchard fill the market, the pinewood feeds the sawpit, and a cart moves it all at six each morning. When a link fails there is no bread, and the paper says so.
 
@@ -113,7 +113,7 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 
 **Minds that change.** A citizen is not written once. At midnight they may rewrite the parts of themselves the day changed, and every earlier self is kept. They choose what to keep an eye on. They set themselves projects that run for weeks. They come to believe things, true or not, and act on them until the beliefs fade. Memory ages, rumor drifts, elders misremember, and nights wear on a temperament. For anything the verbs do not cover, a citizen can simply do it in their own words, and the town's own mind decides what it came to within the rules. A year on the island and nobody is who boarded.
 
-**An island its citizens shape.** A shop owner decides what to sell and at what price. A workshop can make a new thing the island then knows and the ferry pays for. Three people calling a place by a name give it that name. Two people with the same saying give the island a saying. A builder says how a building should look, and the island draws it.
+**An island its citizens shape.** A shop owner decides what to sell and at what price. A workshop can make a new thing the island then knows and the boat pays for. Three people calling a place by a name give it that name. Two people with the same saying give the island a saying. A builder says how a building should look, and the island draws it.
 
 **Secrets are real.** Where someone sleeps, while they are out, their things can be searched; anyone present sees it. A citizen who writes about a secret puts it on the whole island by evening.
 
@@ -123,7 +123,7 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 
 **A world drawn in code.** Every building, tree, wave and person is drawn by a function, in one projection and one palette, so it scales to any screen. Citizens are a jointed rig with a walk and a run, faces that look at whoever they talk to, frown with hunger and lift at a wedding, the tools of their trade, the last thing they picked up, coats in winter, and years on the body. `/rig` is the model sheet.
 
-**Islands that connect.** An island is one server. Two islands that share a secret run a ferry between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor. `docs/federation.md` has the three environment lines it takes.
+**Islands that connect.** An island is one server. Two islands that share a secret run a boat between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor. `docs/federation.md` has the three environment lines it takes.
 
 ## Bring your own brain
 
@@ -150,13 +150,13 @@ Everything is read from the environment; `.env.example` documents every line. Th
 
 | | |
 |---|---|
-| `FT_BRAIN` | `mock`, `openrouter` or `anthropic`. The mock brain needs no key. |
-| `OPENROUTER_API_KEY`, `FT_OR_MODEL_*` | the hosted minds: a routine, a stakes and a reflection model |
-| `FT_MS_PER_SIM_MINUTE` | `60000` is real time; `1000` for development |
-| `FT_REAL_WORLD`, `FT_REAL_WORLD_NAME` | the point on the earth whose sky the island keeps |
+| `SH_BRAIN` | `mock`, `openrouter` or `anthropic`. The mock brain needs no key. |
+| `OPENROUTER_API_KEY`, `SH_OR_MODEL_*` | the hosted minds: a routine, a stakes and a reflection model |
+| `SH_MS_PER_SIM_MINUTE` | `60000` is real time; `1000` for development |
+| `SH_REAL_WORLD`, `SH_REAL_WORLD_NAME` | the point on the earth whose sky the island keeps |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | the record in Postgres; leave unset for a JSON file |
 | `GEMINI_API_KEY` | voices for letters, and the Lyria music beds via `apps/web/scripts/gen-music.mjs` |
-| `FT_HARBORS`, `FT_FERRY_SECRET` | islands that connect |
+| `SH_HARBORS`, `SH_BOAT_SECRET` | islands that connect |
 
 ## Deploy
 
@@ -168,8 +168,8 @@ Alpha. One island is live and has run on real time since it was seeded; the engi
 
 ## Community
 
-- [Discussions](https://github.com/kresogalic8/ferry-town/discussions): questions in Q&A, proposals in Ideas, and what your citizen did in Show and tell.
-- [Issues](https://github.com/kresogalic8/ferry-town/issues): the physics broke, a citizen did something strange, a place to add. Templates for each.
+- [Discussions](https://github.com/kresogalic8/small-hours/discussions): questions in Q&A, proposals in Ideas, and what your citizen did in Show and tell.
+- [Issues](https://github.com/kresogalic8/small-hours/issues): the physics broke, a citizen did something strange, a place to add. Templates for each.
 - [Contributing](CONTRIBUTING.md): the six rules, the layout, how a verb is added, how reviews go.
 - [Code of conduct](CODE_OF_CONDUCT.md): citizens may be cruel; the people building the island may not.
 - [Security](SECURITY.md): report privately, get an answer within three days.

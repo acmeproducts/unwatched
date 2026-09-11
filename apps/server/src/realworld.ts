@@ -1,9 +1,9 @@
-import type { Town } from "@ferrytown/engine";
+import type { Town } from "@smallhours/engine";
 
 /**
  * The island keeps our time. Its weather is the live weather at a real point on the earth, its seasons are that
  * point's calendar, its clock is that point's clock, its dawn and dusk are that point's sunrise and sunset, and its
- * ferry keeps a seasonal timetable. The point is any latitude and longitude; the island itself stays fictional, and
+ * boat keeps a seasonal timetable. The point is any latitude and longitude; the island itself stays fictional, and
  * calls the place by whatever name it is given. Open-Meteo answers with no key.
  */
 export interface RealPlace { id: string; name: string; lat: number; lon: number; tz: string }
@@ -13,7 +13,7 @@ export const PLACES: Record<string, RealPlace> = {
   vis: { id: "vis", name: "the coast", lat: 43.06, lon: 16.18, tz: "Europe/Zagreb" },
   korcula: { id: "korcula", name: "the coast", lat: 42.96, lon: 17.13, tz: "Europe/Zagreb" },
 };
-/** Read FT_REAL_WORLD: a preset id, or "lat,lon" or "lat,lon,Area/City". The time zone, when not given, is learned from the sky on the first fetch. */
+/** Read SH_REAL_WORLD: a preset id, or "lat,lon" or "lat,lon,Area/City". The time zone, when not given, is learned from the sky on the first fetch. */
 export function parsePlace(spec: string, name?: string): RealPlace | null {
   const preset = PLACES[spec.trim().toLowerCase()]; if (preset) return { ...preset, ...(name ? { name } : {}) };
   const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*([A-Za-z_]+\/[A-Za-z_\/+-]+))?\s*$/.exec(spec);
@@ -26,7 +26,7 @@ export async function resolveZone(place: RealPlace): Promise<RealPlace> {
   try { const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&timezone=auto`, { signal: AbortSignal.timeout(8000) }); const d = (await res.json()) as { timezone?: string }; return { ...place, tz: d.timezone && d.timezone !== "GMT" ? d.timezone : "UTC" }; }
   catch { return { ...place, tz: "UTC" }; }
 }
-/** Ferry departures from the mainland, by season, in the island's local hours. Shaped like the Jadrolinija Split to Stari Grad line, not copied from it. */
+/** Boat departures from the mainland, by season, in the island's local hours. Shaped like the Jadrolinija Split to Stari Grad line, not copied from it. */
 export const TIMETABLE: Record<string, number[]> = {
   winter: [8, 11, 14, 17, 20],
   spring: [7, 10, 13, 16, 19, 21],
@@ -65,10 +65,10 @@ export class RealWorld {
     town.weatherSource = "real";
     this.applyCalendar();
   }
-  /** Season from the calendar and the ferry timetable that goes with it. */
+  /** Season from the calendar and the boat timetable that goes with it. */
   applyCalendar(): void {
     const season = seasonOf(new Date(), this.place.tz);
-    this.town.seasonOverride = season; this.town.ferryTimes = TIMETABLE[season] ?? TIMETABLE.spring!;
+    this.town.seasonOverride = season; this.town.boatTimes = TIMETABLE[season] ?? TIMETABLE.spring!;
     const parts = new Intl.DateTimeFormat("en-US", { timeZone: this.place.tz, weekday: "short", day: "numeric", month: "numeric" }).formatToParts(new Date());
     this.town.monthOverride = Number(parts.find((x) => x.type === "month")?.value ?? 1);
     const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((x) => x.type === "weekday")?.value ?? "Mon");

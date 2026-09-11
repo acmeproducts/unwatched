@@ -1,11 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { TownEvent, Paper } from "@ferrytown/protocol";
-import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@ferrytown/engine";
+import type { TownEvent, Paper } from "@smallhours/protocol";
+import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@smallhours/engine";
 
 export type Plan = "visitor" | "resident" | "patron";
 export interface Wallet { ownerId: string; plan: Plan; credits: number; stripeCustomer: string | null }
 export interface BrainRow { agent_id: string; kind: "hosted" | "own_key" | "own_brain"; provider: string | null; api_key: string | null; models: { routine: string; stakes: string; reflect: string } | null; think_every: number | null; daily_cap_usd: number | null; token: string | null; memory: "lease" | "own" }
-import { compress } from "@ferrytown/engine";
+import { compress } from "@smallhours/engine";
 
 /**
  * The town's record on Supabase. The engine writes with the service role; owners and visitors read through RLS.
@@ -241,7 +241,7 @@ export class TownStore {
     await this.sb.from("letters").update({ read_at: t }).in("id", ids);
   }
 
-  /** Agents boarded through the web app that the engine has not admitted yet: state is null until the ferry docks. */
+  /** Agents boarded through the web app that the engine has not admitted yet: state is null until the boat docks. */
   async pendingArrivals(): Promise<{ id: string; owner_id: string | null; name: string; persona: unknown; appearance: unknown; brain: string }[]> {
     const { data, error } = await this.sb.from("agents").select("id, owner_id, name, persona, appearance, brain").eq("town_id", this.townId).is("arrived_t", null);
     if (error) { console.error("arrivals read failed:", error.message); return []; }

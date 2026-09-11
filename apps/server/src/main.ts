@@ -1,4 +1,4 @@
-import type { AgentState } from "@ferrytown/engine";
+import type { AgentState } from "@smallhours/engine";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,14 +11,14 @@ import { z } from "zod";
 import { Voices, voiceOf, voicesEnabled } from "./voice.ts";
 import { Looks, looksEnabled } from "./looks.ts";
 import { createClient } from "@supabase/supabase-js";
-import { Town, Rng, MINUTES_PER_DAY, sha256, canonicalEvent } from "@ferrytown/engine";
-import type { Brain } from "@ferrytown/engine";
-import { Action, Persona, type TownEvent, Passenger } from "@ferrytown/protocol";
-import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferrytown/cognition";
-import { TownStore, FileStore } from "@ferrytown/store";
+import { Town, Rng, MINUTES_PER_DAY, sha256, canonicalEvent } from "@smallhours/engine";
+import type { Brain } from "@smallhours/engine";
+import { Action, Persona, type TownEvent, Passenger } from "@smallhours/protocol";
+import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@smallhours/cognition";
+import { TownStore, FileStore } from "@smallhours/store";
 import { publicAgent, ownerAgent, clockOf, realClock } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
-import type { BrainRow, Plan, Store } from "@ferrytown/store";
+import type { BrainRow, Plan, Store } from "@smallhours/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
 import { Metrics } from "./ops.ts";
 import { RealWorld, parsePlace, resolveZone } from "./realworld.ts";
@@ -28,25 +28,25 @@ const envFile = resolve(here, "../../../.env");
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const PORT = Number(process.env.PORT ?? 4000);
-const SEED = Number(process.env.FT_SEED ?? 42);
-const MS_PER_SIM_MINUTE = Number(process.env.FT_MS_PER_SIM_MINUTE ?? 1000); // 60000 is real time
-const BRAIN = process.env.FT_BRAIN ?? "mock";
-const CITIZENS = Number(process.env.FT_CITIZENS ?? 20);
+const SEED = Number(process.env.SH_SEED ?? 42);
+const MS_PER_SIM_MINUTE = Number(process.env.SH_MS_PER_SIM_MINUTE ?? 1000); // 60000 is real time
+const BRAIN = process.env.SH_BRAIN ?? "mock";
+const CITIZENS = Number(process.env.SH_CITIZENS ?? 20);
 const log = (l: string) => console.log(`[town] ${l}`);
 
 const townBrain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) : BRAIN === "anthropic" ? new AnthropicBrain({ log }) : new MockBrain(SEED);
 const router = new BrainRouter(townBrain, log);
-const MODELS = { routine: process.env.FT_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5", stakes: process.env.FT_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5", reflect: process.env.FT_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" };
+const MODELS = { routine: process.env.SH_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5", stakes: process.env.SH_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5", reflect: process.env.SH_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" };
 let clockRef = () => ({ day: 1, hour: 6, t: 0 });
 const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
 if (townBrain instanceof OpenRouterBrain) townBrain.onFallback = (f) => metrics.fallback(f);
-const TOWN_ID = process.env.FT_TOWN_ID ?? "island";
-const TOWN_NAME = process.env.FT_TOWN_NAME ?? "The island";
-/** Other islands a ferry runs to: FT_HARBORS="north=https://north.example/engine,west=http://localhost:4011". Names are fetched from them. */
-const HARBORS: { id: string; url: string; name: string }[] = (process.env.FT_HARBORS ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const [id, url] = x.split("="); return { id: id!.trim(), url: (url ?? "").trim().replace(/\/$/, ""), name: id!.trim() }; }).filter((h) => h.url);
-const FERRY_SECRET = process.env.FT_FERRY_SECRET ?? "";
+const TOWN_ID = process.env.SH_TOWN_ID ?? "island";
+const TOWN_NAME = process.env.SH_TOWN_NAME ?? "The island";
+/** Other islands a boat runs to: SH_HARBORS="north=https://north.example/engine,west=http://localhost:4011". Names are fetched from them. */
+const HARBORS: { id: string; url: string; name: string }[] = (process.env.SH_HARBORS ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const [id, url] = x.split("="); return { id: id!.trim(), url: (url ?? "").trim().replace(/\/$/, ""), name: id!.trim() }; }).filter((h) => h.url);
+const BOAT_SECRET = process.env.SH_BOAT_SECRET ?? "";
 const harborStats = new Map<string, { at: number; data: Record<string, unknown> | null }>();
 async function harborTown(h: { id: string; url: string }): Promise<Record<string, unknown> | null> {
   const hit = harborStats.get(h.id); if (hit && Date.now() - hit.at < 60000) return hit.data;
@@ -54,22 +54,22 @@ async function harborTown(h: { id: string; url: string }): Promise<Record<string
   catch { harborStats.set(h.id, { at: Date.now(), data: null }); return null; }
 }
 /** Put a passenger on the boat to another island. True when the far harbor took them in. */
-async function ferryTo(passenger: Passenger, to: string): Promise<boolean> {
+async function boatTo(passenger: Passenger, to: string): Promise<boolean> {
   const h = HARBORS.find((x) => x.id === to); if (!h) return false;
   try {
-    const res = await fetch(`${h.url}/api/ferry/arrive`, { method: "POST", headers: { "Content-Type": "application/json", "X-Ferry": FERRY_SECRET }, body: JSON.stringify(passenger), signal: AbortSignal.timeout(10000) });
-    if (!res.ok) { log(`ferry to ${h.id}: ${res.status} ${(await res.text()).slice(0, 120)}`); return false; }
+    const res = await fetch(`${h.url}/api/boat/arrive`, { method: "POST", headers: { "Content-Type": "application/json", "X-Boat": BOAT_SECRET }, body: JSON.stringify(passenger), signal: AbortSignal.timeout(10000) });
+    if (!res.ok) { log(`boat to ${h.id}: ${res.status} ${(await res.text()).slice(0, 120)}`); return false; }
     return true;
-  } catch (err) { log(`ferry to ${h.id}: ${(err as Error).message}`); return false; }
+  } catch (err) { log(`boat to ${h.id}: ${(err as Error).message}`); return false; }
 }
-let store: Store | null = process.env.FT_STORE === "none" ? null : TownStore.fromEnv(TOWN_ID);
+let store: Store | null = process.env.SH_STORE === "none" ? null : TownStore.fromEnv(TOWN_ID);
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
-if (!store && process.env.FT_STORE !== "none") { store = FileStore.fromEnv(TOWN_ID); log(`record kept in ${process.env.FT_DATA_DIR ?? "out/town"}/${TOWN_ID}.json (set SUPABASE_URL for the shared record, FT_STORE=none for none)`); }
+if (!store && process.env.SH_STORE !== "none") { store = FileStore.fromEnv(TOWN_ID); log(`record kept in ${process.env.SH_DATA_DIR ?? "out/town"}/${TOWN_ID}.json (set SUPABASE_URL for the shared record, SH_STORE=none for none)`); }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: ferryTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.built" && e.payload && (e.payload as { hash?: string }).hash) { const p = e.payload as { hash: string; look: string; what: "house" | "shop" }; void looks.ensure(p.hash, p.look, p.what); } if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
+const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: boatTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.built" && e.payload && (e.payload as { hash?: string }).hash) { const p = e.payload as { hash: string; look: string; what: "house" | "shop" }; void looks.ensure(p.hash, p.look, p.what); } if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
 let saved: Awaited<ReturnType<NonNullable<typeof store>["loadSnapshot"]>> = null;
 try { saved = store ? await store.loadSnapshot() : null; }
 catch (err) { log(`${(err as Error).message}; not starting, so the island on record is not seeded over. Apply the migrations, then start again.`); process.exit(1); }
@@ -86,16 +86,16 @@ if (saved && saved.agents.length > 0) {
 }
 clockRef = () => ({ day: town.day, hour: town.hour, t: town.t });
 // the island keeps our time: the sky, calendar, clock and timetable of a real point on the earth, by latitude and longitude
-const REAL = process.env.FT_REAL_WORLD ? await (async () => { const p = parsePlace(process.env.FT_REAL_WORLD!, process.env.FT_REAL_WORLD_NAME); if (!p) { log(`FT_REAL_WORLD should be "lat,lon" or "lat,lon,Area/City" (got ${JSON.stringify(process.env.FT_REAL_WORLD)}); the island keeps its own time`); return null; } return resolveZone(p); })() : null;
+const REAL = process.env.SH_REAL_WORLD ? await (async () => { const p = parsePlace(process.env.SH_REAL_WORLD!, process.env.SH_REAL_WORLD_NAME); if (!p) { log(`SH_REAL_WORLD should be "lat,lon" or "lat,lon,Area/City" (got ${JSON.stringify(process.env.SH_REAL_WORLD)}); the island keeps its own time`); return null; } return resolveZone(p); })() : null;
 const real = REAL ? new RealWorld(town, REAL, log) : null;
 if (real) {
   const jumped = real.alignClock();
   real.onUpdate = () => { realClock.temperatureC = real.state.temperatureC; realClock.sunrise = real.state.sunrise; realClock.sunset = real.state.sunset; broadcast({ type: "clock", clock: clockOf(town) }); };
   real.start(); realClock.place = REAL!.name;
-  log(`the island keeps the time at ${REAL!.lat}, ${REAL!.lon} (${REAL!.tz})${jumped ? `; moved the clock ${jumped} minutes forward to ${town.clock()}` : ""}; the sky is ${REAL!.name}'s, the ferry keeps the ${town.season} timetable`);
+  log(`the island keeps the time at ${REAL!.lat}, ${REAL!.lon} (${REAL!.tz})${jumped ? `; moved the clock ${jumped} minutes forward to ${town.clock()}` : ""}; the sky is ${REAL!.name}'s, the boat keeps the ${town.season} timetable`);
 }
 for (const h of HARBORS) void harborTown(h).then((d) => { const n = (d as { name?: string } | null)?.name; if (n) { h.name = n; const th = town.harbors.find((x) => x.id === h.id); if (th) th.name = n; } });
-if (HARBORS.length) log(`ferries run to ${HARBORS.map((h) => h.id).join(", ")}${FERRY_SECRET ? "" : " (no FT_FERRY_SECRET: arrivals from other islands are refused)"}`);
+if (HARBORS.length) log(`boats run to ${HARBORS.map((h) => h.id).join(", ")}${BOAT_SECRET ? "" : " (no SH_BOAT_SECRET: arrivals from other islands are refused)"}`);
 log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? (store instanceof FileStore ? "file" : "supabase") : "memory only"} · sign-in ${process.env.SUPABASE_URL ? "supabase" : "dev names"}`);
 
 // ---- the clock ----
@@ -133,7 +133,7 @@ async function hourly() {
     const persona = Persona.safeParse(p.persona); if (!persona.success) continue;
     const a = town.addAgent({ persona: persona.data, owner: p.owner_id, funded: true }, p.id);
     a.appearance = (p.appearance as Record<string, unknown>) ?? null;
-    log(`${a.persona.name} stepped off the ferry for ${p.owner_id ?? "nobody"}`);
+    log(`${a.persona.name} stepped off the boat for ${p.owner_id ?? "nobody"}`);
   }
 }
 void loop();
@@ -149,64 +149,64 @@ const sb = process.env.SUPABASE_URL && authKey ? createClient(process.env.SUPABA
 async function ownerOf(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization");
   if (sb && auth?.startsWith("Bearer ")) { const { data } = await sb.auth.getUser(auth.slice(7)); return data.user?.id ?? null; }
-  // Local development only: a name in X-Owner counts as a person. Never set FT_DEV_OWNER where strangers can reach the server.
-  if (!sb || process.env.FT_DEV_OWNER === "1") return req.headers.get("x-owner");
+  // Local development only: a name in X-Owner counts as a person. Never set SH_DEV_OWNER where strangers can reach the server.
+  if (!sb || process.env.SH_DEV_OWNER === "1") return req.headers.get("x-owner");
   return null;
 }
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
-const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.nickname ? `${p.name} (${p.nickname})` : p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(p.look ? { look: p.look } : {}), ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
-const childView = (ch: import("@ferrytown/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
-/** The far end of the ferry. Another island puts a passenger here; they step off at our harbor with what they carry and what they remember. */
+const placeView = (p: import("@smallhours/engine").Place) => ({ id: p.id, name: p.nickname ? `${p.name} (${p.nickname})` : p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(p.look ? { look: p.look } : {}), ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
+const childView = (ch: import("@smallhours/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
+/** The far end of the boat. Another island puts a passenger here; they step off at our harbor with what they carry and what they remember. */
 // cargo: another island asks what we are short of, and sends what it has spare; the shelves pay
-app.get("/api/ferry/wants", (c) => (!FERRY_SECRET || c.req.header("x-ferry") !== FERRY_SECRET) ? c.json({ error: "this harbor takes no ferries from there" }, 403) : c.json({ island: TOWN_NAME, wants: town.cargoWants() }));
-app.post("/api/ferry/cargo", async (c) => {
-  if (!FERRY_SECRET || c.req.header("x-ferry") !== FERRY_SECRET) return c.json({ error: "this harbor takes no ferries from there" }, 403);
-  if (!town.ferryRunning) return c.json({ error: "no crossing today" }, 503);
+app.get("/api/boat/wants", (c) => (!BOAT_SECRET || c.req.header("x-boat") !== BOAT_SECRET) ? c.json({ error: "this harbor takes no boats from there" }, 403) : c.json({ island: TOWN_NAME, wants: town.cargoWants() }));
+app.post("/api/boat/cargo", async (c) => {
+  if (!BOAT_SECRET || c.req.header("x-boat") !== BOAT_SECRET) return c.json({ error: "this harbor takes no boats from there" }, 403);
+  if (!town.boatRunning) return c.json({ error: "no crossing today" }, 503);
   const body = z.object({ from: z.string().max(80), items: z.array(z.object({ item: z.string().max(40), qty: z.number().int().positive(), price: z.number().int().positive() })).max(20) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "bad manifest" }, 400);
   return c.json({ taken: town.receive(body.data.items, body.data.from) });
 });
-/** At seven each morning, before the mainland, the ferry runs our surplus to any linked island that is short of it. */
+/** At seven each morning, before the mainland, the boat runs our surplus to any linked island that is short of it. */
 async function sailCargo(): Promise<void> {
-  if (!HARBORS.length || !FERRY_SECRET || !town.ferryRunning) return;
+  if (!HARBORS.length || !BOAT_SECRET || !town.boatRunning) return;
   for (const h of HARBORS) {
     try {
       const offers = town.cargoOffers(); if (!offers.length) return;
-      const res = await fetch(`${h.url}/api/ferry/wants`, { headers: { "X-Ferry": FERRY_SECRET }, signal: AbortSignal.timeout(8000) }); if (!res.ok) continue;
+      const res = await fetch(`${h.url}/api/boat/wants`, { headers: { "X-Boat": BOAT_SECRET }, signal: AbortSignal.timeout(8000) }); if (!res.ok) continue;
       const { wants } = (await res.json()) as { wants: { item: string; qty: number }[] };
       const load = offers.flatMap((o) => { const w = wants.find((x) => x.item === o.item); return w ? [{ ...o, qty: Math.min(o.qty, w.qty) }] : []; }); if (!load.length) continue;
-      const sent = await fetch(`${h.url}/api/ferry/cargo`, { method: "POST", headers: { "Content-Type": "application/json", "X-Ferry": FERRY_SECRET }, body: JSON.stringify({ from: TOWN_NAME, items: load.map(({ item, qty, price }) => ({ item, qty, price })) }), signal: AbortSignal.timeout(8000) });
+      const sent = await fetch(`${h.url}/api/boat/cargo`, { method: "POST", headers: { "Content-Type": "application/json", "X-Boat": BOAT_SECRET }, body: JSON.stringify({ from: TOWN_NAME, items: load.map(({ item, qty, price }) => ({ item, qty, price })) }), signal: AbortSignal.timeout(8000) });
       if (!sent.ok) continue;
       const { taken } = (await sent.json()) as { taken: { item: string; qty: number }[] };
       town.ship(load.flatMap((o) => { const t = taken.find((x) => x.item === o.item); return t ? [{ ...o, qty: t.qty }] : []; }), h.name);
     } catch (err) { log(`cargo to ${h.id}: ${(err as Error).message}`); }
   }
 }
-app.post("/api/ferry/arrive", async (c) => {
-  if (!FERRY_SECRET || c.req.header("x-ferry") !== FERRY_SECRET) return c.json({ error: "this harbor takes no ferries from there" }, 403);
-  if (!town.ferryRunning) return c.json({ error: town.ferryHeld ? "the ferry is held" : "no crossing in this storm" }, 503);
+app.post("/api/boat/arrive", async (c) => {
+  if (!BOAT_SECRET || c.req.header("x-boat") !== BOAT_SECRET) return c.json({ error: "this harbor takes no boats from there" }, 403);
+  if (!town.boatRunning) return c.json({ error: town.boatHeld ? "the boat is held" : "no crossing in this storm" }, 503);
   const body = Passenger.safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "bad manifest" }, 400);
   const a = town.arrive(body.data); billing.applyPlan(a);
   if (store) await store.snapshot(town);
   return c.json({ ok: true, id: a.id, island: TOWN_NAME });
 });
-// the ferry office tells the web which sign-in it expects, so a build without the public keys can say so instead of failing at the last step
-app.get("/api/office", (c) => c.json({ signIn: sb && process.env.FT_DEV_OWNER !== "1" ? "supabase" : "dev" }));
+// the boat office tells the web which sign-in it expects, so a build without the public keys can say so instead of failing at the last step
+app.get("/api/office", (c) => c.json({ signIn: sb && process.env.SH_DEV_OWNER !== "1" ? "supabase" : "dev" }));
 app.get("/api/town", (c) => c.json({ ...clockOf(town), name: TOWN_NAME, id: TOWN_ID, size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws, children: town.children.map(childView) }));
 /** Children of the island who could be adopted: unowned, growing up or already grown. Adopting means writing to them; nothing more. */
 app.get("/api/children", (c) => c.json({
   growing: town.children.filter((ch) => !ch.adoptedBy).map(childView),
   grown: [...town.agents.values()].filter((a) => !a.owner && a.persona.origin.startsWith("born on the island")).map((a) => publicAgent(town, a)),
 }));
-const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
-const nextFerry = () => { const n = town.nextFerry(); return `${String(n.hour).padStart(2, "0")}:00${n.tomorrow ? " tomorrow" : ""}`; };
-const liveTown = () => ({ id: store?.townId ?? "island", name: TOWN_NAME, live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : real ? `${town.ferryTimes.length} crossings a day, the ${town.season} timetable` : "Ferries hourly, 06:00 to 20:00", next: town.ferryRunning ? nextFerry() : null, spaces: town.ferryRunning ? Math.max(0, FERRY_SPACES - town.pendingArrivals()) : 0 });
+const BOAT_SPACES = Number(process.env.SH_BOAT_SPACES ?? 8);
+const nextBoat = () => { const n = town.nextBoat(); return `${String(n.hour).padStart(2, "0")}:00${n.tomorrow ? " tomorrow" : ""}`; };
+const liveTown = () => ({ id: store?.townId ?? "island", name: TOWN_NAME, live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boats: town.boatHeld ? "The boat is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : real ? `${town.boatTimes.length} crossings a day, the ${town.season} timetable` : "Boats hourly, 06:00 to 20:00", next: town.boatRunning ? nextBoat() : null, spaces: town.boatRunning ? Math.max(0, BOAT_SPACES - town.pendingArrivals()) : 0 });
 app.get("/api/towns", async (c) => {
   const rows = store ? await store.towns().catch(() => []) : [];
   const live = liveTown();
-  const others = rows.filter((r) => r.id !== live.id && !HARBORS.some((h) => h.id === r.id)).map((r) => ({ id: r.id, name: r.name, live: false, day: r.day, weather: r.weather, population: r.population, flourShortage: r.flour_shortage, laws: 0, openLaws: 0, ferries: "No ferry runs there from here yet", next: null, spaces: 0 }));
-  const far = await Promise.all(HARBORS.map(async (h) => { const d = await harborTown(h) as { name?: string; day?: number; weather?: string; population?: number; flourShortage?: boolean } | null; return { id: h.id, name: d?.name ?? h.name, live: !!d, day: d?.day ?? 0, weather: d?.weather ?? "unknown", population: d?.population ?? 0, flourShortage: !!d?.flourShortage, laws: 0, openLaws: 0, ferries: d ? `A ferry crosses from ${TOWN_NAME}` : "No word from that island today", next: d && town.ferryRunning ? nextFerry() : null, spaces: d && town.ferryRunning ? FERRY_SPACES : 0, far: true }; }));
+  const others = rows.filter((r) => r.id !== live.id && !HARBORS.some((h) => h.id === r.id)).map((r) => ({ id: r.id, name: r.name, live: false, day: r.day, weather: r.weather, population: r.population, flourShortage: r.flour_shortage, laws: 0, openLaws: 0, boats: "No boat runs there from here yet", next: null, spaces: 0 }));
+  const far = await Promise.all(HARBORS.map(async (h) => { const d = await harborTown(h) as { name?: string; day?: number; weather?: string; population?: number; flourShortage?: boolean } | null; return { id: h.id, name: d?.name ?? h.name, live: !!d, day: d?.day ?? 0, weather: d?.weather ?? "unknown", population: d?.population ?? 0, flourShortage: !!d?.flourShortage, laws: 0, openLaws: 0, boats: d ? `A boat crosses from ${TOWN_NAME}` : "No word from that island today", next: d && town.boatRunning ? nextBoat() : null, spaces: d && town.boatRunning ? BOAT_SPACES : 0, far: true }; }));
   return c.json([live, ...far, ...others]);
 });
 app.get("/api/agents", (c) => c.json([...town.agents.values()].map((a) => publicAgent(town, a))));
@@ -228,7 +228,7 @@ async function writtenDigest(a: AgentState, since: number): Promise<{ text: stri
 function publicEvent(e: TownEvent): TownEvent { if (!e.payload || !("because" in e.payload)) return e; const { because: _b, ...rest } = e.payload; return { ...e, ...(Object.keys(rest).length ? { payload: rest } : {}) } as TownEvent; }
 app.get("/api/agents/:id/digest", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
-  const since = Math.max(Number(c.req.query("since") ?? town.t - 3 * MINUTES_PER_DAY), a.arrivedAt); // nothing before the ferry counts as "away"
+  const since = Math.max(Number(c.req.query("since") ?? town.t - 3 * MINUTES_PER_DAY), a.arrivedAt); // nothing before the boat counts as "away"
   const d = town.digest(a.id, since);
   const owner = await ownerOf(c.req.raw);
   const mine = owns(a, owner);
@@ -291,13 +291,13 @@ app.get("/api/agents/:id/book", async (c) => {
   return c.json({ id, name: live.persona.name, persona: live.persona, arrivedT: live.arrivedAt, leftT: null, ...life });
 });
 // looks: what a citizen built, drawn the way they described it, for everyone
-const looks = new Looks(resolve(process.env.FT_DATA_DIR ?? "out/town", "looks", TOWN_ID), resolve(dirname(fileURLToPath(import.meta.url)), "..", "patterns"), store, log);
+const looks = new Looks(resolve(process.env.SH_DATA_DIR ?? "out/town", "looks", TOWN_ID), resolve(dirname(fileURLToPath(import.meta.url)), "..", "patterns"), store, log);
 for (const p of town.places.values()) if (p.look && p.sprite.startsWith("look:")) void looks.ensure(p.sprite.slice(5), p.look, p.kind === "shop" ? "shop" : "house");
 app.get("/api/looks", async (c) => c.json({ enabled: looksEnabled(), looks: await looks.list(), patterns: looks.patternBook() }));
 app.get("/api/looks/pattern/:name", (c) => { const svg = looks.pattern(c.req.param("name")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no such pattern" }, 404); });
 app.get("/api/looks/:hash", async (c) => { const svg = await looks.get(c.req.param("hash").replace(/\.svg$/, "")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no drawing yet" }, 404); });
 // voices: a letter home, read aloud in the writer's own voice, for the owner who asked
-const voices = new Voices(resolve(process.env.FT_DATA_DIR ?? "out/town", "voices", TOWN_ID));
+const voices = new Voices(resolve(process.env.SH_DATA_DIR ?? "out/town", "voices", TOWN_ID));
 app.get("/api/events/:id/voice", async (c) => {
   if (!voicesEnabled()) return c.json({ error: "this island has no voices; set GEMINI_API_KEY" }, 503);
   const id = Number(c.req.param("id")); const e = town.events.find((x) => x.id === id && x.kind === "agent.letter");
@@ -391,9 +391,9 @@ app.post("/api/me/credits/checkout", async (c) => {
 });
 app.post("/api/stripe/webhook", async (c) => { const r = await billing.webhook(await c.req.text(), c.req.header("stripe-signature")); return c.json(r, r.ok ? 200 : 400); });
 // ---- ops, behind a token ----
-const opsOk = (req: Request) => !!process.env.FT_OPS_TOKEN && req.headers.get("x-ops") === process.env.FT_OPS_TOKEN;
+const opsOk = (req: Request) => !!process.env.SH_OPS_TOKEN && req.headers.get("x-ops") === process.env.SH_OPS_TOKEN;
 app.get("/api/ops", (c) => {
-  if (!opsOk(c.req.raw)) return c.json({ error: process.env.FT_OPS_TOKEN ? "ops token required" : "set FT_OPS_TOKEN to open the ops room" }, 401);
+  if (!opsOk(c.req.raw)) return c.json({ error: process.env.SH_OPS_TOKEN ? "ops token required" : "set SH_OPS_TOKEN to open the ops room" }, 401);
   const agents = [...town.agents.values()]; const funded = agents.filter((a) => a.funded && (a.owner || a.brainKind === "hosted"));
   const hosted = agents.filter((a) => a.brainKind === "hosted"), ownKey = agents.filter((a) => a.brainKind === "own_key"), ownBrain = agents.filter((a) => a.brainKind === "own_brain");
   const today = metrics.today(town.day);
@@ -404,11 +404,11 @@ app.get("/api/ops", (c) => {
   const brains = ownBrain.map((a) => { const b = brain.perAgent.get(a.id); const st = b && "status" in b ? (b as { status: () => Record<string, unknown> }).status() : null; return { id: a.id, name: a.persona.name, ...st }; });
   const ticks = [...metrics.tickMs].sort((x, y) => x - y);
   return c.json({
-    clock: clockOf(town), switches: { paused: town.paused, economyFrozen: town.economyFrozen, ferryHeld: town.ferryHeld },
-    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, fallbacksToday: metrics.fallbacks.filter((f) => Date.now() - f.at < 86400000).length, cachedTokens: townBrain instanceof OpenRouterBrain ? townBrain.cachedTokens() : 0, ceiling: Number(process.env.FT_DAILY_CEILING_USD ?? 120) },
+    clock: clockOf(town), switches: { paused: town.paused, economyFrozen: town.economyFrozen, boatHeld: town.boatHeld },
+    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, fallbacksToday: metrics.fallbacks.filter((f) => Date.now() - f.at < 86400000).length, cachedTokens: townBrain instanceof OpenRouterBrain ? townBrain.cachedTokens() : 0, ceiling: Number(process.env.SH_DAILY_CEILING_USD ?? 120) },
     hours: metrics.hours.filter((h) => h.day === town.day).map((h) => ({ hour: h.hour, calls: h.t1 + h.t2 + h.t3 + h.converse, t1: h.t1, t2: h.t2, t3: h.t3, converse: h.converse, cost: Math.round(h.cost * 100) / 100 })),
     byTier: [{ tier: "Tier 1 · routine", model: MODELS.routine, calls: today.t1 + today.converse }, { tier: "Tier 2 · stakes", model: MODELS.stakes, calls: today.t2 }, { tier: "Tier 3 · reflection and the paper", model: MODELS.reflect, calls: today.t3 }],
-    real: real ? { ...real.state, season: town.season, timetable: town.ferryTimes } : null,
+    real: real ? { ...real.state, season: town.season, timetable: town.boatTimes } : null,
     shelves: Object.fromEntries([...town.places.values()].filter((p) => Object.keys(p.stock).length).map((p) => [p.id, p.stock])),
     health: { coins, tills: [...town.places.values()].reduce((s, p) => s + p.treasury, 0), council: town.places.get("council")?.treasury ?? 0, employed, jobs: jobs.reduce((s, j) => s + j.slots, 0), flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boredomPct: funded.length ? Math.round(bored / funded.length * 100) : 0, events: town.events.length, tickP50: ticks.length ? ticks[Math.floor(ticks.length / 2)] : 0, tickMax: ticks.length ? ticks[ticks.length - 1] : 0, store: !!store, brain: townBrain.name, msPerMinute: MS_PER_SIM_MINUTE },
     holds: metrics.holds.slice(0, 20), ownBrains: brains,
@@ -416,15 +416,15 @@ app.get("/api/ops", (c) => {
 });
 app.post("/api/ops/switch", async (c) => {
   if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401);
-  const body = z.object({ which: z.enum(["pause", "economy", "ferry", "snapshot"]), on: z.boolean().optional() }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such switch" }, 400);
+  const body = z.object({ which: z.enum(["pause", "economy", "boat", "snapshot"]), on: z.boolean().optional() }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such switch" }, 400);
   const { which } = body.data;
   if (which === "snapshot") { if (store) await store.snapshot(town); town.actOfGod("The island's record was written down in full."); return c.json({ ok: true }); }
-  const on = body.data.on ?? !(which === "pause" ? town.paused : which === "economy" ? town.economyFrozen : town.ferryHeld);
+  const on = body.data.on ?? !(which === "pause" ? town.paused : which === "economy" ? town.economyFrozen : town.boatHeld);
   if (which === "pause") { town.paused = on; town.actOfGod(on ? "Time stood still on the island. Nobody aged, nothing happened, no credits were spent." : "Time began again on the island."); }
   if (which === "economy") { town.economyFrozen = on; town.actOfGod(on ? "No wages were paid and no rent was due. The coins on the island stayed where they were." : "Wages and rent resumed."); }
-  if (which === "ferry") { town.ferryHeld = on; town.actOfGod(on ? "The ferry was held at the mainland. Nobody arrived, nobody left." : "The ferry runs again."); }
+  if (which === "boat") { town.boatHeld = on; town.actOfGod(on ? "The boat was held at the mainland. Nobody arrived, nobody left." : "The boat runs again."); }
   log(`act of God: ${which} ${on ? "on" : "off"}`); broadcast({ type: "clock", clock: clockOf(town) });
-  return c.json({ ok: true, switches: { paused: town.paused, economyFrozen: town.economyFrozen, ferryHeld: town.ferryHeld } });
+  return c.json({ ok: true, switches: { paused: town.paused, economyFrozen: town.economyFrozen, boatHeld: town.boatHeld } });
 });
 app.post("/api/ops/hold/:id", (c) => { if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401); const h = metrics.holds.find((x) => x.id === Number(c.req.param("id"))); if (h) h.done = true; return c.json({ ok: !!h }); });
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
@@ -444,7 +444,7 @@ app.get("/api/events", (c) => {
   return c.json(town.events.filter((e) => e.t >= since && (!place || e.place === place) && e.importance >= min).slice(-500).map(publicEvent));
 });
 app.post("/api/board", async (c) => {
-  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the ferry office first" }, 401);
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the boat office first" }, 401);
   const raw = await c.req.json().catch(() => ({}));
   const adopt = z.object({ adopt: z.string() }).safeParse(raw);
   if (adopt.success) {
@@ -462,15 +462,15 @@ app.post("/api/board", async (c) => {
   if (harbor) {
     // a ticket for another island: the passenger crosses from here with a suitcase, forty coins and no memories yet
     const passenger: Passenger = { from: { id: TOWN_ID, name: TOWN_NAME }, persona: body.data.persona, appearance: body.data.appearance ?? null, owner, coins: 40, inventory: [], memories: [], opinions: [], instructions: "", why: null, news: [] };
-    const ok = await ferryTo(passenger, harbor.id);
-    if (!ok) return c.json({ error: `the ferry to ${harbor.name} did not sail; try again later` }, 503);
+    const ok = await boatTo(passenger, harbor.id);
+    if (!ok) return c.json({ error: `the boat to ${harbor.name} did not sail; try again later` }, 503);
     return c.json({ away: true, island: harbor.name, url: harbor.url });
   }
   if (body.data.town && body.data.town !== (store?.townId ?? "island")) {
     const known = store ? (await store.towns().catch(() => [])).some((t) => t.id === body.data.town) : false;
-    if (known) return c.json({ error: "no ferry runs to that island from here yet" }, 400); // a real island this office does not serve; an unknown id just boards here
+    if (known) return c.json({ error: "no boat runs to that island from here yet" }, 400); // a real island this office does not serve; an unknown id just boards here
   }
-  if (!town.ferryRunning) return c.json({ error: town.ferryHeld ? "the ferry is held at the mainland; try again later" : "no ferry crosses in a storm; try again when it clears" }, 503);
+  if (!town.boatRunning) return c.json({ error: town.boatHeld ? "the boat is held at the mainland; try again later" : "no boat crosses in a storm; try again when it clears" }, 503);
   const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
   a.appearance = body.data.appearance ?? null; billing.applyPlan(a);
   if (store) await store.snapshot(town);

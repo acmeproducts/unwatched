@@ -1,4 +1,4 @@
-import type { Action } from "@ferrytown/protocol";
+import type { Action } from "@smallhours/protocol";
 import { BUILDS, WORKS, buildKind } from "./world.ts";
 import type { AgentState, Place, Job } from "./types.ts";
 
@@ -167,7 +167,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       if (b.id === a.id) return { ok: false, reason: "cannot accuse oneself" };
       return { ok: true };
     }
-    case "leave": return here.kind === "harbor" ? (v.hour >= 6 && v.hour <= 20 ? { ok: true } : { ok: false, reason: "no ferry at this hour" }) : { ok: false, reason: "the ferry leaves from the harbor" };
+    case "leave": return here.kind === "harbor" ? (v.hour >= 6 && v.hour <= 20 ? { ok: true } : { ok: false, reason: "no boat at this hour" }) : { ok: false, reason: "the boat leaves from the harbor" };
     case "sleep": {
       const beds = here.beds;
       if (!beds) return { ok: false, reason: "no bed here" };

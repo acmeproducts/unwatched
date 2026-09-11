@@ -9,8 +9,8 @@ ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_TELEMETRY_DISABLED=1
 COPY . .
-RUN pnpm install --frozen-lockfile --filter @ferrytown/web...
-RUN pnpm --filter @ferrytown/web build
+RUN pnpm install --frozen-lockfile --filter @smallhours/web...
+RUN pnpm --filter @smallhours/web build
 
 FROM base AS run
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000

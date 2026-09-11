@@ -15,7 +15,7 @@ function Farewell() {
           <Label>{at || "Gone from the island"}</Label>
           <h1 className="text-[30px] sm:text-[34px] font-bold">{name} left the island.</h1>
           <p className="text-ink2">Everything {first} remembered, every letter, and every mention in the Gazette is kept as a book you can read any time. The town remembers them too, the way towns do.</p>
-          <div className="grid sm:grid-cols-2 gap-3 mt-2">{id && <LinkButton href={`/agent/${id}/book`} kind="secondary">Read the book of {first}</LinkButton>}<LinkButton href="/board">Put someone new on the ferry</LinkButton></div>
+          <div className="grid sm:grid-cols-2 gap-3 mt-2">{id && <LinkButton href={`/agent/${id}/book`} kind="secondary">Read the book of {first}</LinkButton>}<LinkButton href="/board">Put someone new on the boat</LinkButton></div>
         </div>
       </div>
     </main>

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town, MINUTES_PER_DAY } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal, Persona } from "@ferrytown/protocol";
+import type { Perception, ActionProposal, Persona } from "@smallhours/protocol";
 
 const persona = (name: string): Persona => ({ name, age: 33, origin: "the mainland", summary: "A restless person.", want: "somewhere better", fear: "staying", secret: "none", strangers: "curious", advice: "weighs it", traits: { warmth: 0.6, pride: 0.4, caution: 0.3, honesty: 0.7, ambition: 0.8 } });
 const none: Brain = {
@@ -11,7 +11,7 @@ const none: Brain = {
   async digest() { return { text: "", headline: "" }; }, async child() { throw new Error("no"); }, async writePaper() { throw new Error("no"); }, async life() { throw new Error("no"); }, async judge() { return { happened: "it passed", plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases: null, trust: [] }; },
 };
 
-describe("the ferry between islands", () => {
+describe("the boat between islands", () => {
   it("carries a person, their coins, their memories and the news to another island; a harbor that does not answer keeps them home", async () => {
     // two islands in one process, each the other's harbor
     let north!: Town;
@@ -33,7 +33,7 @@ describe("the ferry between islands", () => {
     expect(arrived.coins).toBe(27); expect(arrived.inventory).toContain("rope"); expect(arrived.owner).toBe("o1");
     expect(arrived.memory.some((m) => m.text.includes("Rosa cheated me"))).toBe(true);
     expect(arrived.memory.some((m) => m.text.includes("came here from The island"))).toBe(true);
-    expect(north.events.some((e) => e.kind === "ferry.news" && /mill roof/.test(e.text))).toBe(true);
+    expect(north.events.some((e) => e.kind === "boat.news" && /mill roof/.test(e.text))).toBe(true);
     expect(north.events.some((e) => e.kind === "agent.arrive" && /from The island/.test(e.text))).toBe(true);
     expect(b.memory.some((m) => m.text.startsWith("News from The island"))).toBe(true);
     // and back the other way, to a harbor that does not answer: she stays

@@ -1,7 +1,7 @@
 # DigitalOcean App Platform. One app, two services from images in the DigitalOcean container registry:
 # the town (one long-lived process with WebSockets, reached under /town) and the web at /.
 # deploy/do.sh builds, pushes, and applies this spec. Secrets are set once with `doctl apps update` and never committed.
-name: ferry-town
+name: small-hours
 region: fra
 # The island's own address. DNS points here with a CNAME to the app's default hostname; the certificate is DigitalOcean's.
 domains:
@@ -13,7 +13,7 @@ services:
   - name: town
     image:
       registry_type: DOCR
-      repository: ferry-town-town
+      repository: small-hours-town
       tag: latest
     http_port: 4000
     instance_count: 1
@@ -27,24 +27,24 @@ services:
     envs:
       - key: PORT
         value: "4000"
-      - key: FT_BRAIN
+      - key: SH_BRAIN
         value: openrouter
-      - key: FT_MS_PER_SIM_MINUTE
+      - key: SH_MS_PER_SIM_MINUTE
         value: "60000"
-      - key: FT_SEED
+      - key: SH_SEED
         value: "42"
-      - key: FT_CITIZENS
+      - key: SH_CITIZENS
         value: "20"
-      - key: FT_FERRY_SPACES
+      - key: SH_BOAT_SPACES
         value: "8"
-      - key: FT_REAL_WORLD
+      - key: SH_REAL_WORLD
         value: 43.17,16.44,Europe/Zagreb
-      - key: FT_TOWN_NAME
+      - key: SH_TOWN_NAME
         value: The island
   - name: web
     image:
       registry_type: DOCR
-      repository: ferry-town-web
+      repository: small-hours-web
       tag: latest
     http_port: 3000
     instance_count: 1

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town, MINUTES_PER_DAY } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal } from "@ferrytown/protocol";
+import type { Perception, ActionProposal } from "@smallhours/protocol";
 
 /** The physics that every contributor's change must keep. Runs on habit alone, so no key is needed. */
 const persona = (i: number, ambition = 0.5) => ({ name: `Citizen ${i}`, age: 30 + i, origin: "the mainland", summary: "A person.", want: "a quiet life", fear: "debt", secret: "none", strangers: "polite", advice: "listens", traits: { warmth: 0.5, pride: 0.4, caution: 0.5, honesty: 0.7, ambition } });
@@ -42,7 +42,7 @@ describe("the physics hold over five days of habit", () => {
 });
 
 describe("the new verbs", () => {
-  it("lends and remembers, hires at an owned place, lodges a friend, and leaves on the ferry", async () => {
+  it("lends and remembers, hires at an owned place, lodges a friend, and leaves on the boat", async () => {
     const town = new Town({ seed: 5, brain: none, minutesPerTick: 1 });
     const a = town.addAgent({ persona: persona(1), owner: "o1" }); const b = town.addAgent({ persona: persona(2), owner: "o2" });
     a.coins = 30; b.coins = 2; a.location = "market"; b.location = "market";
@@ -59,7 +59,7 @@ describe("the new verbs", () => {
     expect([...town.jobs.values()].some((j) => j.place === "shore-1")).toBe(true);
     expect(town.apply(a, { kind: "lodge", who: b.id }, "test")).toBe(true);
     expect(b.home?.place).toBe("shore-1");
-    // and the ferry out
+    // and the boat out
     b.location = "harbor";
     expect(town.apply(b, { kind: "leave", why: "nothing here for me" }, "test")).toBe(true);
     expect(town.agents.has(b.id)).toBe(false);

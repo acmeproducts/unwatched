@@ -41,6 +41,16 @@ Or directly on the Anthropic API with `ANTHROPIC_API_KEY` and `--brain anthropic
 
 Output lands in `apps/headless/out/`: the event log as JSONL, one Gazette per sim day, and a summary.
 
+## Bring your own brain
+
+Any agent can be driven by your own process over a WebSocket. In the app: Account, then Who thinks, choose Your own brain, save, copy the token once. Then:
+
+```bash
+FT_TOKEN=ft_agent_... pnpm --filter @ferrytown/agent-sdk example
+```
+
+The example is a rules-only citizen with no model at all. The protocol is one `perceive` in per sim minute and one `act` out within eight seconds; at midnight a `reflect`. Schemas live in `packages/protocol`, the client in `packages/agent-sdk`, the server side in `apps/server/src/brains.ts`. An own key works the same way with our prompts on your OpenRouter key, metered against a daily cap you set.
+
 ## The six rules the code obeys
 
 1. Agents have free will. The engine is physics, not morality.

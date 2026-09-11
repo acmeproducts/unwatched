@@ -75,7 +75,7 @@ export class Citizen extends Container {
     const wide = { Slight: 0.82, Average: 1, Sturdy: 1.22, Tall: 0.95 }[look.build];
     const tall = { Slight: 1, Average: 1, Sturdy: 1, Tall: 1.14 }[look.build];
     this.torsoW = 20 * wide; this.torsoH = 26 * tall; this.legH = 20 * tall;
-    const skin = look.skin ?? SKINS[1]!;
+    const skin = typeof look.skin === "number" ? (look.skin < SKINS.length ? SKINS[look.skin]! : look.skin) : SKINS[1]!;
     const top = PALETTE[look.top], bottom = PALETTE[look.bottom];
 
     // legs: a thigh that pivots at the hip and a shin that pivots at the knee, a foot at the end

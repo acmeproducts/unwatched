@@ -13,6 +13,8 @@
   --color-drift: #6B6E73;
   --color-line: rgba(20,22,26,0.10);
   --color-sage: #D9D6CE;
+  --color-sand-2: #E9E6DF;
+  --color-glass-2: #E2DFD8;
   --color-mist: #8B8E94;
   --font-display: var(--font-familjen), "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-body: var(--font-familjen), "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -26,10 +28,10 @@
 html, body { background: var(--color-sand); color: var(--color-kelp); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
 /* Night: the same five colours turned over. Ink is the ground, Paper the type, the Signal stays exactly as it is. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; }
+  :root:not([data-theme="light"]) { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; --color-sand-2: #22262C; --color-glass-2: #33373E; }
   :root:not([data-theme="light"]) .bg-teal { color: #14161A; }
 }
-:root[data-theme="dark"] { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; }
+:root[data-theme="dark"] { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; --color-sand-2: #22262C; --color-glass-2: #33373E; }
 :root[data-theme="dark"] .bg-teal { color: #14161A; }
 h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.025em; line-height: 1.08; font-weight: 600; }
 .label { font-size: 13px; letter-spacing: 0.02em; font-weight: 500; color: var(--color-drift); }
@@ -55,7 +57,7 @@ h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.025e
 .crossfade { transition: opacity 250ms linear; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .rise { opacity: 1; transform: none; } .ring-once::after { display: none; } }
 /* The landing page keeps the night whatever the visitor's theme: the island is checked on in the evening. The same Tide relationships on a kelp ground. */
-.landing { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; background: var(--color-sand); color: var(--color-kelp); }
+.landing { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; background: var(--color-sand); color: var(--color-kelp);  --color-sand-2: #22262C; --color-glass-2: #33373E; }
 .landing .bg-teal { color: #14161A; }
 /* Landfall: the hero's one entrance. The headline, the line under it and the buttons arrive in turn; everything is visible without it. */
 .landfall { animation: landfall 720ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 110ms); }

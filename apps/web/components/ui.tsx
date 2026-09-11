@@ -8,11 +8,11 @@ import { MobileTabs } from "./MobileTabs";
 import { Icon, type IconName } from "./icons";
 
 export function Button({ kind = "primary", size = 44, className = "", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind?: "primary" | "secondary" | "tertiary" | "leaving"; size?: 36 | 44 | 52 }) {
-  const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]", leaving: "bg-transparent text-coral border-2 border-coral hover:bg-[#FBEAE5]" }[kind];
+  const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-glass-2", tertiary: "bg-sand text-kelp hover:bg-sand-2", leaving: "bg-transparent text-coral border-2 border-coral hover:bg-coral/10" }[kind];
   return <button {...p} style={{ height: size, paddingInline: size * 0.45, borderRadius: 8 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold text-[15px] disabled:opacity-50 disabled:pointer-events-none transition-colors ${k} ${className}`} />;
 }
 export function LinkButton({ href, kind = "primary", size = 44, className = "", children }: { href: string; kind?: "primary" | "secondary" | "tertiary"; size?: 36 | 44 | 52; className?: string; children: React.ReactNode }) {
-  const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]" }[kind];
+  const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-glass-2", tertiary: "bg-sand text-kelp hover:bg-sand-2" }[kind];
   return <Link href={href} style={{ height: size, paddingInline: size * 0.45, borderRadius: 8 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold text-[15px] transition-colors ${k} ${className}`}>{children}</Link>;
 }
 export function Card({ tone = "shell", className = "", children }: { tone?: "shell" | "glass" | "teal" | "sand"; className?: string; children: React.ReactNode }) {

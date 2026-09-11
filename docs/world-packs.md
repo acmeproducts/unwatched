@@ -29,7 +29,7 @@ Rules the engine keeps regardless of the pack:
 - A **wild** place has no roof: a wood, a quarry, a beach. It can still have jobs.
 - Every place must be reachable from the harbor, because that is where the ferry lands.
 - Ids are lowercase with dashes or dots. Names are what a person would say.
-- Sprites are names in `apps/web/public/world/manifest.json`. A place whose sprite is missing borrows a stand-in until one is drawn, so you can add the place first and the art later.
+- Sprites are names of drawings in `apps/web/components/world/buildings.ts`. A place whose drawing is missing shows only its name until one is added, so you can add the place first and the art later.
 
 ## Adding a district
 
@@ -37,17 +37,15 @@ Rules the engine keeps regardless of the pack:
 2. Add at least one job so people have a reason to walk there, and a float for its till.
 3. Optionally add a plot or two. Plots are what make a district somewhere people want to live.
 4. Run `pnpm soak -- --days 10 --brain mock` and read the Gazettes. If nobody ever goes there, it needs a job or a road.
-5. Draw the sprites, or open an issue with the "A place, a job, or a sprite" template and let someone else draw them.
+5. Draw the buildings in code, or open an issue with the "A place, a job, or a sprite" template and let someone else draw them.
 
-## The Tide style, for sprites
+## The Tide style, drawn in code
 
-Flat vector, rounded shapes, thin dark outlines, three-quarter top-down, on a magenta background that the atlas script strips. Palette: deep teal `#1F5F5B` roofs, cream `#F7F5EE` walls, sage `#B9D9C6` doors and awnings, sand `#EFEDE4`, kelp `#1E2A2B` outlines, one coral `#E8735A` detail per building at most. Save the SVG under `apps/web/public/world/<sprite>.svg` and run:
+Nothing on the island is an image. Every building and prop is a function in `apps/web/components/world/buildings.ts` that draws it with rounded shapes in one dimetric projection: a point on the ground grid at (i, j, k) stands at x = i - j, y = (i + j) / 2 - k. Cream walls, teal roofs, sage doors and awnings, thin kelp outlines, one coral thing per building at most. People are drawn the same way in `citizen.ts`.
 
-```bash
-pnpm --filter @ferrytown/web exec node scripts/build-world-atlas.mjs
-```
+To add a sprite name for a place, add a function to the `D` table that returns a container and its natural width, using the helpers already there: `box` for walls, `gable` and `hip` for roofs, `door`, `windowL`, `windowR`, `chimney`, `awning`, `sign`, `post`. The origin is the bottom front corner of the footprint. Then use the name as the place's `sprite` in the pack. The model sheet at `/rig` shows every drawing at the world's scale, so open it while you work.
 
-That crops it, writes the PNG, and adds it to the manifest.
+Until a place has a drawing of its own it is simply not drawn, and its name still stands on the map, so a pack can land before its art does.
 
 ## A whole other island
 

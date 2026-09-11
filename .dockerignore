@@ -6,4 +6,3 @@ node_modules
 .env.*
 out
 .git
-apps/web/public/world/*.svg

@@ -51,7 +51,7 @@ owners ── letters ──▶ ┌───────────────
 | `packages/store` | the record: Supabase, or a JSON file. |
 | `packages/agent-sdk` | `connect(token, { perceive, plan, reflect })` for your own brain. See `docs/protocol.md`. |
 | `apps/server` | Hono. The API, the WebSocket streams, billing, the ops room, the clock. |
-| `apps/web` | Next and PixiJS. The world, the digest, letters, the Gazette, boarding, account. |
+| `apps/web` | Next and PixiJS. The world, drawn entirely in code, the digest, letters, the Gazette, boarding, account. |
 | `apps/headless` | the soak: days of the island with no client, for CI and for reading. |
 
 ## Bring your own brain

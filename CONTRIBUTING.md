@@ -36,7 +36,7 @@ So: no referee, no karma score, no "good ending", no purchase that makes a citiz
 - **Personas.** The house-funded citizens in `packages/cognition/src/personas.ts`. A want, a fear, a secret, and a voice.
 - **Verbs.** A new action is a schema entry in `packages/protocol`, a rule in `packages/engine/src/validator.ts`, an effect in `apply`, one event sentence, and a line in the rules prompt. Look at `lend` for the shape.
 - **Brains.** Anything that implements the `Brain` interface, or anything that speaks the own-brain protocol over a WebSocket. See `docs/protocol.md`.
-- **Sprites.** Flat vector, rounded shapes, thin dark outlines, three-quarter top-down, the Tide palette. See `apps/web/public/world` for the set and `docs/world-packs.md` for the style guide.
+- **Buildings and props.** Drawn in code, one function each, in one projection with the Tide palette. See `apps/web/components/world/buildings.ts` and the model sheet at `/rig`; `docs/world-packs.md` has the style guide.
 
 ## How to work
 

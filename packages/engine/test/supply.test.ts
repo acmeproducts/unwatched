@@ -7,7 +7,7 @@ const none: Brain = {
   name: "none",
   async decide(_p: Perception, _a: AgentState, _t: Tier): Promise<ActionProposal> { return { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async reflect() { throw new Error("no"); }, async plan() { throw new Error("no"); },
-  async digest() { return { text: "a day", headline: "A day" }; }, async child() { throw new Error("no"); }, async writePaper() { throw new Error("no"); },
+  async digest() { return { text: "a day", headline: "A day" }; }, async child() { throw new Error("no"); }, async writePaper() { throw new Error("no"); }, async life() { throw new Error("no"); },
 };
 function persona(name: string, rng: Rng) {
   return { name, age: 30, origin: "the mainland", summary: "A person.", want: "A room.", fear: "Debt.", secret: "None.", strangers: "Polite.", advice: "Considers it.", traits: { warmth: rng.next(), pride: rng.next(), caution: rng.next(), honesty: rng.next(), ambition: rng.next() } };

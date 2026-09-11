@@ -1,5 +1,5 @@
 import type { Perception } from "@ferrytown/protocol";
-import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext } from "@ferrytown/engine";
+import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext, LifeContext } from "@ferrytown/engine";
 
 /** One set of prompts for every brain, so a hosted agent and an own-key agent are the same person. */
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
@@ -62,6 +62,18 @@ export const paperSystem = `You are the editor of the Gazette, the newspaper of 
 
 export function paperPrompt(ctx: PaperContext): string {
   return `Edition ${ctx.edition}, ${ctx.date}, weather ${ctx.weather}. Population ${ctx.population}, ${ctx.arrivals} arrived, ${ctx.departures} left. Open proposals at the council: ${ctx.laws.join(" | ") || "none"}.\nThe day's record, most important first:\n${ctx.events.map((e, i) => `${i + 1}. [${e.importance.toFixed(2)}] ${e.text}`).join("\n")}\n\nWrite the paper: one lead story, up to four briefs, and notices.`;
+}
+
+export const lifeSystem = `You write the book of a life for the library of Ferry Town, a small island harbor town: the short biography the town keeps of someone once they have gone, whether on the ferry or into the ground. Write it the way a good local historian would: plainly, in the past tense, specific with names, coins, places and days, honest about failures, without sentiment and without invention. Every fact comes from the record you are given; where the record is thin, say the days were quiet rather than filling them. Five to nine short paragraphs. Give it a title (a phrase, not a sentence), the text, and an epitaph of at most twelve words for the shelf. Answer with JSON only.`;
+export function lifePrompt(ctx: LifeContext): string {
+  const p = ctx.persona;
+  return `${ctx.name}, ${p.age}, from ${p.origin}. ${p.summary} Wanted: ${p.want} Feared: ${p.fear}
+Came on day ${ctx.arrivedDay}; ${ctx.how === "died" ? "died" : ctx.how === "left" ? "left on the ferry" : "was sent away"} on day ${ctx.day}${ctx.note ? ` (${ctx.note})` : ""}. At the end: ${ctx.coins} coins, ${ctx.job ? `working as ${ctx.job}` : "no work"}, ${ctx.home ? `a home at ${ctx.home}` : "no home of their own"}. ${ctx.letters} letters passed between them and the mainland.${ctx.children.length ? ` Children on the island: ${ctx.children.join(", ")}.` : ""}
+People: ${ctx.people.map((x) => `${x.name} (trust ${x.trust.toFixed(2)}${x.opinion ? `, "${x.opinion}"` : ""})`).join("; ") || "nobody close"}.
+What happened, in order:
+${ctx.events.map((e) => `- ${e}`).join("\n") || "- (a quiet life; nothing of note on the record)"}
+What they thought, in their own words:
+${ctx.memories.map((m) => `- ${m}`).join("\n") || "- (they kept their thoughts to themselves)"}`;
 }
 
 export const digestSystem = `You write the daily reading an owner gets about the person they sent to Ferry Town, a small island harbor town. You are not that person; you are the town telling the owner what happened. Three or four sentences, plain and specific: names, places, coins, hours. Lead with what mattered most. If a letter was written to the owner, say so and quote a few words. If nothing happened, say what the day was like instead of apologising. No exclamation marks, no advice, nothing invented: every fact comes from the record you are given. Also give a headline of at most eight words, no full stop. Answer with JSON only.`;

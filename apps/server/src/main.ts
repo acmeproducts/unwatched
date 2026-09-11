@@ -60,14 +60,14 @@ async function ferryTo(passenger: Passenger, to: string): Promise<boolean> {
     return true;
   } catch (err) { log(`ferry to ${h.id}: ${(err as Error).message}`); return false; }
 }
-let store: Store | null = TownStore.fromEnv(TOWN_ID);
+let store: Store | null = process.env.FT_STORE === "none" ? null : TownStore.fromEnv(TOWN_ID);
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
 if (!store && process.env.FT_STORE !== "none") { store = FileStore.fromEnv(TOWN_ID); log(`record kept in ${process.env.FT_DATA_DIR ?? "out/town"}/${TOWN_ID}.json (set SUPABASE_URL for the shared record, FT_STORE=none for none)`); }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: ferryTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
+const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: ferryTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
 const saved = store ? await store.loadSnapshot() : null;
 if (saved && saved.agents.length > 0) {
   town.restore(saved);
@@ -372,6 +372,9 @@ app.post("/api/ops/switch", async (c) => {
 });
 app.post("/api/ops/hold/:id", (c) => { if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401); const h = metrics.holds.find((x) => x.id === Number(c.req.param("id"))); if (h) h.done = true; return c.json({ ok: !!h }); });
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
+// the library: the book of every life that ended here, public like the paper
+app.get("/api/library", async (c) => { const rows = store ? await store.lives() : []; return c.json(rows.map(({ text: _t, ...r }) => ({ ...r, words: _t.split(/\s+/).length }))); });
+app.get("/api/library/:id", async (c) => { const row = store ? await store.life(c.req.param("id")) : null; return row ? c.json(row) : c.json({ error: "no book by that name on the shelf" }, 404); });
 app.get("/api/papers/latest", (c) => { const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "the first edition prints at midnight" }, 404); });
 app.get("/api/events", (c) => {
   const since = Number(c.req.query("since") ?? town.t - 120); const place = c.req.query("place"); const min = Number(c.req.query("min") ?? 0);

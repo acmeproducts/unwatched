@@ -11,6 +11,9 @@ import { compress } from "@ferrytown/engine";
  * The town's record on Supabase. The engine writes with the service role; owners and visitors read through RLS.
  * Writes are batched so a busy tick does not become a thousand round trips.
  */
+/** One book on the library shelf. */
+export interface LifeRow { agentId: string; name: string; title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number }
+
 export class TownStore {
   private sb: SupabaseClient;
   private eventQueue: TownEvent[] = [];
@@ -193,6 +196,19 @@ export class TownStore {
     return (data ?? []).map((d) => ({ ownerId: d.owner_id, plan: d.plan, credits: d.credits, stripeCustomer: d.stripe_customer }));
   }
 
+  /** The book of a life, on the shelf for anyone to read. */
+  async saveLife(row: LifeRow): Promise<void> {
+    const { error } = await this.sb.from("lives").upsert({ town_id: this.townId, agent_id: row.agentId, name: row.name, title: row.title, text: row.text, epitaph: row.epitaph, how: row.how, arrived_day: row.arrivedDay, left_day: row.leftDay }, { onConflict: "town_id,agent_id" });
+    if (error) console.error("life save failed:", error.message);
+  }
+  async lives(): Promise<LifeRow[]> {
+    const { data } = await this.sb.from("lives").select("agent_id, name, title, text, epitaph, how, arrived_day, left_day").eq("town_id", this.townId).order("left_day", { ascending: false }).limit(200);
+    return (data ?? []).map((r) => ({ agentId: r.agent_id, name: r.name, title: r.title, text: r.text, epitaph: r.epitaph, how: r.how as LifeRow["how"], arrivedDay: r.arrived_day, leftDay: r.left_day }));
+  }
+  async life(agentId: string): Promise<LifeRow | null> {
+    const { data } = await this.sb.from("lives").select("agent_id, name, title, text, epitaph, how, arrived_day, left_day").eq("town_id", this.townId).eq("agent_id", agentId).maybeSingle();
+    return data ? { agentId: data.agent_id, name: data.name, title: data.title, text: data.text, epitaph: data.epitaph, how: data.how as LifeRow["how"], arrivedDay: data.arrived_day, leftDay: data.left_day } : null;
+  }
   async savePaper(paper: Paper): Promise<void> {
     const { error } = await this.sb.from("papers").upsert({ town_id: this.townId, edition: paper.edition, paper }, { onConflict: "town_id,edition" });
     if (error) console.error("paper upsert failed:", error.message);

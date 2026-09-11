@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Page, Label, LinkButton } from "@/components/ui";
 import { api, type Paper, type Clock } from "@/lib/api";
+import { Painting } from "@/components/Painting";
 
 export default function Gazette() {
   const [papers, setPapers] = useState<Paper[]>([]); const [c, setC] = useState<Clock | null>(null); const [i, setI] = useState(0);
@@ -16,9 +17,9 @@ export default function Gazette() {
         </div>
         {p ? (
           <div className="grid gap-7 grow grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="flex flex-col gap-3"><h2 className="text-[30px] font-bold">{p.lead.headline}</h2><p className="text-[17px] text-ink2 italic">{p.lead.deck}</p><p className="text-[15px] text-ink2 leading-[1.55] whitespace-pre-line">{p.lead.body}</p></div>
+            <div className="flex flex-col gap-3">{p.scene && <div className="flex flex-col gap-1"><Painting scene={p.scene} edition={p.edition} /><p className="text-xs text-drift italic">{p.scene.caption}</p></div>}<h2 className="text-[30px] font-bold">{p.lead.headline}</h2><p className="text-[17px] text-ink2 italic">{p.lead.deck}</p><p className="text-[15px] text-ink2 leading-[1.55] whitespace-pre-line">{p.lead.body}</p></div>
             <div className="flex flex-col gap-4 lg:border-l border-line lg:pl-7">{p.briefs.map((b, k) => <div key={k}><h3 className="text-xl font-semibold leading-[1.15]">{b.headline}</h3><p className="text-sm text-ink2">{b.body}</p></div>)}</div>
-            <div className="flex flex-col gap-4 lg:border-l border-line lg:pl-7"><div className="bg-sand rounded-[20px] p-4 flex flex-col gap-2"><Label>Notices</Label>{p.notices.map((n, k) => <div key={k} className="text-sm">{n}</div>)}</div><div className="bg-teal text-sand rounded-[20px] p-4 flex flex-col gap-2 mt-auto"><Label tone="mist">Reading as a visitor</Label><div className="text-sm">Anyone can read the Gazette. To be in it, put someone on the ferry.</div><LinkButton href="/board" kind="tertiary" size={36}>Board the ferry</LinkButton></div></div>
+            <div className="flex flex-col gap-4 lg:border-l border-line lg:pl-7"><div className="bg-sand rounded-[20px] p-4 flex flex-col gap-2"><Label>Notices</Label>{p.notices.map((n, k) => <div key={k} className="text-sm">{n}</div>)}</div><div className="bg-teal text-sand rounded-[20px] p-4 flex flex-col gap-2 mt-auto"><Label tone="mist">Reading as a visitor</Label><div className="text-sm">Anyone can read the Gazette. To be in it, put someone on the ferry.</div><LinkButton href="/board" kind="tertiary" size={36}>Board the ferry</LinkButton></div><div className="bg-sand rounded-[20px] p-4 flex flex-col gap-2"><Label>The library</Label><div className="text-sm text-ink2">The book of every life that ended here, written by the town.</div><LinkButton href="/library" kind="secondary" size={36}>Open the shelf</LinkButton></div></div>
           </div>
         ) : <p className="text-drift">No edition yet. The editor writes from the day's record after midnight.</p>}
       </div>

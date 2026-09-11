@@ -13,6 +13,7 @@ const none: Brain = {
   async digest() { return { text: "a day", headline: "A day" }; },
   async child() { throw new Error("no"); },
   async writePaper() { throw new Error("no"); },
+  async life() { throw new Error("no"); },
 };
 
 function persona(name: string, rng: Rng) {

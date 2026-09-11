@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
 export interface AnthropicBrainOptions {
   routine?: string;   // tier 1
@@ -119,6 +119,18 @@ export class AnthropicBrain implements Brain {
       if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.writePaper(ctx);
       return res.parsed_output;
     } catch (err) { return this.handle(err, () => this.fallback.writePaper(ctx)); }
+  }
+  async life(ctx: LifeContext): Promise<LifeText> {
+    try {
+      const res = await this.client.messages.parse({
+        model: this.reflectModel, max_tokens: 3200,
+        system: lifeSystem,
+        messages: [{ role: "user", content: lifePrompt(ctx) }],
+        output_config: { format: zodOutputFormat(LifeText) },
+      });
+      if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.life(ctx);
+      return res.parsed_output;
+    } catch (err) { return this.handle(err, () => this.fallback.life(ctx)); }
   }
 
   private async handle<T>(err: unknown, fallback: () => Promise<T>): Promise<T> {

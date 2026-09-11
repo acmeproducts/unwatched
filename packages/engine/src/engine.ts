@@ -1,7 +1,7 @@
 import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
-import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext } from "./types.ts";
+import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, buildKind, siteName, ISLAND, type WorldPack } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
@@ -224,7 +224,22 @@ export class Town {
     const text = reason === "left" ? `${a.persona.name} left on the ferry.${note ? ` ${note}` : ""}` : reason === "died" ? `${a.persona.name} died.${note ? ` ${note}` : ""}` : `${a.persona.name} was sent away from the island.${note ? ` ${note}` : ""}`;
     this.emit("agent.leave", [agentId], "harbor", text, 0.9, { reason, note });
     this.departuresToday++; this.burned += a.coins;
+    void this.writeLife(a, reason, note);
     return a;
+  }
+
+  /** The book of a life: the town writes it once someone has gone, from the record alone, and puts it on the shelf as an event. */
+  private async writeLife(a: AgentState, how: "left" | "died" | "exiled", note: string): Promise<void> {
+    if (this.brain.name === "none") return;
+    const arrivedDay = Math.floor(a.arrivedAt / MINUTES_PER_DAY) + 1;
+    const events = this.events.filter((e) => e.actors.includes(a.id) && e.importance >= 0.35 && e.kind !== "agent.reflect" && e.kind !== "agent.move").sort((x, y) => y.importance - x.importance).slice(0, 40).sort((x, y) => x.t - y.t).map((e) => `day ${e.day}: ${e.text}`);
+    const memories = [...a.memory].filter((m) => m.kind === "reflect" || m.importance >= 0.7).sort((x, y) => y.importance - x.importance).slice(0, 16).sort((x, y) => x.t - y.t).map((m) => m.text);
+    const people = [...a.relationships.entries()].map(([id, r]) => ({ name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion ?? "" })).sort((x, y) => Math.abs(y.trust - 0.3) - Math.abs(x.trust - 0.3)).slice(0, 8);
+    const ctx: LifeContext = { name: a.persona.name, persona: a.persona, how, note, arrivedDay, day: this.day, coins: a.coins, job: a.job ? (this.jobs.get(a.job)?.title ?? null) : null, home: a.home ? (this.places.get(a.home.place)?.name ?? null) : null, events, memories, people, letters: a.letters.length, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => c.name) };
+    try {
+      const life = await this.brain.life(ctx);
+      this.emit("town.book", [a.id], "hall", `The town wrote the book of ${a.persona.name}: “${life.title}”.`, 0.5, { title: life.title, text: life.text, epitaph: life.epitaph, how, arrivedDay, leftDay: this.day, name: a.persona.name });
+    } catch (err) { this.log(`the book of ${a.persona.name} was not written: ${(err as Error).message}`); }
   }
 
   sendLetter(agentId: AgentId, text: string): void {
@@ -882,11 +897,15 @@ export class Town {
   private async printPaper(): Promise<void> {
     if (this.brain.name === "none" || this.paused) return;
     const dayStart = (this.day - 1) * MINUTES_PER_DAY;
-    const evs = this.events.filter((e) => e.t >= dayStart && e.importance >= 0.3 && e.kind !== "agent.reflect" && e.kind !== "agent.letter")
-      .sort((x, y) => y.importance - x.importance).slice(0, 14)
-      .map((e) => ({ text: e.text, importance: e.importance, actors: e.actors.map((id) => this.agents.get(id)?.persona.name ?? id) }));
+    const raw = this.events.filter((e) => e.t >= dayStart && e.importance >= 0.3 && e.kind !== "agent.reflect" && e.kind !== "agent.letter" && e.kind !== "town.book")
+      .sort((x, y) => y.importance - x.importance).slice(0, 14);
+    const evs = raw.map((e) => ({ text: e.text, importance: e.importance, actors: e.actors.map((id) => this.agents.get(id)?.persona.name ?? id) }));
     try {
       const paper = await this.brain.writePaper({ edition: this.day, date: `Day ${this.day}`, weather: this.weather, events: evs, laws: this.laws.filter((l) => l.open).map((l) => l.text), population: this.agents.size, arrivals: this.arrivalsToday, departures: this.departuresToday });
+      // the front-page picture: the most important moment that happened somewhere, as the record has it
+      const lead = raw.find((e) => e.place && this.places.has(e.place) && !/ talked at /.test(e.text)) ?? raw.find((e) => e.place && this.places.has(e.place));
+      const at = lead ? this.places.get(lead.place!)! : this.places.get("harbor");
+      if (at) paper.scene = { place: at.id, placeName: at.name, sprite: at.sprite, actors: (lead?.actors ?? []).slice(0, 4).map((id) => this.agents.get(id)?.persona.name ?? id), hour: lead ? Math.floor((lead.t % MINUTES_PER_DAY) / 60) : 8, weather: this.weather, caption: (lead?.text ?? `${this.weather[0]!.toUpperCase()}${this.weather.slice(1)} over the harbor.`).slice(0, 200) };
       this.papers.push(paper);
     } catch (err) { this.log(`paper failed: ${(err as Error).message}`); }
   }

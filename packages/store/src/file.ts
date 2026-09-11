@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@ferrytown/engine";
 import { compress } from "@ferrytown/engine";
 import type { TownEvent, Paper } from "@ferrytown/protocol";
-import type { BrainRow, Wallet, TownStore } from "./index.ts";
+import type { LifeRow, BrainRow, Wallet, TownStore } from "./index.ts";
 
 /** The record's shape, whichever thing keeps it. Both the Supabase store and the file store answer to this. */
 export type Store = Pick<TownStore, keyof TownStore>;
@@ -16,6 +16,7 @@ interface Data {
   relationships: { agent_id: string; other_id: string; trust: number; affection: number; last_seen: number; opinion: string }[];
   letters: { id: number; agent_id: string; owner_id: string | null; direction: "to_agent" | "to_owner"; text: string; t: number; read_at: number | null }[];
   papers: Paper[];
+  lives?: LifeRow[];
   laws: { text: string; by: string; yes: number; no: number; open: boolean }[];
   brains: BrainRow[];
   wallets: Wallet[];
@@ -78,6 +79,9 @@ export class FileStore {
   async ledger(ownerId: string, n = 30) { return this.d.ledger.filter((l) => l.owner_id === ownerId).slice(-n).reverse().map(({ delta, reason, ref, at }) => ({ delta, reason, ref, at })); }
   async credit(ownerId: string, delta: number, reason: string, ref: string | null = null): Promise<void> { this.d.ledger.push({ owner_id: ownerId, delta, reason, ref, at: new Date().toISOString() }); this.dirty = true; }
   async allWallets(): Promise<Wallet[]> { return this.d.wallets; }
+  async saveLife(row: LifeRow): Promise<void> { this.d.lives = [...(this.d.lives ?? []).filter((l) => l.agentId !== row.agentId), row]; this.save(); }
+  async lives(): Promise<LifeRow[]> { return [...(this.d.lives ?? [])].sort((x, y) => y.leftDay - x.leftDay); }
+  async life(agentId: string): Promise<LifeRow | null> { return (this.d.lives ?? []).find((l) => l.agentId === agentId) ?? null; }
   async savePaper(paper: Paper): Promise<void> { this.d.papers = [...this.d.papers.filter((p) => p.edition !== paper.edition), paper].slice(-14); this.save(); }
   async saveLetter(agentId: string, ownerId: string | null, direction: "to_agent" | "to_owner", text: string, t: number): Promise<void> { this.d.letters.push({ id: this.d.letters.length + 1, agent_id: agentId, owner_id: ownerId, direction, text, t, read_at: direction === "to_agent" ? null : t }); this.save(); }
   async undeliveredLetters() { return this.d.letters.filter((l) => l.direction === "to_agent" && l.read_at === null).map(({ id, agent_id, text }) => ({ id, agent_id, text })); }

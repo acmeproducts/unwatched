@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
 export interface OpenRouterBrainOptions {
   apiKey?: string;
@@ -100,6 +100,10 @@ export class OpenRouterBrain implements Brain {
   async writePaper(ctx: PaperContext): Promise<Paper> {
     const out = await this.call(this.reflectModel, paperSystem, paperPrompt(ctx), Paper, "paper", 3000);
     return out ?? this.fallback.writePaper(ctx);
+  }
+  async life(ctx: LifeContext): Promise<LifeText> {
+    const out = await this.call(this.reflectModel, lifeSystem, lifePrompt(ctx), LifeText, "life", 3200);
+    return out ?? this.fallback.life(ctx);
   }
 }
 

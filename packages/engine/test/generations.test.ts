@@ -10,7 +10,7 @@ const quiet: Brain = {
   async decide(_p: Perception, _a: AgentState, _t: Tier): Promise<ActionProposal> { return { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async reflect() { return { summary: "a day", insights: [], opinions: [], intentions: [], letter_to_owner: null }; },
   async plan() { return { mood: "settled", goals: ["keep the house"], steps: [{ hour: 9, do: "stay home", place: null }] }; },
-  async digest() { return { text: "", headline: "" }; }, async writePaper() { return { edition: 1, date: "d", weather: "clear", lead: { headline: "h", deck: "d", body: "b" }, briefs: [], notices: [] }; },
+  async digest() { return { text: "", headline: "" }; }, async writePaper() { return { edition: 1, date: "d", weather: "clear", lead: { headline: "h", deck: "d", body: "b" }, briefs: [], notices: [] }; }, async life() { return { title: "t", text: "x", epitaph: "e" }; },
   async child(ctx) { return { ...persona(`Child ${ctx.parents[0]!.persona.name.split(" ")[1]}`), age: 16, origin: "born on the island" }; },
 };
 

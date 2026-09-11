@@ -153,7 +153,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
+  "conversation", "action.rejected", "town.notice", "town.book", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 
@@ -194,6 +194,9 @@ export const Dialogue = z.object({
 export type Dialogue = z.infer<typeof Dialogue>;
 
 /** The Gazette. */
+/** The picture on the front page: the engine chooses the moment from the record; the reader's screen paints it. */
+export const PaperScene = z.object({ place: z.string(), placeName: z.string(), sprite: z.string(), actors: z.array(z.string()).max(4), hour: z.number().int(), weather: z.string(), caption: z.string().max(200) });
+export type PaperScene = z.infer<typeof PaperScene>;
 export const Paper = z.object({
   edition: z.number().int(),
   date: z.string(),
@@ -201,7 +204,12 @@ export const Paper = z.object({
   lead: z.object({ headline: z.string().max(120), deck: z.string().max(240), body: z.string().max(2000) }),
   briefs: z.array(z.object({ headline: z.string().max(120), body: z.string().max(700) })).max(4),
   notices: z.array(z.string().max(240)).max(6),
+  scene: PaperScene.optional(),
 });
 export type Paper = z.infer<typeof Paper>;
+
+/** The written life: what the town says of someone once they have left it, for good or on the ferry. */
+export const LifeText = z.object({ title: z.string().max(90), text: z.string().max(2800), epitaph: z.string().max(140) });
+export type LifeText = z.infer<typeof LifeText>;
 
 export const OPTIONS_DEFAULT: ActionKind[] = ["move", "say", "give", "take", "use", "work", "apply", "quit", "trade", "propose", "vote", "write", "message_owner", "sleep", "wait"];

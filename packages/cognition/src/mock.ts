@@ -1,5 +1,5 @@
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext } from "@ferrytown/engine";
+import type { LifeText, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext } from "@ferrytown/engine";
 import { Rng } from "@ferrytown/engine";
 
 /**
@@ -155,6 +155,19 @@ export class MockBrain implements Brain {
       notices: [`Population ${ctx.population}. ${ctx.arrivals} arrived, ${ctx.departures} left.`, ...ctx.laws.slice(0, 2).map((l) => `Proposed at the council: ${l}`), `Weather: ${ctx.weather}.`].slice(0, 6),
     };
   }
+  async life(ctx: LifeContext): Promise<LifeText> {
+    const days = ctx.day - ctx.arrivedDay; const p = ctx.persona;
+    const first = ctx.name.split(" ")[0]!;
+    const paras = [
+      `${ctx.name} came to the island on day ${ctx.arrivedDay}, ${p.age}, from ${p.origin}. ${p.summary}`,
+      ctx.events.length ? `The record has it that ${ctx.events.slice(0, 4).map((e) => e.replace(/^day \d+: /, "")).join(" ")}` : `The days were quiet. The record keeps ${first}'s comings and goings and little else.`,
+      ctx.people.length ? `${first} knew ${ctx.people.slice(0, 3).map((x) => x.name).join(", ")}${ctx.people[0] && ctx.people[0].trust > 0.6 ? `, and ${ctx.people[0].name} best of all` : ""}.` : `${first} kept to themself.`,
+      ctx.memories.length ? `In their own words: “${ctx.memories[ctx.memories.length - 1]}”` : "",
+      `${ctx.how === "died" ? `${first} died on day ${ctx.day}${ctx.note ? `, ${ctx.note.replace(/\.$/, "").toLowerCase()}` : ""}` : ctx.how === "left" ? `${first} left on the ferry on day ${ctx.day}` : `${first} was sent away on day ${ctx.day}`}, after ${days} day${days === 1 ? "" : "s"} on the island, with ${ctx.coins} coins${ctx.job ? ` and work as ${ctx.job}` : ""}.${ctx.children.length ? ` ${ctx.children.join(" and ")} stayed.` : ""}`,
+    ].filter(Boolean);
+    return { title: `${days} days of ${first}`.slice(0, 90), text: paras.join("\n\n").slice(0, 2800), epitaph: (ctx.how === "died" ? `Wanted ${p.want.replace(/\.$/, "").toLowerCase()}; the island gave less.` : `Came for ${p.want.replace(/\.$/, "").toLowerCase()}; went on.`).slice(0, 140) };
+  }
+
 }
 
 function round(x: number): number { return Math.round(x * 100) / 100; }

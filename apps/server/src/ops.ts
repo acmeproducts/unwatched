@@ -1,5 +1,5 @@
-import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Perception, Persona, Reflection } from "@ferrytown/protocol";
 import { OpenRouterBrain } from "@ferrytown/cognition";
 
 const PRICE: Record<string, [number, number]> = { "anthropic/claude-haiku-4.5": [1, 5], "anthropic/claude-sonnet-5": [2, 10], "anthropic/claude-opus-5": [5, 25], "claude-haiku-4-5": [1, 5], "claude-sonnet-5": [2, 10], "claude-opus-5": [5, 25] };
@@ -35,6 +35,7 @@ export class Metrics implements Brain {
   fallback(f: { what: string; model: string; reason: string }) { this.fallbacks.unshift({ at: Date.now(), ...f }); if (this.fallbacks.length > 200) this.fallbacks.pop(); this.hold("watch", `The town's mind could not use a ${f.model} answer for ${f.what} (${f.reason}); the plain fallback stood in.`, "models"); }
   async child(ctx: ChildContext): Promise<Persona> { const b = this.bucket(); b.t2++; const out = await this.timed(b, () => this.inner.child(ctx)); this.meter(b, this.models.stakes); return out; }
   async writePaper(ctx: PaperContext): Promise<Paper> { const b = this.bucket(); const out = await this.timed(b, () => this.inner.writePaper(ctx)); this.meter(b, this.models.reflect); return out; }
+  async life(ctx: LifeContext): Promise<LifeText> { const b = this.bucket(); const out = await this.timed(b, () => this.inner.life(ctx)); this.meter(b, this.models.reflect); return out; }
   hold(level: "hold" | "watch" | "ok", text: string, source: string) { this.holds.unshift({ id: this.nextHold++, level, text, at: Date.now(), source, done: false }); if (this.holds.length > 100) this.holds.pop(); }
   today(day: number) { const hs = this.hours.filter((h) => h.day === day); const ms = hs.flatMap((h) => h.ms).sort((a, b) => a - b); return { t1: hs.reduce((s, h) => s + h.t1, 0), t2: hs.reduce((s, h) => s + h.t2, 0), t3: hs.reduce((s, h) => s + h.t3, 0), converse: hs.reduce((s, h) => s + h.converse, 0), cost: hs.reduce((s, h) => s + h.cost, 0), p50: ms.length ? ms[Math.floor(ms.length / 2)]! : 0, p95: ms.length ? ms[Math.floor(ms.length * 0.95)]! : 0 }; }
 }

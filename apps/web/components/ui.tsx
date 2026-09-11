@@ -52,7 +52,7 @@ export function Wordmark({ size = 21, dark = false }: { size?: number; dark?: bo
   return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display font-bold" style={{ fontSize: size, letterSpacing: "-0.035em", color: dark ? "#DCEBE3" : "#1F5F5B" }}>Ferry Town</span></Link>;
 }
 
-const TABS: [string, string, IconName][] = [["Digest", "/digest", "digest"], ["Letters", "/letters", "letter"], ["Town", "/town", "town"], ["Gazette", "/gazette", "gazette"]];
+const TABS: [string, string, IconName][] = [["Digest", "/digest", "digest"], ["Letters", "/letters", "letter"], ["Town", "/town", "town"], ["Gazette", "/gazette", "gazette"], ["Library", "/library", "book"]];
 export function TopBar() {
   const path = usePathname();
   const [c, setC] = useState<Clock | null>(null);

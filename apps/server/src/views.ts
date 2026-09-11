@@ -8,7 +8,7 @@ export function publicAgent(town: Town, a: AgentState) {
     id: a.id, name: a.persona.name, age: a.persona.age, origin: a.persona.origin, summary: a.persona.summary,
     location: a.location, place: town.places.get(a.location)?.name ?? a.location, asleep: a.asleep,
     job, home: a.home?.place ?? null, arrivedDay: Math.floor(a.arrivedAt / 1440) + 1, funded: a.funded,
-    ownerId: a.owner, appearance: a.appearance ?? null,
+    ownerId: a.owner, appearance: a.appearance ?? null, carrying: a.inventory.length ? a.inventory[a.inventory.length - 1]! : null,
     pose: poseOf(town, a), weak: a.starving >= 2, daysHungry: a.starving,
   };
 }

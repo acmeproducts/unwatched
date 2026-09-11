@@ -22,7 +22,7 @@ export interface Look {
 
 import { KELP, CORAL, TEAL, SAGE, CREAM, SAND } from "./palette";
 const PALETTE: Record<Look["top"], number> = { Teal: TEAL, Sage: SAGE, Cream: CREAM, Sand: SAND, Kelp: KELP };
-const HAIR = 0x2b2f30, GREY = 0xb9c4bf, STRAW = 0xe3d3a2, LEATHER = 0x8e6a4b;
+const HAIR = 0x2b2f30, GREY = 0xb9c4bf, STRAW = 0xe3d3a2, LEATHER = 0x8e6a4b, WOOD_H = 0xc9b58f;
 const SKINS = [0xf1d6c0, 0xe7c3a5, 0xd2a682, 0xb98460, 0x8f5f42, 0x6b4630];
 const STROKE = { width: 1.6, color: KELP, join: "round" as const, cap: "round" as const };
 
@@ -30,6 +30,8 @@ function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.len
 function pick<T>(arr: readonly T[], h: number, salt: number): T { return arr[(h >>> (salt % 24)) % arr.length]!; }
 
 /** A look for someone who never chose one: house-funded citizens get a deterministic one from their name. */
+/** The years grey the hair: past sixty, whatever they had. */
+export function aged(look: Look, years: number): Look { return years >= 60 && look.hair !== "Under a hat" ? { ...look, hair: "Grey" } : look; }
 export function lookFor(name: string, chosen: Partial<Look> | null | undefined): Look {
   const h = hash(name);
   const base: Look = {
@@ -59,6 +61,7 @@ export class Citizen extends Container {
   private eyes = new Graphics(); private brows = new Graphics(); private mouth = new Graphics(); private backHair = new Graphics();
   private facingMode: Facing = "right"; private moodState = { hunger: 0, joy: 0, grief: 0 }; private gaze = 0; private talking = false;
   private thighH = 0; private shinH = 0; private upperH = 0; private foreH = 0; private headR = 11;
+  private held = new Graphics(); private heldItem: string | null = null; private tradeName: string | null = null; private workStyle: "swing" | "push" | "haul" | "sweep" | "knead" = "swing"; private years = 30;
   private carry = new Graphics(); private tool = new Graphics();
   private hood = new Graphics(); private umbrella = new Graphics(); private breath = new Graphics(); private gear = { rain: false, cold: false };
   private facing = 1;
@@ -105,6 +108,7 @@ export class Citizen extends Container {
     this.foreR.addChild(this.carry);
     this.tool.roundRect(-2, -6, 4, 18, 2).fill(LEATHER).stroke(STROKE).roundRect(-7, -9, 14, 6, 2).fill(KELP);
     this.tool.position.set(0, this.foreH); this.tool.visible = false; this.foreR.addChild(this.tool);
+    this.held.position.set(0, this.foreH); this.foreL.addChild(this.held);
     // head, hair, hat
     const headR = 11 * (look.build === "Sturdy" ? 1.05 : 1); this.headR = headR;
     const face = new Graphics(); face.circle(0, 0, headR).fill(skin).stroke(STROKE);
@@ -169,6 +173,44 @@ export class Citizen extends Container {
     if (Math.abs(tilt) > 0.2 || Math.abs(lift) > 0.2 || grief > 0.2) { this.brows.moveTo(-6, -4.5 - lift + tilt * 0.6).lineTo(-2, -4.5 - lift - tilt * 0.6).moveTo(2, -4.5 - lift - tilt * 0.6).lineTo(6, -4.5 - lift + tilt * 0.6).stroke({ width: 1.1, color: KELP, cap: "round" }); }
     void r;
   }
+  /** The tool of the trade, drawn in the working hand, and how the work moves: a swing, a push and pull, a haul, a sweep, a knead. */
+  trade(title: string | null): void {
+    const t = (title ?? "").toLowerCase(); if (t === this.tradeName) return; this.tradeName = t; const g = this.tool; g.clear();
+    const handle = (len: number, w = 3.5) => g.roundRect(-w / 2, -len + 4, w, len, w / 2).fill(WOOD_H).stroke(STROKE);
+    if (/smith|forge|iron/.test(t)) { this.workStyle = "swing"; handle(22); g.roundRect(-7, -24, 14, 7, 2).fill(KELP).stroke(STROKE); }
+    else if (/cook|bak/.test(t)) { this.workStyle = "knead"; g.roundRect(-9, 0, 18, 5, 2.5).fill(0xe3d3a2).stroke(STROKE); g.roundRect(-11, 1, 3, 3, 1.5).fill(WOOD_H); g.roundRect(8, 1, 3, 3, 1.5).fill(WOOD_H); }
+    else if (/fish|gutter|net/.test(t)) { this.workStyle = "haul"; g.moveTo(-4, 2).lineTo(-9, 16).lineTo(9, 16).lineTo(4, 2).closePath().fill({ color: 0x9fc2ad, alpha: 0.7 }).stroke(STROKE); for (let x = -6; x <= 6; x += 4) g.moveTo(x, 4).lineTo(x * 1.3, 16).stroke({ width: 0.8, color: KELP, alpha: 0.5 }); }
+    else if (/saw/.test(t)) { this.workStyle = "push"; g.roundRect(-2, -2, 4, 8, 2).fill(WOOD_H).stroke(STROKE); g.moveTo(0, 6).lineTo(0, 26).stroke({ width: 4, color: 0xdcd9cf }); g.moveTo(0, 6).lineTo(0, 26).stroke({ width: 1, color: KELP }); for (let y = 8; y < 26; y += 3) g.moveTo(2, y).lineTo(3.5, y + 1.5).stroke({ width: 1, color: KELP }); }
+    else if (/field|pick|orchard|hand at the field/.test(t)) { this.workStyle = "swing"; handle(26, 3); g.roundRect(-8, -28, 16, 4, 1.5).fill(KELP).stroke(STROKE); }
+    else if (/wood|cutter|axe/.test(t)) { this.workStyle = "swing"; handle(24); g.moveTo(0, -26).lineTo(9, -30).lineTo(9, -18).lineTo(0, -21).closePath().fill(0xdcd9cf).stroke(STROKE); }
+    else if (/quarry|stone/.test(t)) { this.workStyle = "swing"; handle(24); g.moveTo(-9, -25).lineTo(9, -25).lineTo(6, -21).lineTo(-6, -21).closePath().fill(KELP).stroke(STROKE); }
+    else if (/inn|help|clerk|keep/.test(t)) { this.workStyle = "sweep"; handle(28, 3); g.moveTo(-6, 4).lineTo(6, 4).lineTo(4, 12).lineTo(-4, 12).closePath().fill(0xe3d3a2).stroke(STROKE); }
+    else if (/mill/.test(t)) { this.workStyle = "haul"; g.roundRect(-8, -2, 16, 18, 5).fill(0xf7f5ee).stroke(STROKE); g.moveTo(-5, -1).lineTo(5, -1).stroke({ width: 2, color: KELP }); }
+    else if (/dock|harbo/.test(t)) { this.workStyle = "haul"; g.roundRect(-8, 0, 16, 14, 2).fill(WOOD_H).stroke(STROKE); g.moveTo(-8, 5).lineTo(8, 5).stroke({ width: 1, color: KELP }); }
+    else { this.workStyle = "swing"; g.roundRect(-2, -6, 4, 18, 2).fill(LEATHER).stroke(STROKE).roundRect(-7, -9, 14, 6, 2).fill(KELP); }
+  }
+  /** A thing in the free hand: a loaf, a fish, an apple, planks on the shoulder, a bundle of lavender, a lantern. Nothing drawn for what has no shape. */
+  hold(item: string | null): void {
+    const it = (item ?? "").toLowerCase(); if (it === this.heldItem) return; this.heldItem = it; const g = this.held; g.clear();
+    if (/bread|loaf/.test(it)) g.ellipse(0, 4, 7, 4).fill(0xd9b26a).stroke(STROKE);
+    else if (/fish/.test(it)) { g.ellipse(0, 4, 8, 3).fill(0x9fc2ad).stroke(STROKE); g.moveTo(7, 4).lineTo(11, 1).lineTo(11, 7).closePath().fill(0x9fc2ad).stroke(STROKE); }
+    else if (/apple/.test(it)) g.circle(0, 4, 4).fill(CORAL).stroke(STROKE);
+    else if (/soup|drink|wine|beer/.test(it)) { g.roundRect(-4, -2, 8, 10, 2).fill(0xdcebe3).stroke(STROKE); }
+    else if (/plank|timber|wood/.test(it)) { g.roundRect(-3, -30, 6, 34, 2).fill(WOOD_H).stroke(STROKE); g.moveTo(-3, -18).lineTo(3, -18).stroke({ width: 1, color: KELP, alpha: 0.5 }); }
+    else if (/lavender/.test(it)) { for (let i = -1; i <= 1; i++) { g.moveTo(i * 3, 6).lineTo(i * 4, -8).stroke({ width: 1.5, color: 0x6f9a6a }); g.ellipse(i * 4, -9, 2.2, 4).fill(0x9a8fc4).stroke({ width: 0.8, color: KELP }); } }
+    else if (/lantern|lamp/.test(it)) { g.roundRect(-4, 0, 8, 10, 2).fill(0xfff2c2).stroke(STROKE); g.moveTo(-3, 0).lineTo(0, -4).lineTo(3, 0).stroke(STROKE); }
+    else if (/writing|letter|paper/.test(it)) g.roundRect(-4, 0, 9, 7, 1).fill(0xf7f5ee).stroke(STROKE);
+    else if (/stone|rock|nail/.test(it)) g.roundRect(-4, 1, 8, 6, 2).fill(0xc8c4b8).stroke(STROKE);
+    else if (/flour|grain|sack/.test(it)) g.roundRect(-6, -2, 12, 12, 4).fill(0xf7f5ee).stroke(STROKE);
+    else if (/oil|bottle|jar/.test(it)) { g.roundRect(-3, -2, 6, 10, 2).fill(0x9a8fc4).stroke(STROKE); g.roundRect(-1.5, -5, 3, 3, 1).fill(KELP); }
+  }
+  /** Years on the body: children drawn small, the old greyed and stooped. */
+  age(years: number): void {
+    if (years === this.years) return; this.years = years;
+    const k = years < 16 ? 0.62 + (years / 16) * 0.3 : years >= 70 ? 0.94 : 1; this.body.scale.set(this.body.scale.x < 0 ? -k : k, k);
+    this.stoop = years >= 62 ? Math.min(0.22, (years - 60) * 0.012) : 0;
+  }
+  private stoop = 0;
   /** What the day is doing to their face. */
   mood(m: { hunger?: number; joy?: number; grief?: number }): void { const next = { hunger: m.hunger ?? 0, joy: m.joy ?? 0, grief: m.grief ?? 0 }; if (Math.abs(next.hunger - this.moodState.hunger) < 0.05 && Math.abs(next.joy - this.moodState.joy) < 0.05 && Math.abs(next.grief - this.moodState.grief) < 0.05) return; this.moodState = next; this.drawFace(); }
   /** Where they are looking, in local pixels to the side; the eyes follow a little. */
@@ -181,7 +223,7 @@ export class Citizen extends Container {
   /** Advance the animation. `t` is seconds. */
   update(t: number): void {
     const k = t * 2 * Math.PI + this.phase;
-    this.body.scale.x = this.facingMode === "left" ? -1 : 1; this.body.rotation = 0; this.body.position.set(0, 0); this.body.alpha = 1; this.torso.scale.y = 1;
+    const k0 = this.years < 16 ? 0.62 + (this.years / 16) * 0.3 : this.years >= 70 ? 0.94 : 1; this.body.scale.set(this.facingMode === "left" ? -k0 : k0, k0); this.body.rotation = 0; this.body.position.set(0, 0); this.body.alpha = 1; this.torso.scale.y = 1;
     let legL = 0, legR = 0, shinL = 0, shinR = 0, armL = 0, armR = 0, foreL = 0.15, foreR = 0.15, bob = 0, headTilt = 0;
     const gait = (speed: number, amp: number) => { const s = Math.sin(k * speed), c = Math.cos(k * speed); legL = s * amp; legR = -s * amp; shinL = Math.max(0, -c) * amp * 1.3; shinR = Math.max(0, c) * amp * 1.3; armL = -s * amp * 0.8; armR = s * amp * 0.8; foreL = 0.35 + Math.max(0, -s) * 0.5; foreR = 0.35 + Math.max(0, s) * 0.5; bob = Math.abs(c) * -amp * 4; };
     switch (this.pose) {
@@ -195,10 +237,22 @@ export class Citizen extends Container {
         break;
       }
       case "talk": { armR = -0.9 + Math.sin(k * 1.2) * 0.25; foreR = -0.9 + Math.sin(k * 1.7) * 0.4; armL = 0.1; headTilt = Math.sin(k * 0.6) * 0.06; bob = Math.sin(k * 0.5) * 0.6; break; }
-      case "work": { const s = Math.sin(k * 1.4); armR = -1.9 + Math.max(0, s) * 1.6; foreR = -0.6 + Math.max(0, s) * 0.6; armL = 0.15; foreL = 0.5; bob = Math.max(0, -s) * -1.5; break; }
+      case "work": {
+        const s = Math.sin(k * 1.4);
+        switch (this.workStyle) {
+          case "swing": armR = -1.9 + Math.max(0, s) * 1.6; foreR = -0.6 + Math.max(0, s) * 0.6; armL = 0.15; foreL = 0.5; bob = Math.max(0, -s) * -1.5; break;
+          case "push": armR = -1.2 + s * 0.5; foreR = -0.4 + s * 0.4; armL = -1.0 + s * 0.5; foreL = -0.3; bob = Math.abs(s) * -0.8; headTilt = 0.1; break;
+          case "haul": armR = -0.8 + Math.max(0, -s) * 0.9; foreR = -1.1; armL = -0.8 + Math.max(0, -s) * 0.9; foreL = -1.1; bob = Math.max(0, -s) * -2; this.body.rotation = 0.06 * this.facing; break;
+          case "sweep": armR = -0.5 + s * 0.35; foreR = -0.9; armL = 0.3 + s * 0.2; foreL = -0.5; this.body.position.x = s * 2 * this.facing; break;
+          case "knead": armR = -1.3 + Math.max(0, s) * 0.5; foreR = -1.0 + Math.max(0, s) * 0.5; armL = -1.3 + Math.max(0, -s) * 0.5; foreL = -1.0 + Math.max(0, -s) * 0.5; bob = Math.abs(s) * -0.6; headTilt = 0.12; break;
+        }
+        break;
+      }
       case "sit": { legL = -1.5; legR = -1.5; shinL = 1.45; shinR = 1.45; armL = 0.5; armR = 0.5; foreL = -0.6; foreR = -0.6; this.body.position.y = 8; bob = Math.sin(k * 0.3) * 0.5; break; }
       case "sleep": { this.body.rotation = (Math.PI / 2) * this.facing; this.body.position.set(0, -6); legL = -0.15; legR = 0.1; shinL = 0.3; shinR = 0.2; armL = 0.3; armR = 0.35; foreL = 0.4; foreR = 0.3; this.body.alpha = 0.92; this.torso.scale.y = 1 + Math.sin(k * 0.25) * 0.02; break; }
     }
+    // age shows too: a stoop that the years put there
+    if (this.stoop && this.pose !== "sleep") { this.body.rotation += this.stoop * this.facing; headTilt += this.stoop * 0.6; }
     // hunger shows in the whole body: a slump, a hanging head
     if (this.moodState.hunger > 0.4 && this.pose !== "sleep") { const w = (this.moodState.hunger - 0.4) / 0.6; this.body.rotation += 0.1 * w * this.facing; headTilt += 0.18 * w; if (this.pose === "walk") bob *= 0.5; }
     this.legL.rotation = legL; this.legR.rotation = legR; this.shinL.rotation = shinL; this.shinR.rotation = shinR;

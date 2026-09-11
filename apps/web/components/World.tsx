@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
-import { Citizen, lookFor, type Look, type Pose } from "./world/citizen";
+import { Citizen, lookFor, aged, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
@@ -263,7 +263,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (!f) {
           const g = new Container();
           const sh = new Graphics(); sh.ellipse(0, 1, 13, 5).fill({ color: C.kelp, alpha: 0.12 }); g.addChild(sh);
-          const rig = new Citizen(lookFor(a.name, a.appearance as Partial<Look> | null)); rig.scale.set(0.82); g.addChild(rig);
+          const rig = new Citizen(aged(lookFor(a.name, a.appearance as Partial<Look> | null), a.age)); rig.scale.set(0.82); rig.age(a.age); rig.trade(a.job); rig.hold(a.carrying ?? null); g.addChild(rig);
           g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -18 && x < 18 && y > -66 && y < 0 } as never;
           g.on("pointertap", () => onSelect(agents.current.get(a.id) ?? null));
           g.on("pointerover", () => { hoverRef.current = a.id; }); g.on("pointerout", () => { if (hoverRef.current === a.id) hoverRef.current = null; });
@@ -272,7 +272,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           const sp = spot(a.location, seat);
           f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1, weak: !!a.weak, bench: false };
           figs.current.set(a.id, f);
-        } else { f.asleep = a.asleep; f.weak = !!a.weak; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); if (a.location !== f.place) moveTo(a.id, a.location); }
+        } else { f.asleep = a.asleep; f.weak = !!a.weak; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); f.rig.trade(a.job); f.rig.hold(a.carrying ?? null); f.rig.age(a.age); if (a.location !== f.place) moveTo(a.id, a.location); }
         // someone idle where there is a bench takes it
         if (!f.asleep && f.pose === "idle" && !f.bench) { const b = benchAt(f.place); if (b && !takenBenches.has(b.key)) { takenBenches.add(b.key); f.bench = true; f.tx = b.x; f.ty = b.y; } }
         return f;

@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import { Page, Label } from "@/components/ui";
-import { Citizen, lookFor, type Look, type Pose } from "@/components/world/citizen";
+import { Citizen, lookFor, aged, type Look, type Pose } from "@/components/world/citizen";
 import { drawThing, drawStock, DRAWN } from "@/components/world/buildings";
 
 /** The citizen rig, laid out like a model sheet: every part, every pose, and one person walking the length of the harbor. */
@@ -36,13 +36,17 @@ export default function Rig() {
       // facings and faces: toward you, away, side on; hungry, glad, grieving, mid-word
       const faces: [string, (c: Citizen) => void][] = [["front", (c) => c.facing4("front")], ["back", (c) => c.facing4("back")], ["hungry", (c) => c.mood({ hunger: 1 })], ["glad", (c) => c.mood({ joy: 1 })], ["grieving", (c) => c.mood({ grief: 1 })], ["talking", (c) => { c.setPose("talk"); c.lookAt(60); }]];
       faces.forEach(([label, apply], i) => { const c = new Citizen({ ...base, hair: "Bob", top: "Sage", bottom: "Kelp" }); c.scale.set(S); c.position.set(780 + i * 80, 450); c.setPose("idle"); apply(c); stage.addChild(c); rigs.push({ c }); const t = new Text({ text: label, style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: 0x6f7a78 } }); t.anchor.set(0.5, 0); t.position.set(780 + i * 80, 458); stage.addChild(t); });
+      // the trades at work, a thing in the other hand, and the years
+      const trades: [string, string][] = [["smith's help", "nails"], ["cook at the bakery", "bread"], ["fish gutter", "fish"], ["sawyer", "planks"], ["field hand", "lavender"], ["woodcutter", "timber"], ["quarryman", "stone"], ["help at the inn", "soup"], ["mill hand", "flour"], ["dock hand", "lantern"]];
+      trades.forEach(([job, item], i) => { const c = new Citizen({ ...base, hair: (["Short dark", "Bun", "Curls"] as const)[i % 3]!, top: (["Kelp", "Sage", "Cream", "Teal"] as const)[i % 4]! }); c.scale.set(S); c.position.set(70 + i * 118, 860); c.trade(job); c.hold(item); c.setPose("work"); stage.addChild(c); rigs.push({ c }); const t = new Text({ text: job, style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: 0x6f7a78 } }); t.anchor.set(0.5, 0); t.position.set(70 + i * 118, 868); stage.addChild(t); });
+      [[6, "six"], [12, "twelve"], [30, "thirty"], [64, "sixty-four"], [78, "seventy-eight"]].forEach(([years, label], i) => { const c = new Citizen(aged({ ...base, hair: "Bob", top: "Teal" }, years as number)); c.scale.set(S); c.position.set(1300 + i * 90, 860); c.age(years as number); c.setPose("idle"); stage.addChild(c); rigs.push({ c }); const t = new Text({ text: String(label), style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: 0x6f7a78 } }); t.anchor.set(0.5, 0); t.position.set(1300 + i * 90, 868); stage.addChild(t); });
       // the walk: one citizen crossing the sheet and back
       const pier = new Graphics(); pier.roundRect(40, 560, 1000, 14, 7).fill(0xf7f5ee).stroke({ width: 1.6, color: 0x1e2a2b }); stage.addChild(pier);
       const walker = new Citizen(lookFor("Tomo Radić", { build: "Sturdy", hair: "Short dark", carrying: "Tool bag", top: "Kelp", bottom: "Sage" })); walker.scale.set(S); walker.position.set(80, 562); walker.setPose("walk"); stage.addChild(walker); rigs.push({ c: walker, walker: true });
       // a dozen strangers from names alone, so no two house citizens look the same
       ["Rosa Vidal", "Petar Ilić", "Ivana Horvat", "Luka Babić", "Ana Perić", "Vesna Marić", "Teodor Ilić", "Marko Petrić", "Katarina Jurić", "Goran Šimić", "Mara Tomić", "Jure Barić"].forEach((n, i) => { const c = new Citizen(lookFor(n, null)); c.scale.set(S); c.position.set(70 + i * 90, 700); c.setPose(i % 3 === 0 ? "talk" : "idle"); stage.addChild(c); rigs.push({ c }); });
       // every building and prop, at the world's scale
-      const names = [...DRAWN]; let bx = 90, by = 990, rowH = 0;
+      const names = [...DRAWN]; let bx = 90, by = 1080, rowH = 0;
       for (const n of names) { const d = drawThing(n); if (!d) continue; const wpx = d.w * 1.1 + 30; if (bx + wpx > 1180) { bx = 90; by += rowH + 40; rowH = 0; } d.c.scale.set(1.1); d.c.position.set(bx + d.w * 0.55, by); stage.addChild(d.c); const t = new Text({ text: n, style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: 0x6f7a78 } }); t.anchor.set(0.5, 0); t.position.set(bx + d.w * 0.55, by + 6); stage.addChild(t); bx += wpx; rowH = Math.max(rowH, 150); }
       // the shelves as the street shows them: full, and half empty
       const SHELVES: [string, Record<string, number>][] = [["stall", { bread: 12, fish: 9, apples: 6 }], ["stall", { bread: 3, fish: 0, apples: 0 }], ["sawpit", { planks: 24, timber: 8 }], ["sawpit", { planks: 4 }], ["mill", { flour: 30, grain: 12 }], ["fishhouse", { fish: 14 }], ["tree-large", { timber: 14 }]];
@@ -67,7 +71,7 @@ export default function Rig() {
   return (
     <Page>
       <div className="flex flex-col gap-2 pt-4"><Label>The citizen rig · model sheet</Label><h1 className="display text-[32px] sm:text-[40px] font-bold">One body, drawn from parts.</h1><p className="text-[17px] text-ink2 max-w-[70ch]">Hair and hats, builds and what they carry, the seven poses and the faces, one person walking the pier, twelve house citizens whose looks come from their names alone, and every building and prop on the island in the same hand, with the shelves full and half empty.</p></div>
-      <div ref={host} className="relative w-full h-[2150px] rounded-[28px] overflow-hidden bg-sand" />
+      <div ref={host} className="relative w-full h-[2300px] rounded-[28px] overflow-hidden bg-sand" />
     </Page>
   );
 }

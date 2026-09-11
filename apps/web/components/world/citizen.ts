@@ -63,7 +63,7 @@ export class Citizen extends Container {
   private thighH = 0; private shinH = 0; private upperH = 0; private foreH = 0; private headR = 11;
   private held = new Graphics(); private heldItem: string | null = null; private tradeName: string | null = null; private workStyle: "swing" | "push" | "haul" | "sweep" | "knead" = "swing"; private years = 30;
   private carry = new Graphics(); private tool = new Graphics();
-  private hood = new Graphics(); private umbrella = new Graphics(); private breath = new Graphics(); private gear = { rain: false, cold: false };
+  private hood = new Graphics(); private umbrella = new Graphics(); private breath = new Graphics(); private coat = new Graphics(); private scarf = new Graphics(); private gear = { rain: false, cold: false };
   private facing = 1;
   private pose: Pose = "idle";
   private phase = Math.random() * 10;
@@ -92,7 +92,16 @@ export class Citizen extends Container {
     rrect(this.torso, -this.torsoW / 2, -this.legH - this.torsoH, this.torsoW, this.torsoH + 4, 8, top);
     if (look.coral === "Buttons") for (let i = 0; i < 3; i++) this.torso.circle(0, -this.legH - this.torsoH + 7 + i * 7, 1.8).fill(CORAL);
     if (look.coral === "Scarf") this.torso.roundRect(-this.torsoW / 2 - 1, -this.legH - this.torsoH - 3, this.torsoW + 2, 7, 3).fill(CORAL).stroke(STROKE);
-    this.body.addChild(this.torso);
+    // a winter coat over the torso and a wool scarf at the neck, worn in the cold: elders always, the rest by lot
+    const wool = this.phase % 3 < 1 ? CORAL : this.phase % 3 < 2 ? 0xb9d9c6 : STRAW;
+    this.coat.roundRect(-this.torsoW / 2 - 2, -this.legH - this.torsoH - 1, this.torsoW + 4, this.torsoH + 9, 9).fill(look.top === "Kelp" ? LEATHER : 0x5b6b66).stroke(STROKE);
+    this.coat.moveTo(0, -this.legH - this.torsoH + 4).lineTo(0, -this.legH + 6).stroke({ width: 1.2, color: KELP, alpha: 0.5 });
+    for (let i = 0; i < 3; i++) this.coat.circle(-3, -this.legH - this.torsoH + 8 + i * 7, 1.6).fill(wool);
+    this.coat.visible = false; this.body.addChild(this.coat);
+    this.scarf.roundRect(-this.torsoW / 2 - 1, -this.legH - this.torsoH - 4, this.torsoW + 2, 8, 4).fill(wool).stroke(STROKE);
+    this.scarf.roundRect(this.torsoW / 2 - 8, -this.legH - this.torsoH - 2, 6, 14, 3).fill(wool).stroke(STROKE);
+    this.scarf.visible = false; this.body.addChild(this.scarf);
+    this.body.addChild(this.torso); this.body.setChildIndex(this.torso, this.body.getChildIndex(this.coat));
     // arms: an upper arm at the shoulder, a forearm at the elbow, a hand at the end
     this.upperH = this.torsoH * 0.44; this.foreH = this.torsoH * 0.4;
     for (const [g, fore, side] of [[this.armL, this.foreL, -1], [this.armR, this.foreR, 1]] as const) {
@@ -163,7 +172,9 @@ export class Citizen extends Container {
   }
 
   /** What the weather asks of a person: a hood or an umbrella in rain, visible breath in the cold. */
-  weather(g: { rain: boolean; cold: boolean }): void { if (g.rain === this.gear.rain && g.cold === this.gear.cold) return; this.gear = g; const brolly = g.rain && this.phase % 5 < 2 && this.look.carrying !== "Suitcase"; this.umbrella.visible = brolly; this.hood.visible = g.rain && !brolly && this.look.hat === "None"; this.breath.visible = g.cold; }
+  weather(g: { rain: boolean; cold: boolean }): void { if (g.rain === this.gear.rain && g.cold === this.gear.cold) return; this.gear = g; const brolly = g.rain && this.phase % 5 < 2 && this.look.carrying !== "Suitcase"; this.umbrella.visible = brolly; this.hood.visible = g.rain && !brolly && this.look.hat === "None"; this.breath.visible = g.cold; this.wrapUp(); }
+  /** Who wraps up against the cold: everyone past sixty, and about half of everyone else; children get the scarf. */
+  private wrapUp(): void { const cold = this.gear.cold; const elder = this.years >= 60; this.coat.visible = cold && (elder || this.phase % 7 < 3.5) && this.years >= 12; this.scarf.visible = cold && (elder || this.years < 12 || this.phase % 7 >= 5); }
   /** Brows and mouth from the mood: hunger flattens, grief pulls the brows up and the mouth down, joy lifts. */
   private drawFace(): void {
     const { hunger, joy, grief } = this.moodState; const r = this.headR;
@@ -208,7 +219,7 @@ export class Citizen extends Container {
   age(years: number): void {
     if (years === this.years) return; this.years = years;
     const k = years < 16 ? 0.62 + (years / 16) * 0.3 : years >= 70 ? 0.94 : 1; this.body.scale.set(this.body.scale.x < 0 ? -k : k, k);
-    this.stoop = years >= 62 ? Math.min(0.22, (years - 60) * 0.012) : 0;
+    this.stoop = years >= 62 ? Math.min(0.22, (years - 60) * 0.012) : 0; this.wrapUp();
   }
   private stoop = 0;
   /** What the day is doing to their face. */

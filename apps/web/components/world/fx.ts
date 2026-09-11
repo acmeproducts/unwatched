@@ -2,7 +2,7 @@
  * The GPU's share of the world: light that the night does not reach, and water that moves.
  * Both sit on top of the drawn island without changing a line of it, so the old and the new can be compared on the same street.
  */
-import { AlphaFilter, BlurFilter, Container, Filter, GlProgram, Graphics, Particle, ParticleContainer, Rectangle, Sprite, Texture } from "pixi.js";
+import { AlphaFilter, BlurFilter, Container, Filter, GlProgram, Graphics, Sprite, Texture } from "pixi.js";
 import { LIGHT } from "./palette";
 
 /** A soft disc, white at the centre and gone at the edge, drawn once; every light is this texture scaled and tinted. */
@@ -153,26 +153,22 @@ const rgb = (hex: number): number[] => [((hex >> 16) & 255) / 255, ((hex >> 8) &
 
 /** What falls and what lingers: rain and snow as particles blown by the wind, and fog as slow drifts of shell over the ground. */
 export class Weather {
-  readonly rain: ParticleContainer;
-  readonly snow: ParticleContainer;
+  readonly rain = new Container();
+  readonly snow = new Container();
   readonly fog = new Container();
-  private drops: Particle[] = [];
-  private flakes: Particle[] = [];
+  private drops: Sprite[] = [];
+  private flakes: Sprite[] = [];
   private banks: Sprite[] = [];
   private veil = new Graphics();
   private streakTex = streak();
   private disc = softDisc(96);
   private fogTarget = 0; private fogAlpha = 0;
   constructor(private W: number, private H: number) {
-    // every particle in a container shares one texture, and the container wants to know it up front
-    this.rain = new ParticleContainer({ texture: this.streakTex, dynamicProperties: { position: true, rotation: true, scale: true, color: true } });
-    this.snow = new ParticleContainer({ texture: this.disc, dynamicProperties: { position: true, rotation: false, scale: true, color: true } });
-    for (let i = 0; i < 900; i++) { const d = new Particle({ texture: this.streakTex, x: 0, y: 0, anchorX: 0.5, anchorY: 0.5, alpha: 0 }); this.rain.addParticle(d); this.drops.push(d); }
-    for (let i = 0; i < 500; i++) { const f = new Particle({ texture: this.disc, x: 0, y: 0, anchorX: 0.5, anchorY: 0.5, scaleX: 0.08, scaleY: 0.08, alpha: 0 }); this.snow.addParticle(f); this.flakes.push(f); }
+    // plain sprites: the batcher takes a thousand of them without noticing, and they draw the same on every screen
+    for (let i = 0; i < 900; i++) { const d = new Sprite(this.streakTex); d.anchor.set(0.5); d.alpha = 0; this.rain.addChild(d); this.drops.push(d); }
+    for (let i = 0; i < 500; i++) { const f = new Sprite(this.disc); f.anchor.set(0.5); f.scale.set(0.08); f.alpha = 0; this.snow.addChild(f); this.flakes.push(f); }
     this.veil.rect(-3000, -3000, W + 6000, H + 6000).fill(0xffffff); this.fog.addChild(this.veil);
     for (let i = 0; i < 16; i++) { const b = new Sprite(this.disc); b.anchor.set(0.5); b.alpha = 0; this.fog.addChild(b); this.banks.push(b); }
-    // particle containers have no bounds of their own; without an area the culling drops them as empty
-    this.rain.boundsArea = new Rectangle(-3000, -3000, W + 6000, H + 6000); this.snow.boundsArea = new Rectangle(-3000, -3000, W + 6000, H + 6000);
     this.rain.visible = false; this.snow.visible = false; this.fog.visible = false;
   }
   update(o: { weather: string; wind: number; snowing: boolean; wet: boolean; tick: number; night: number; fogColor: number; rainColor: number }): void {
@@ -187,7 +183,7 @@ export class Weather {
       const speed = 22 + (i % 7) * 3 + (o.weather === "storm" ? 14 : 0);
       const x = ((i * 137 + t * speed * tilt) % (W + 600)) - 300 + Math.sin(t / 40 + i) * o.wind * 4;
       const y = ((i * 251 + t * speed) % (H + 400)) - 200;
-      d.x = x; d.y = y; d.rotation = -tilt; d.scaleX = 1; d.scaleY = 1.1 + (o.weather === "storm" ? 0.8 : 0.3) + (i % 3) * 0.25; d.tint = o.rainColor; d.alpha = 0.55 + (i % 5) * 0.08;
+      d.position.set(x, y); d.rotation = -tilt; d.scale.set(1, 1.1 + (o.weather === "storm" ? 0.8 : 0.3) + (i % 3) * 0.25); d.tint = o.rainColor; d.alpha = 0.55 + (i % 5) * 0.08;
     }
     const m = snowing ? (o.weather === "storm" ? 500 : 300) : 0;
     for (let i = 0; i < this.flakes.length; i++) {
@@ -196,7 +192,7 @@ export class Weather {
       const speed = 3.2 + (i % 5) * 0.7;
       const x = ((i * 173 + t * speed * o.wind * 0.9) % (W + 600)) - 300 + Math.sin(t / 30 + i * 0.7) * 14;
       const y = ((i * 311 + t * speed) % (H + 300)) - 150;
-      f.x = x; f.y = y; const sc = 0.07 + (i % 4) * 0.025; f.scaleX = sc; f.scaleY = sc; f.tint = o.night > 0.3 ? 0xffffff : 0xcfd9de; f.alpha = 0.75 + (i % 3) * 0.08;
+      f.position.set(x, y); f.scale.set(0.07 + (i % 4) * 0.025); f.tint = o.night > 0.3 ? 0xffffff : 0xcfd9de; f.alpha = 0.75 + (i % 3) * 0.08;
     }
     // fog: banks that drift with the wind; a thin haze in rain; nothing on a clear day
     this.fogTarget = o.weather === "fog" ? 1 : raining ? 0.22 : 0;

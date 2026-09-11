@@ -16,6 +16,8 @@ const MODEL = process.env.FT_LOOK_MODEL ?? "recraftv4_1_vector";
 export interface LookStore { saveLook(row: { hash: string; look: string; svg: string; source: string }): Promise<void>; loadLook(hash: string): Promise<{ look: string; svg: string } | null>; listLooks(): Promise<{ hash: string; look: string; created_at: string }[]> }
 
 export function looksEnabled(): boolean { return !!process.env.RECRAFT_API_KEY; }
+/** Generated drawings are off unless asked for: the hand-drawn set is the island's look, and a described build shows the plain house or shop. Set FT_LOOKS=patterns to open the pattern book, or a Recraft key for exact drawings. */
+export function looksWanted(): boolean { return looksEnabled() || process.env.FT_LOOKS === "patterns"; }
 
 /** The pattern book: buildings drawn ahead of time, in the island's hand, for the looks people most often ask for. Each pattern is a file in apps/server/patterns and a few words that call it. */
 export const PATTERNS: { name: string; words: RegExp }[] = [
@@ -82,6 +84,7 @@ export class Looks {
     const going = this.inflight.get(hash); if (going) return going;
     const p = (async () => {
       const have = await this.get(hash); if (have) return have;
+      if (!looksWanted()) { this.inflight.delete(hash); return null; }
       let svg: string | null = null; let source = MODEL;
       if (looksEnabled()) { try { svg = disciplineSvg(await this.draw(look, kind)); } catch (err) { this.log(`could not draw “${look}”: ${(err as Error).message}`); } }
       if (!svg) {

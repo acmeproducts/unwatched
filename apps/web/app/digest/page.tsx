@@ -21,14 +21,16 @@ export default function DigestPage() {
   const changed = d.items.filter((e) => e.importance >= 0.45);
   const top = d.items.length ? [...d.items].sort((a, b) => b.importance - a.importance)[0] : null;
   const quiet = !top;
+  const onHabit = agent.budget.tier1Left === 0 && agent.budget.tier2Left === 0;
   const days = Math.max(1, Math.round((d.now - d.since) / 1440));
   return (
     <Page>
       <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="bg-shell rounded-[28px] px-5 py-6 sm:px-10 sm:py-9 flex flex-col gap-5 rise">
           <Label>While you were away · {days} day{days > 1 ? "s" : ""}</Label>
-          <div className="flex items-center gap-3.5">{!quiet && <Dot changed size={14} />}<h1 className="text-[30px] sm:text-[44px] font-bold">{quiet ? `Nothing changed for ${first}.` : headline(top!.text, agent.name)}</h1></div>
-          <p className="text-xl text-ink2 pl-7">{quiet ? `${first} worked, ate at the inn, and slept. No coral today, and that is allowed.` : deck(top!.text)}</p>
+          <div className="flex items-center gap-3.5">{(!quiet || onHabit) && <Dot changed size={14} />}<h1 className="text-[30px] sm:text-[44px] font-bold">{onHabit && quiet ? `${first} has gone quiet` : quiet ? `Nothing changed for ${first}.` : headline(top!.text, agent.name)}</h1></div>
+          <p className="text-xl text-ink2 pl-7">{onHabit && quiet ? `Out of thoughts for today. ${first} eats, sleeps, works, and greets people by name. That is all.` : quiet ? `${first} worked, ate at the inn, and slept. No coral today, and that is allowed.` : deck(top!.text)}</p>
+          {onHabit && <div className="pl-7"><div className="bg-glass rounded-[18px] p-4 text-sm max-w-[560px]"><b>Wake {first} up.</b> The daily allowance is spent. Credits let {first} keep thinking until midnight; nothing is lost either way, and the first thought back covers what was missed. <a href="/account/credits" className="font-bold text-teal">Buy credits</a></div></div>}
           <div className="pl-0 sm:pl-7"><Strip items={d.items.map((e) => ({ t: `${dayOf(e.t) === dayOf(d.now) ? "Today" : `Day ${dayOf(e.t)}`} ${hhmm(e.t)}`, changed: e.importance >= 0.45, text: e.kind === "conversation" ? talk(e.text) : e.text }))} /></div>
           {changed.length === 0 && d.items.length > 0 && <p className="text-sm text-drift pl-7">Nearby: {d.people.slice(0, 2).map((p) => p.name).join(" and ")} were seen about town.</p>}
         </div>

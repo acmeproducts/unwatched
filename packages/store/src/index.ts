@@ -2,6 +2,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { TownEvent, Paper } from "@ferrytown/protocol";
 import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@ferrytown/engine";
 
+export type Plan = "visitor" | "resident" | "patron";
+export interface Wallet { ownerId: string; plan: Plan; credits: number; stripeCustomer: string | null }
 export interface BrainRow { agent_id: string; kind: "hosted" | "own_key" | "own_brain"; provider: string | null; api_key: string | null; models: { routine: string; stakes: string; reflect: string } | null; think_every: number | null; daily_cap_usd: number | null; token: string | null; memory: "lease" | "own" }
 import { compress } from "@ferrytown/engine";
 
@@ -155,6 +157,26 @@ export class TownStore {
   async saveBrain(row: BrainRow): Promise<void> {
     const { error } = await this.sb.from("agent_brains").upsert(row, { onConflict: "agent_id" });
     if (error) console.error("brain save failed:", error.message);
+  }
+
+  async wallet(ownerId: string): Promise<Wallet> {
+    const { data } = await this.sb.from("owner_wallets").select("owner_id, plan, credits, stripe_customer").eq("owner_id", ownerId).maybeSingle();
+    return data ? { ownerId: data.owner_id, plan: data.plan, credits: data.credits, stripeCustomer: data.stripe_customer } : { ownerId, plan: "visitor", credits: 0, stripeCustomer: null };
+  }
+  async saveWallet(w: Wallet): Promise<void> {
+    const { error } = await this.sb.from("owner_wallets").upsert({ owner_id: w.ownerId, plan: w.plan, credits: w.credits, stripe_customer: w.stripeCustomer, updated_at: new Date().toISOString() }, { onConflict: "owner_id" });
+    if (error) console.error("wallet save failed:", error.message);
+  }
+  async ledger(ownerId: string, n = 30): Promise<{ delta: number; reason: string; ref: string | null; at: string }[]> {
+    const { data } = await this.sb.from("credit_ledger").select("delta, reason, ref, created_at").eq("owner_id", ownerId).order("id", { ascending: false }).limit(n);
+    return (data ?? []).map((r) => ({ delta: r.delta, reason: r.reason, ref: r.ref, at: r.created_at }));
+  }
+  async credit(ownerId: string, delta: number, reason: string, ref: string | null = null): Promise<void> {
+    await this.sb.from("credit_ledger").insert({ owner_id: ownerId, delta, reason, ref });
+  }
+  async allWallets(): Promise<Wallet[]> {
+    const { data } = await this.sb.from("owner_wallets").select("owner_id, plan, credits, stripe_customer");
+    return (data ?? []).map((d) => ({ ownerId: d.owner_id, plan: d.plan, credits: d.credits, stripeCustomer: d.stripe_customer }));
   }
 
   async savePaper(paper: Paper): Promise<void> {

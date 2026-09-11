@@ -16,6 +16,8 @@ export interface TownOptions {
   startDay?: number;
   onEvent?: EventSink;
   log?: (line: string) => void;
+  /** Asked when an agent's daily allowance is spent. Return true to pay for the thought from the owner's credits. */
+  creditBank?: (agent: AgentState, tier: Tier) => boolean;
 }
 
 export interface AddAgentOptions {
@@ -49,6 +51,7 @@ export class Town {
   private readonly minutesPerTick: number;
   private readonly onEvent: EventSink | undefined;
   private readonly log: (line: string) => void;
+  private readonly creditBank: ((agent: AgentState, tier: Tier) => boolean) | undefined;
   private readonly conversationPairsThisTick = new Set<string>();
 
   constructor(opts: TownOptions) {
@@ -58,6 +61,7 @@ export class Town {
     this.day = opts.startDay ?? 1;
     this.onEvent = opts.onEvent;
     this.log = opts.log ?? (() => {});
+    this.creditBank = opts.creditBank;
     this.t = (this.day - 1) * MINUTES_PER_DAY + 6 * 60; // towns start at 06:00
     this.weather = this.rollWeather();
   }
@@ -420,6 +424,7 @@ export class Town {
     // reflection
     for (const a of this.agents.values()) {
       if (!a.funded || this.brain.name === "none") continue;
+      if (a.brainKind === "hosted" && a.budget.tier2Max === 0 && !(this.creditBank?.(a, 3) ?? false)) continue; // a Visitor with no credits keeps the day, not the reflection
       const dayStart = (this.day - 1) * MINUTES_PER_DAY;
       const dayMemories = a.memory.filter((m) => m.t >= dayStart && m.kind !== "reflect").sort((x, y) => y.importance - x.importance).slice(0, 12).map((m) => m.text);
       const keyMemories = retrieve(a.memory, a.persona.want, this.t, 6).map((m) => m.text);
@@ -481,7 +486,7 @@ export class Town {
     if (tier === 1 && a.budget.tier1Left > 0) { a.budget.tier1Left--; return true; }
     if (tier === 2 && a.budget.tier2Left > 0) { a.budget.tier2Left--; return true; }
     if (tier === 2 && a.budget.tier1Left > 0) { a.budget.tier1Left--; return true; }
-    return false;
+    return this.creditBank?.(a, tier) ?? false;
   }
   nearby(a: AgentState): AgentState[] { const out: AgentState[] = []; for (const b of this.agents.values()) if (b !== a && b.location === a.location) out.push(b); return out; }
   openJobsAt(placeId: string): Job[] { return [...this.jobs.values()].filter((j) => j.place === placeId && j.holders.length < j.slots); }

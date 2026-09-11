@@ -15,7 +15,8 @@ import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferry
 import { TownStore } from "@ferrytown/store";
 import { publicAgent, ownerAgent, clockOf } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
-import type { BrainRow } from "@ferrytown/store";
+import type { BrainRow, Plan } from "@ferrytown/store";
+import { Billing, PLANS, PACKS, COST } from "./billing.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const envFile = resolve(here, "../../../.env");
@@ -35,12 +36,14 @@ if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
-const town = new Town({ seed: SEED, brain, log, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
+const billing = new Billing(store, log); await billing.load();
+const town = new Town({ seed: SEED, brain, log, creditBank: billing.bank, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
 const saved = store ? await store.loadSnapshot() : null;
 if (saved) {
   town.restore(saved);
   town.events.push(...(await store!.recentEvents(300)));
   for (const row of await store!.loadBrains()) { const a = town.agents.get(row.agent_id); if (!a) continue; brain.set(row.agent_id, row); a.brainKind = row.kind; a.thinkEvery = row.kind === "own_key" ? row.think_every : null; }
+  for (const a of town.agents.values()) billing.applyPlan(a);
   log(`restored the island from its record: ${town.clock()}, ${town.agents.size} citizens, ${saved.papers.length} editions`);
 } else {
   for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });
@@ -223,6 +226,26 @@ app.post("/api/agents/:id/brain/token", async (c) => {
   const row = { ...prev, token: newToken() }; brainRows.set(a.id, row); brain.set(a.id, row); if (store) await store.saveBrain(row);
   return c.json({ token: row.token });
 });
+// ---- credits and plan ----
+app.get("/api/me/wallet", async (c) => {
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  const w = billing.wallet(owner);
+  return c.json({ plan: w.plan, credits: w.credits, plans: PLANS, packs: PACKS, cost: COST, testMode: billing.testMode, ledger: store ? await store.ledger(owner) : [] });
+});
+app.post("/api/me/plan", async (c) => {
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  const body = z.object({ plan: z.enum(["visitor", "resident", "patron"]) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such plan" }, 400);
+  const plan = body.data.plan as Plan;
+  if (plan === "visitor" || billing.testMode) { await billing.setPlan(owner, plan); for (const a of town.agents.values()) if (a.owner === owner) billing.applyPlan(a); return c.json({ ok: true, plan, note: billing.testMode && plan !== "visitor" ? "Test mode: no card was charged." : undefined }); }
+  const r = await billing.checkoutPlan(owner, plan, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ error: r.error }, 400);
+});
+app.post("/api/me/credits/checkout", async (c) => {
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  const body = z.object({ pack: z.enum(["small", "medium", "large"]) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such pack" }, 400);
+  if (billing.testMode) { const w = await billing.grant(owner, PACKS[body.data.pack]!.credits, "grant", "test-mode"); return c.json({ ok: true, credits: w.credits, note: "Test mode: credits were granted, no card was charged." }); }
+  const r = await billing.checkoutPack(owner, body.data.pack, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ error: r.error }, 400);
+});
+app.post("/api/stripe/webhook", async (c) => { const r = await billing.webhook(await c.req.text(), c.req.header("stripe-signature")); return c.json(r, r.ok ? 200 : 400); });
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
 app.get("/api/papers/latest", (c) => { const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "the first edition prints at midnight" }, 404); });
 app.get("/api/events", (c) => {
@@ -234,7 +257,7 @@ app.post("/api/board", async (c) => {
   const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted") }).safeParse(await c.req.json());
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "the manifest is incomplete" }, 400);
   const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
-  a.appearance = body.data.appearance ?? null;
+  a.appearance = body.data.appearance ?? null; billing.applyPlan(a);
   if (store) await store.snapshot(town);
   return c.json({ id: a.id, arrived: town.clock() });
 });

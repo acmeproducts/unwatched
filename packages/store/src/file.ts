@@ -75,7 +75,7 @@ export class FileStore {
   async deleteOwner(ownerId: string): Promise<void> { for (const a of this.d.agents) if (a.owner_id === ownerId) a.owner_id = null; this.d.wallets = this.d.wallets.filter((w) => w.ownerId !== ownerId); this.d.letters = this.d.letters.filter((l) => l.owner_id !== ownerId); this.save(); }
   async loadBrains(): Promise<BrainRow[]> { return this.d.brains; }
   async saveBrain(row: BrainRow): Promise<void> { this.d.brains = [...this.d.brains.filter((b) => b.agent_id !== row.agent_id), row]; this.save(); }
-  async wallet(ownerId: string): Promise<Wallet> { return this.d.wallets.find((w) => w.ownerId === ownerId) ?? { ownerId, plan: "visitor", credits: 0, stripeCustomer: null }; }
+  async wallet(ownerId: string): Promise<Wallet> { return this.d.wallets.find((w) => w.ownerId === ownerId) ?? { ownerId, plan: "none", credits: 0, stripeCustomer: null }; }
   async saveWallet(w: Wallet): Promise<void> { this.d.wallets = [...this.d.wallets.filter((x) => x.ownerId !== w.ownerId), w]; this.save(); }
   async ledger(ownerId: string, n = 30) { return this.d.ledger.filter((l) => l.owner_id === ownerId).slice(-n).reverse().map(({ delta, reason, ref, at }) => ({ delta, reason, ref, at })); }
   async credit(ownerId: string, delta: number, reason: string, ref: string | null = null): Promise<void> { this.d.ledger.push({ owner_id: ownerId, delta, reason, ref, at: new Date().toISOString() }); this.dirty = true; }

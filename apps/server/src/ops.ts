@@ -16,20 +16,21 @@ export class Metrics implements Brain {
   private nextHold = 1;
   private lastUsage = { prompt: 0, completion: 0 };
   tickMs: number[] = [];
-  constructor(private inner: Brain, private townBrain: Brain, private clock: () => { day: number; hour: number; t: number }, private models: { routine: string; stakes: string; reflect: string }) { this.name = inner.name; }
+  constructor(private inner: Brain, private townBrain: Brain, private clock: () => { day: number; hour: number; t: number }, private models: { routine: string; stakes: string; reflect: string }, private modelsFor: ((a: AgentState) => Partial<{ routine: string; stakes: string; reflect: string }> | null) | null = null) { this.name = inner.name; }
   private bucket(): HourBucket {
     const c = this.clock(); let b = this.hours[this.hours.length - 1];
     if (!b || b.hour !== c.hour || b.day !== c.day) { b = { hour: c.hour, day: c.day, t1: 0, t2: 0, t3: 0, converse: 0, ms: [], cost: 0 }; this.hours.push(b); if (this.hours.length > 48) this.hours.shift(); }
     return b;
   }
+  private modelOf(a: AgentState, which: "routine" | "stakes" | "reflect") { return this.modelsFor?.(a)?.[which] ?? this.models[which]; }
   private meter(b: HourBucket, model: string) {
     if (this.townBrain instanceof OpenRouterBrain) { const u = this.townBrain.usage(); const [i, o] = PRICE[model] ?? [3, 15]; b.cost += ((u.prompt - this.lastUsage.prompt) * i + (u.completion - this.lastUsage.completion) * o) / 1e6; this.lastUsage = { prompt: u.prompt, completion: u.completion }; }
   }
   private async timed<T>(b: HourBucket, f: () => Promise<T>): Promise<T> { const s = Date.now(); try { return await f(); } finally { b.ms.push(Date.now() - s); if (b.ms.length > 500) b.ms.shift(); } }
-  async decide(p: Perception, a: AgentState, tier: Tier): Promise<ActionProposal> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.decide(p, a, tier)); if (a.brainKind === "hosted") this.meter(b, tier >= 2 ? this.models.stakes : this.models.routine); return out; }
+  async decide(p: Perception, a: AgentState, tier: Tier): Promise<ActionProposal> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.decide(p, a, tier)); if (a.brainKind === "hosted") this.meter(b, this.modelOf(a, tier >= 2 ? "stakes" : "routine")); return out; }
   async converse(ctx: ConverseContext): Promise<Dialogue> { const b = this.bucket(); b.converse++; const out = await this.timed(b, () => this.inner.converse(ctx)); this.meter(b, this.models.routine); return out; }
-  async reflect(ctx: ReflectContext): Promise<Reflection> { const b = this.bucket(); b.t3++; const out = await this.timed(b, () => this.inner.reflect(ctx)); if (ctx.agent.brainKind === "hosted") this.meter(b, this.models.reflect); return out; }
-  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.plan(ctx, tier)); if (ctx.agent.brainKind === "hosted") this.meter(b, tier >= 2 ? this.models.stakes : this.models.routine); return out; }
+  async reflect(ctx: ReflectContext): Promise<Reflection> { const b = this.bucket(); b.t3++; const out = await this.timed(b, () => this.inner.reflect(ctx)); if (ctx.agent.brainKind === "hosted") this.meter(b, this.modelOf(ctx.agent, "reflect")); return out; }
+  async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> { const b = this.bucket(); if (tier >= 2) b.t2++; else b.t1++; const out = await this.timed(b, () => this.inner.plan(ctx, tier)); if (ctx.agent.brainKind === "hosted") this.meter(b, this.modelOf(ctx.agent, tier >= 2 ? "stakes" : "routine")); return out; }
   async digest(ctx: DigestContext): Promise<DigestText> { const b = this.bucket(); b.t1++; const out = await this.timed(b, () => this.inner.digest(ctx)); this.meter(b, this.models.routine); return out; }
   fallbacks: { at: number; what: string; model: string; reason: string }[] = [];
   fallback(f: { what: string; model: string; reason: string }) { this.fallbacks.unshift({ at: Date.now(), ...f }); if (this.fallbacks.length > 200) this.fallbacks.pop(); this.hold("watch", `The town's mind could not use a ${f.model} answer for ${f.what} (${f.reason}); the plain fallback stood in.`, "models"); }

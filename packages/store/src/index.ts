@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { TownEvent, Paper } from "@unwatched/protocol";
 import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@unwatched/engine";
 
-export type Plan = "visitor" | "resident" | "patron";
+export type Plan = "none" | "visitor" | "resident" | "patron";
 export interface Wallet { ownerId: string; plan: Plan; credits: number; stripeCustomer: string | null }
 export interface BrainRow { agent_id: string; kind: "hosted" | "own_key" | "own_brain"; provider: string | null; api_key: string | null; models: { routine: string; stakes: string; reflect: string } | null; think_every: number | null; daily_cap_usd: number | null; token: string | null; memory: "lease" | "own" }
 import { compress } from "@unwatched/engine";
@@ -180,7 +180,7 @@ export class TownStore {
 
   async wallet(ownerId: string): Promise<Wallet> {
     const { data } = await this.sb.from("owner_wallets").select("owner_id, plan, credits, stripe_customer").eq("owner_id", ownerId).maybeSingle();
-    return data ? { ownerId: data.owner_id, plan: data.plan, credits: data.credits, stripeCustomer: data.stripe_customer } : { ownerId, plan: "visitor", credits: 0, stripeCustomer: null };
+    return data ? { ownerId: data.owner_id, plan: data.plan, credits: data.credits, stripeCustomer: data.stripe_customer } : { ownerId, plan: "none", credits: 0, stripeCustomer: null };
   }
   async saveWallet(w: Wallet): Promise<void> {
     const { error } = await this.sb.from("owner_wallets").upsert({ owner_id: w.ownerId, plan: w.plan, credits: w.credits, stripe_customer: w.stripeCustomer, updated_at: new Date().toISOString() }, { onConflict: "owner_id" });

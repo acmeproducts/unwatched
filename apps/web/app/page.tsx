@@ -24,7 +24,7 @@ export default function Landing() {
     <main className="landing min-h-screen">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [
         { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: "Unwatched", description: SITE_TAGLINE, inLanguage: "en" },
-        { "@type": "SoftwareApplication", "@id": `${SITE_URL}/#app`, name: "Unwatched", url: SITE_URL, description: SITE_TAGLINE, applicationCategory: "EntertainmentApplication", operatingSystem: "Web", isAccessibleForFree: true, license: "https://www.apache.org/licenses/LICENSE-2.0", codeRepository: GITHUB, sameAs: [GITHUB], offers: [{ "@type": "Offer", name: "Visitor", price: "0", priceCurrency: "USD" }, { "@type": "Offer", name: "Resident", price: "12", priceCurrency: "USD", description: "per month" }, { "@type": "Offer", name: "Patron", price: "29", priceCurrency: "USD", description: "per month" }] },
+        { "@type": "SoftwareApplication", "@id": `${SITE_URL}/#app`, name: "Unwatched", url: SITE_URL, description: SITE_TAGLINE, applicationCategory: "EntertainmentApplication", operatingSystem: "Web", isAccessibleForFree: false, license: "https://www.apache.org/licenses/LICENSE-2.0", codeRepository: GITHUB, sameAs: [GITHUB], offers: [{ "@type": "Offer", name: "Visitor", price: "3", priceCurrency: "USD", description: "per month" }, { "@type": "Offer", name: "Resident", price: "12", priceCurrency: "USD", description: "per month" }, { "@type": "Offer", name: "Patron", price: "29", priceCurrency: "USD", description: "per month" }] },
       ] }) }} />
       <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
         <header className="flex items-center justify-between py-5 sm:py-6">

@@ -2,18 +2,23 @@ import Stripe from "stripe";
 import type { AgentState, Tier } from "@unwatched/engine";
 import type { Store, Wallet, Plan } from "@unwatched/store";
 
-/** What each plan buys per day, per citizen, per month. Set from the cost audit of September 2026: a Resident costs us about $6 a month in thinking at typical use and $9.40 if every thought is spent; a Patron $12 and $20. */
-export const PLANS: Record<Plan, { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string }> = {
-  visitor:  { name: "Visitor",  price: 0,  tier1: 10,  tier2: 0,  reflect: false, blurb: "Habit plus ten thoughts a day. Weekly digest." },
-  resident: { name: "Resident", price: 12, tier1: 50,  tier2: 6,  reflect: true,  blurb: "Thinks all day, reflects nightly, writes to you at crossroads. Daily digest, letters read aloud." },
-  patron:   { name: "Patron",   price: 29, tier1: 120, tier2: 15, reflect: true,  blurb: "Our most capable mind, deep reflection, a painted portrait, their book and paintings." },
+/**
+ * What each plan buys per day, per citizen, per month. From the cost audit of September 2026: a Visitor costs us about $1.10 a month,
+ * a Resident $5.70 at typical use and $9.40 if every thought is spent, a Patron $16 and $27 with its careful thoughts on Opus.
+ * Nobody thinks for free: an account with no plan has a citizen on habit alone. `gets` is the whole truth of the plan, shown as is.
+ */
+export const PLANS: Record<Plan, { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string; gets: string[] }> = {
+  none:     { name: "No plan",  price: 0,  tier1: 0,   tier2: 0,  reflect: false, blurb: "On habit alone until a plan is bought.", gets: ["Works, eats, sleeps and talks in set phrases", "No thoughts of their own, so no letters answered", "Friends notice"] },
+  visitor:  { name: "Visitor",  price: 3,  tier1: 10,  tier2: 0,  reflect: false, blurb: "Ten thoughts a day. Enough to answer a letter and keep a job.", gets: ["10 thoughts a day, on Haiku 4.5", "No careful decisions: at a crossroads they go with habit", "No nightly reflection, unless credits pay for one", "The digest, the paper, letters read aloud"] },
+  resident: { name: "Resident", price: 12, tier1: 50,  tier2: 6,  reflect: true,  blurb: "Thinks all day, reflects every night, writes to you at crossroads.", gets: ["50 thoughts a day, on Haiku 4.5", "6 careful decisions a day, on Sonnet 5", "A nightly reflection on Opus 5, and a morning plan", "Writes to you when something is at stake", "The digest, the paper, letters read aloud"] },
+  patron:   { name: "Patron",   price: 29, tier1: 120, tier2: 15, reflect: true,  blurb: "Our most capable mind for every careful thought.", gets: ["120 thoughts a day, on Haiku 4.5", "15 careful decisions a day, on Opus 5", "A nightly reflection on Opus 5, and a morning plan", "Writes to you when something is at stake", "A painted portrait, their book and paintings", "The digest, the paper, letters read aloud"] },
 };
 export const PACKS: Record<string, { credits: number; price: number }> = { small: { credits: 100, price: 3 }, medium: { credits: 500, price: 12 }, large: { credits: 2000, price: 40 } };
 /** What a thought costs in credits when the allowance is spent. */
 export const COST: Record<Tier, number> = { 1: 1, 2: 4, 3: 10 };
 
 /** Stripe price lookup keys, made by scripts/stripe-setup.mjs; the ids are found at start, so nothing is copied by hand. */
-export const LOOKUP = { resident: "unwatched_resident_monthly", patron: "unwatched_patron_monthly", small: "unwatched_pack_small", medium: "unwatched_pack_medium", large: "unwatched_pack_large" } as const;
+export const LOOKUP = { visitor: "unwatched_visitor_monthly", resident: "unwatched_resident_monthly", patron: "unwatched_patron_monthly", small: "unwatched_pack_small", medium: "unwatched_pack_medium", large: "unwatched_pack_large" } as const;
 
 /**
  * Wallets in memory, written through to the store. Stripe when keys exist; an honest test mode when they do not.
@@ -37,12 +42,12 @@ export class Billing {
     if (this.stripe) {
       try { const list = await this.stripe.prices.list({ lookup_keys: Object.values(LOOKUP), active: true, limit: 20 }); for (const pr of list.data) if (pr.lookup_key) this.prices.set(pr.lookup_key, pr.id); }
       catch (e) { this.log(`stripe: could not list prices: ${(e as Error).message}`); }
-      for (const plan of ["resident", "patron"] as const) { const env = process.env[`STRIPE_PRICE_${plan.toUpperCase()}`]; if (env) this.prices.set(LOOKUP[plan], env); }
-      const missing = (["resident", "patron"] as const).filter((p) => !this.prices.has(LOOKUP[p]));
+      for (const plan of ["visitor", "resident", "patron"] as const) { const env = process.env[`STRIPE_PRICE_${plan.toUpperCase()}`]; if (env) this.prices.set(LOOKUP[plan], env); }
+      const missing = (["visitor", "resident", "patron"] as const).filter((p) => !this.prices.has(LOOKUP[p]));
       this.log(missing.length ? `stripe: live, but no price for ${missing.join(", ")} (run scripts/stripe-setup.mjs)` : `stripe: live, ${this.prices.size} prices`);
     }
   }
-  wallet(ownerId: string): Wallet { let w = this.wallets.get(ownerId); if (!w) { w = { ownerId, plan: "visitor", credits: 0, stripeCustomer: null }; this.wallets.set(ownerId, w); } return w; }
+  wallet(ownerId: string): Wallet { let w = this.wallets.get(ownerId); if (!w) { w = { ownerId, plan: "none", credits: 0, stripeCustomer: null }; this.wallets.set(ownerId, w); } return w; }
   allowance(ownerId: string) { const p = PLANS[this.wallet(ownerId).plan]; return { tier1Max: p.tier1, tier2Max: p.tier2 }; }
   applyPlan(a: AgentState) { if (!a.owner || a.brainKind !== "hosted") return; const al = this.allowance(a.owner); a.budget.tier1Max = al.tier1Max; a.budget.tier2Max = al.tier2Max; a.budget.tier1Left = Math.min(a.budget.tier1Left, al.tier1Max); a.budget.tier2Left = Math.min(a.budget.tier2Left, al.tier2Max); }
 
@@ -76,7 +81,7 @@ export class Billing {
   }
   async checkoutPlan(ownerId: string, plan: Plan, origin: string): Promise<{ url: string } | { error: string }> {
     if (!this.stripe) return { error: "test mode" };
-    if (plan === "visitor") return { error: "the visitor plan has no checkout" };
+    if (plan === "none") return { error: "no plan is not bought; it is what is left when one ends" };
     const priceId = this.prices.get(LOOKUP[plan]); if (!priceId) return { error: `no Stripe price configured for ${plan}` };
     const w = this.wallet(ownerId);
     const session = await this.stripe.checkout.sessions.create({
@@ -95,9 +100,9 @@ export class Billing {
   }
   /** The plan a subscription stands for, read off its price; visitor once it is no longer paid. */
   private planOf(sub: Stripe.Subscription): Plan {
-    if (!(sub.status === "active" || sub.status === "trialing" || sub.status === "past_due")) return "visitor";
-    for (const it of sub.items.data) { const k = it.price.lookup_key; if (k === LOOKUP.patron || it.price.id === this.prices.get(LOOKUP.patron)) return "patron"; if (k === LOOKUP.resident || it.price.id === this.prices.get(LOOKUP.resident)) return "resident"; }
-    return (sub.metadata?.plan as Plan) ?? "visitor";
+    if (!(sub.status === "active" || sub.status === "trialing" || sub.status === "past_due")) return "none";
+    for (const it of sub.items.data) { const k = it.price.lookup_key; for (const plan of ["patron", "resident", "visitor"] as const) if (k === LOOKUP[plan] || it.price.id === this.prices.get(LOOKUP[plan])) return plan; }
+    return (sub.metadata?.plan as Plan) ?? "none";
   }
   /** Webhook: the only place a purchase becomes credits or a plan. */
   async webhook(rawBody: string, signature: string | undefined): Promise<{ ok: boolean; note?: string }> {
@@ -117,7 +122,7 @@ export class Billing {
       const sub = ev.data.object; const owner = sub.metadata?.owner_id ?? this.ownerOfCustomer(typeof sub.customer === "string" ? sub.customer : sub.customer.id);
       if (!owner) return { ok: true, note: "no owner for subscription" };
       await this.remember(owner, sub.customer);
-      const plan = ev.type === "customer.subscription.deleted" ? "visitor" : this.planOf(sub);
+      const plan = ev.type === "customer.subscription.deleted" ? "none" : this.planOf(sub);
       await this.setPlan(owner, plan); this.log(`stripe: ${owner} is a ${plan} (${sub.status})`);
     }
     if (ev.type === "invoice.payment_failed") { const inv = ev.data.object; const owner = this.ownerOfCustomer(typeof inv.customer === "string" ? inv.customer : inv.customer?.id); this.log(`stripe: payment failed for ${owner ?? "unknown"}`); }

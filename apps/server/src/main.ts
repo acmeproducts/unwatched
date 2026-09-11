@@ -38,7 +38,10 @@ const townBrain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) :
 const router = new BrainRouter(townBrain, log);
 const MODELS = { routine: process.env.UW_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5", stakes: process.env.UW_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5", reflect: process.env.UW_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" };
 let clockRef = () => ({ day: 1, hour: 6, t: 0 });
-const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
+const PATRON_MODELS = { stakes: process.env.UW_OR_MODEL_PATRON_STAKES ?? "anthropic/claude-opus-5", reflect: process.env.UW_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" }; // a Patron's careful thoughts go to the most capable mind
+let modelsFor: (a: AgentState) => Partial<{ routine: string; stakes: string; reflect: string }> | null = () => null;
+const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS, (a) => modelsFor(a));
+if (townBrain instanceof OpenRouterBrain) townBrain.modelsFor = (a) => modelsFor(a);
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
 if (townBrain instanceof OpenRouterBrain) townBrain.onFallback = (f) => metrics.fallback(f);
@@ -69,6 +72,7 @@ const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
+modelsFor = (a) => (a.owner && a.brainKind === "hosted" && billing.wallet(a.owner).plan === "patron" ? PATRON_MODELS : null);
 const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: boatTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.built" && e.payload && (e.payload as { hash?: string }).hash) { const p = e.payload as { hash: string; look: string; what: "house" | "shop" }; void looks.ensure(p.hash, p.look, p.what); } if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
 let saved: Awaited<ReturnType<NonNullable<typeof store>["loadSnapshot"]>> = null;
 try { saved = store ? await store.loadSnapshot() : null; }
@@ -372,6 +376,7 @@ app.post("/api/agents/:id/brain/token", async (c) => {
   return c.json({ token: row.token });
 });
 // ---- credits and plan ----
+app.get("/api/plans", (c) => c.json({ plans: PLANS, packs: PACKS, cost: COST, testMode: billing.testMode }));
 app.get("/api/me/wallet", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
   const w = billing.wallet(owner);
@@ -379,9 +384,10 @@ app.get("/api/me/wallet", async (c) => {
 });
 app.post("/api/me/plan", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
-  const body = z.object({ plan: z.enum(["visitor", "resident", "patron"]) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such plan" }, 400);
+  const body = z.object({ plan: z.enum(["none", "visitor", "resident", "patron"]) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such plan" }, 400);
   const plan = body.data.plan as Plan;
-  if (plan === "visitor" || billing.testMode) { await billing.setPlan(owner, plan); for (const a of town.agents.values()) if (a.owner === owner) billing.applyPlan(a); return c.json({ ok: true, plan, note: billing.testMode && plan !== "visitor" ? "Test mode: no card was charged." : undefined }); }
+  if (billing.testMode) { await billing.setPlan(owner, plan); for (const a of town.agents.values()) if (a.owner === owner) billing.applyPlan(a); return c.json({ ok: true, plan, note: plan === "none" ? "No plan: the citizen lives on habit." : "Test mode: no card was charged." }); }
+  if (plan === "none") { const r = await billing.portal(owner, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ ok: true, plan: (await billing.setPlan(owner, "none")).plan }); } // ending a plan is done on Stripe's page, where the invoices are
   const r = await billing.checkoutPlan(owner, plan, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ error: r.error }, 400);
 });
 app.post("/api/me/credits/checkout", async (c) => {

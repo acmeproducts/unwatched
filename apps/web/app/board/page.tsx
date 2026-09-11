@@ -15,6 +15,12 @@ const F = (l: string, v: string, set: (s: string) => void, ph = "", multi = fals
 );
 
 type Draft = { p?: { name: string; age: string; origin: string; summary: string; want: string; fear: string; secret: string; strangers: string; advice: string }; look?: Partial<Look>; instructions?: string; step?: number };
+const MODELS = ["anthropic/claude-haiku-4.5", "anthropic/claude-sonnet-5", "anthropic/claude-opus-5", "anthropic/claude-sonnet-4.6", "anthropic/claude-opus-4.8"];
+const FALLBACK_PLANS = {
+  visitor: { name: "Visitor", price: 3, tier1: 10, tier2: 0, reflect: false, blurb: "Ten thoughts a day. Enough to answer a letter and keep a job.", gets: ["10 thoughts a day, on Haiku 4.5", "No careful decisions: at a crossroads they go with habit", "No nightly reflection, unless credits pay for one", "The digest, the paper, letters read aloud"] },
+  resident: { name: "Resident", price: 12, tier1: 50, tier2: 6, reflect: true, blurb: "Thinks all day, reflects every night, writes to you at crossroads.", gets: ["50 thoughts a day, on Haiku 4.5", "6 careful decisions a day, on Sonnet 5", "A nightly reflection on Opus 5, and a morning plan", "Writes to you when something is at stake", "The digest, the paper, letters read aloud"] },
+  patron: { name: "Patron", price: 29, tier1: 120, tier2: 15, reflect: true, blurb: "Our most capable mind for every careful thought.", gets: ["120 thoughts a day, on Haiku 4.5", "15 careful decisions a day, on Opus 5", "A nightly reflection on Opus 5, and a morning plan", "Writes to you when something is at stake", "A painted portrait, their book and paintings", "The digest, the paper, letters read aloud"] },
+};
 const SKINS = ["#f1d6c0", "#e7c3a5", "#d2a682", "#b98460", "#8f5f42", "#6b4630"];
 const LOOKS = [["build", ["Slight", "Average", "Sturdy", "Tall"]], ["hair", ["Short dark", "Bob", "Curls", "Bun", "Grey", "Under a hat"]], ["hat", ["None", "Knit cap", "Wide brim", "Baker's cap", "Headscarf"]], ["carrying", ["Nothing", "Suitcase", "Satchel", "Basket", "Tool bag"]], ["top", ["Teal", "Sage", "Cream", "Sand", "Kelp"]], ["bottom", ["Teal", "Sage", "Cream", "Sand", "Kelp"]], ["coral", ["None", "Suitcase", "Scarf", "Buttons", "Hat band"]]] as const;
 function readDraft(): Draft { try { return JSON.parse(localStorage.getItem("ft.draft") ?? "{}") as Draft; } catch { return {}; } }
@@ -48,7 +54,11 @@ export default function Board() {
   const [previewPose, setPreviewPose] = useState<"idle" | "walk" | "sit">("idle");
   const age = Number(p.age) || 30;
   const [brain, setBrain] = useState<"hosted" | "own_key" | "own_brain">("hosted");
-  const [plan, setPlan] = useState("Resident");
+  const [plan, setPlan] = useState<"visitor" | "resident" | "patron">("resident");
+  type PlanRow = { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string; gets: string[] };
+  const [plans, setPlans] = useState<Record<string, PlanRow>>(FALLBACK_PLANS);
+  useEffect(() => { void api<{ plans: Record<string, PlanRow> }>("/api/plans").then((r) => setPlans(r.plans)).catch(() => {}); }, []);
+  const [ownKey, setOwnKey] = useState(""); const [models, setModels] = useState({ routine: MODELS[0]!, stakes: MODELS[1]!, reflect: MODELS[2]! }); const [cap, setCap] = useState(2);
   const [instructions, setInstructions] = useState("");
   useEffect(() => { const d = readDraft(); if (d.p) setP((x) => ({ ...x, ...d.p })); if (d.look) setLook(d.look); if (d.instructions) setInstructions(d.instructions); if (d.step) setStep(Math.min(4, d.step)); setHydrated(true); }, []);
   // the ticket being written survives a trip to the harbor office and a closed tab: "saved as you write" is real
@@ -65,10 +75,14 @@ export default function Board() {
       if (res.away) { setAway({ island: res.island ?? dest.name, url: res.url ?? "" }); setBusy(false); return; }
       rememberAgent(res.id); try { localStorage.removeItem("ft.draft"); } catch {}
       if (instructions.trim()) await api(`/api/agents/${res.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instructions.trim() }) }); // a note on the door, read every morning; not a letter
-      if (brain !== "hosted") { r.push("/account/brain"); return; } // the key or the socket is set up on the next page
-      if (plan !== "Visitor") { // the plan chosen here is bought now, on Stripe's page; in test mode it simply applies
-        try { const pr = await api<{ url?: string; ok?: boolean }>("/api/me/plan", { method: "POST", body: JSON.stringify({ plan: plan.toLowerCase() }) }); if (pr.url) { location.href = pr.url; return; } } catch { /* the digest still opens; the plan can be chosen on the credits page */ }
+      if (brain === "own_key") { // the key goes to the server once, tested, and is never shown again
+        try { await api(`/api/agents/${res.id}/brain`, { method: "PUT", body: JSON.stringify({ kind: "own_key", apiKey: ownKey.trim(), models, dailyCapUsd: cap }) }); r.push("/digest"); }
+        catch (e) { setErr(`Boarded, but the key was not accepted: ${(e as Error).message}. Set it on the Who thinks page.`); setBusy(false); r.push("/account/brain"); }
+        return;
       }
+      if (brain === "own_brain") { r.push("/account/brain"); return; } // the socket and its token are on the next page
+      // the plan chosen here is bought now, on Stripe's page; in test mode it simply applies. Without it the citizen lives on habit.
+      try { const pr = await api<{ url?: string; ok?: boolean }>("/api/me/plan", { method: "POST", body: JSON.stringify({ plan }) }); if (pr.url) { location.href = pr.url; return; } } catch { /* the digest still opens; the plan can be bought on the credits page */ }
       r.push("/digest");
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   }
@@ -145,15 +159,25 @@ export default function Board() {
           <div className="bg-shell rounded-[28px] p-6 sm:p-11 flex flex-col gap-5">
             <div><Label>The mind</Label><h1 className="text-[36px] font-bold">Who does {p.name.split(" ")[0] ? `${p.name.split(" ")[0]}'s` : "the"} thinking?</h1><p className="text-[15px] text-ink2">Every agent acts at the same speed. This only decides how often they actually think, and with what.</p></div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              {([["hosted","Hosted","The town thinks for them, on your credits. Nothing to set up."],["own_key","Your own key","Paste a key from any model provider. Awake as often as you can afford."],["own_brain","Your own brain","Run the mind yourself and connect it over the open agent protocol."]] as const).map(([k,t,d]) => <button key={k} type="button" onClick={() => setBrain(k)} className={`text-left rounded-[20px] p-5 flex flex-col gap-1 transition-colors ${brain === k ? "bg-glass" : "bg-sand hover:bg-sand-2"}`}><div className="flex justify-between items-center"><span className="font-bold text-[17px]">{t}</span><span className={`w-5 h-5 rounded-full ${brain === k ? "bg-teal" : "border-2 border-[#D9D5C8]"}`} /></div><span className="text-sm text-ink2">{d}</span></button>)}
+              {([["hosted","Hosted","The town thinks for them, on a plan you choose here. Nothing to set up."],["own_key","Your own key","Our prompts, your OpenRouter key. Awake as often as you can afford; we charge nothing."],["own_brain","Your own brain","Run the mind yourself and connect it over the open agent protocol. Free."]] as const).map(([k,t,d]) => <button key={k} type="button" aria-pressed={brain === k} onClick={() => setBrain(k)} className={`text-left rounded-[20px] p-5 flex flex-col gap-1 transition-colors ${brain === k ? "bg-glass" : "bg-sand hover:bg-sand-2"}`}><div className="flex justify-between items-center"><span className="font-bold text-[17px]">{t}</span><span className={`w-5 h-5 rounded-full ${brain === k ? "bg-teal" : "border-2 border-line"}`} /></div><span className="text-sm text-ink2">{d}</span></button>)}
             </div>
+            {brain === "own_key" && (
+              <div className="bg-glass rounded-[20px] p-5 flex flex-col gap-4">
+                <div><div className="font-bold">Your OpenRouter key</div><div className="text-[13px] text-ink2">Tested once when {p.name.split(" ")[0] || "they"} board, kept on the server only, never shown again. You can change it or the models any time on the Who thinks page.</div></div>
+                <label className="flex flex-col gap-1.5"><span className="text-[13px] font-bold text-drift">API key</span><input value={ownKey} onChange={(e) => setOwnKey(e.target.value)} type="password" autoComplete="off" placeholder="sk-or-v1-…" className="h-11 rounded-full bg-sand px-4 text-[15px]" /></label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{(["routine", "stakes", "reflect"] as const).map((tier) => <label key={tier} className="flex flex-col gap-1.5"><span className="text-[13px] font-bold text-drift">{tier === "routine" ? "Routine thoughts" : tier === "stakes" ? "Careful decisions" : "Reflection at night"}</span><select value={models[tier]} onChange={(e) => setModels({ ...models, [tier]: e.target.value })} className="h-11 rounded-full bg-sand px-4 text-[14px]">{MODELS.map((m) => <option key={m} value={m}>{m.replace("anthropic/claude-", "Claude ").replace("-", " ")}</option>)}</select></label>)}</div>
+                <label className="flex flex-col gap-1.5"><span className="text-[13px] font-bold text-drift">Daily cap on your key, in dollars</span><input type="number" min={0} max={100} step={0.5} value={cap} onChange={(e) => setCap(Number(e.target.value))} className="h-11 rounded-full bg-sand px-4 text-[15px] w-40" /><span className="text-[12px] text-drift">At the cap they live on habit until midnight.</span></label>
+              </div>
+            )}
+            {brain === "own_brain" && <div className="bg-glass rounded-[20px] p-5 text-sm text-ink2"><b className="text-kelp">After boarding you get a token.</b> Your process opens a WebSocket with it, receives what {p.name.split(" ")[0] || "they"} perceive once a minute, and answers with one action. The protocol is on the <Link href="/developers" className="text-teal font-bold">developers page</Link>.</div>}
             <label className="bg-sand rounded-[20px] p-5 flex flex-col gap-2"><span className="text-[13px] font-bold text-drift">Standing instructions, optional</span><textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Find honest work first. Don't borrow. Write to me before any big decision." className="bg-transparent min-h-[60px] text-[15px]" /><span className="text-[13px] text-drift">They read these every morning. Whether they follow them depends on who they are.</span></label>
             <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(2)}>Back</Button><div className="flex items-center gap-4"><span className="text-sm text-drift">Step 4 of 5</span><Button onClick={() => setStep(4)}>Next, boarding</Button></div></div>
           </div>
           <div className={`bg-shell rounded-[28px] p-6 sm:p-9 flex flex-col gap-3.5 transition-opacity ${brain === "hosted" ? "" : "opacity-40 pointer-events-none"}`} aria-disabled={brain !== "hosted"}>
             <Label>Hosted plans</Label>
-            {([["Visitor","$0","Habit plus ten thoughts a day. Weekly digest."],["Resident","$12 / mo","Thinks all day, reflects nightly, writes to you at crossroads. Daily digest, letters read aloud."],["Patron","$29 / mo","Our most capable mind, deep reflection, a painted portrait, their book and paintings."]] as [string, string, string][]).map(([n,pr,d]) => <button key={n} type="button" onClick={() => setPlan(n)} aria-pressed={plan === n} className={`text-left rounded-[20px] p-5 flex flex-col gap-1 transition-colors ${plan === n ? "bg-teal text-sand" : "bg-sand hover:bg-sand-2"}`}><div className="flex justify-between items-baseline"><span className="font-bold">{n}</span><span className="display font-bold text-xl">{pr}</span></div><span className={`text-[13px] ${plan === n ? "text-mist" : "text-ink2"}`}>{d}</span></button>)}
-            <p className="text-[13px] text-drift">Per citizen, per month, before tax. A paid plan is bought right after boarding, on Stripe's page. Credits never buy coins. Coins are earned on the island only.</p>
+            <p className="text-[13px] text-ink2">Nobody thinks for free on the island. Each plan is a daily allowance of thinking; credits top it up.</p>
+            {(["visitor", "resident", "patron"] as const).map((k) => { const pl = plans[k] ?? FALLBACK_PLANS[k]; const on = plan === k; return <button key={k} type="button" aria-pressed={on} onClick={() => setPlan(k)} className={`text-left rounded-[20px] p-5 flex flex-col gap-2 transition-colors ${on ? "bg-teal text-sand" : "bg-sand hover:bg-sand-2"}`}><div className="flex justify-between items-baseline"><span className="font-bold text-[17px]">{pl.name}</span><span className="display font-bold text-xl">${pl.price}<span className="text-[13px] font-semibold opacity-70"> / mo</span></span></div><span className={`text-[13px] ${on ? "opacity-80" : "text-ink2"}`}>{pl.blurb}</span><ul className={`text-[13px] flex flex-col gap-0.5 pl-4 m-0 list-disc ${on ? "opacity-90" : "text-ink2"}`}>{pl.gets.map((g) => <li key={g}>{g}</li>)}</ul></button>; })}
+            <p className="text-[13px] text-drift">Per citizen, per month, before tax. The plan is bought right after boarding, on Stripe's page. Credits never buy coins. Coins are earned on the island only.</p>
           </div>
         </div>
       )}
@@ -170,7 +194,7 @@ export default function Board() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Passenger</div><div className="display text-xl font-semibold">{p.name}, {age}</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Arrives</div><div className="display text-xl font-semibold">Next boat</div></div>
-                <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Mind</div><div>{brain === "hosted" ? `Hosted · ${plan}` : brain === "own_key" ? "Your own key" : "Your own brain"}</div></div>
+                <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Mind</div><div>{brain === "hosted" ? `Hosted · ${(plans[plan] ?? FALLBACK_PLANS[plan]).name}, $${(plans[plan] ?? FALLBACK_PLANS[plan]).price} a month` : brain === "own_key" ? "Your own key" : "Your own brain"}</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Carrying</div><div>{look.carrying}, 40 coins</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Lodging</div><div>Harbor inn, 3 nights</div></div>
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Return</div><div>When they decide</div></div>
@@ -181,7 +205,7 @@ export default function Board() {
               ? <div className="bg-glass rounded-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div className="font-bold">The harbor office needs to see you first.</div><div className="text-[13px] text-ink2">Your ticket is saved. Sign in and you will come straight back here.</div></div><LinkButton href="/gate?next=/board" size={44}>Sign in at the harbor office</LinkButton></div>
               : <div className="text-[13px] text-coral">{err}</div>)}
             {away && <div className="bg-glass rounded-[18px] p-4 text-sm"><b>{p.name} boarded for {away.island}.</b> Their story goes on there, on that island's own pages{away.url ? <>: <a className="text-teal font-bold" href={away.url.replace(/\/engine$/, "")}>{away.url.replace(/\/engine$/, "")}</a></> : "."} Sign in there with the same account to read their digest.</div>}
-            <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy} onClick={board}>{busy ? "Boarding…" : "Send someone over"}</Button></div>
+            <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy || (brain === "own_key" && ownKey.trim().length < 8)} onClick={board}>{busy ? "Boarding…" : "Send someone over"}</Button></div>
           </div>
         </div>
       )}

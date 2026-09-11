@@ -26,6 +26,7 @@ const stripe = { products: { list: (p) => viaCli ? cli("get", "/v1/products", p)
   webhookEndpoints: { list: (p) => viaCli ? cli("get", "/v1/webhook_endpoints", p) : sdk.webhookEndpoints.list(p), create: (p) => api.create("webhook_endpoints", p), update: (id, p) => api.update("webhook_endpoints", id, p) } };
 
 const PRODUCTS = [
+  { key: "visitor", name: "Unwatched Visitor", statement: "UNWATCHED VISITOR", description: "One citizen with ten thoughts a day: enough to answer a letter and keep a job. No careful decisions, no nightly reflection.", prices: [{ lookup: "unwatched_visitor_monthly", amount: 300, recurring: { interval: "month" } }] },
   { key: "resident", name: "Unwatched Resident", statement: "UNWATCHED RESIDENT", description: "One citizen who thinks all day, reflects nightly and writes to you at crossroads. Daily digest, letters read aloud.", prices: [{ lookup: "unwatched_resident_monthly", amount: 1200, recurring: { interval: "month" } }] },
   { key: "patron", name: "Unwatched Patron", statement: "UNWATCHED PATRON", description: "Our most capable mind for one citizen: deep reflection, a painted portrait, their book and paintings.", prices: [{ lookup: "unwatched_patron_monthly", amount: 2900, recurring: { interval: "month" } }] },
   { key: "credits", name: "Unwatched credits", statement: "UNWATCHED CREDITS", description: "Credits pay for thinking beyond the plan's daily allowance. They never become coins.", prices: [
@@ -47,7 +48,7 @@ for (const P of PRODUCTS) {
 // the customer portal: card, invoices, and ending a plan; switching between the two plans happens on the same page
 try {
   const confs = await stripe.billingPortal.configurations.list({ limit: 10 });
-  const planPrices = (await stripe.prices.list({ lookup_keys: ["unwatched_resident_monthly", "unwatched_patron_monthly"], active: true })).data;
+  const planPrices = (await stripe.prices.list({ lookup_keys: ["unwatched_visitor_monthly", "unwatched_resident_monthly", "unwatched_patron_monthly"], active: true })).data;
   const products_ = [...new Set(planPrices.map((p) => p.product))].map((prod) => ({ product: prod, prices: planPrices.filter((p) => p.product === prod).map((p) => p.id) }));
   const features = { invoice_history: { enabled: true }, payment_method_update: { enabled: true }, customer_update: { enabled: true, allowed_updates: ["email", "address"] }, subscription_cancel: { enabled: true, mode: "at_period_end", cancellation_reason: { enabled: true, options: ["too_expensive", "missing_features", "unused", "other"] } }, subscription_update: { enabled: true, default_allowed_updates: ["price"], proration_behavior: "create_prorations", products: products_ } };
   const mine = confs.data.find((c) => c.metadata?.unwatched === "1");

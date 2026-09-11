@@ -40,6 +40,9 @@ export class OpenRouterBrain implements Brain {
   cachedTokens() { return this.cached; }
   /** Called whenever an answer could not be used and the plain fallback stood in. The ops room listens. */
   onFallback: ((f: { what: string; model: string; reason: string }) => void) | null = null;
+  /** The models for one citizen when they differ from the town's: a Patron's careful thoughts and reflection go to the most capable mind. */
+  modelsFor: ((a: AgentState) => Partial<{ routine: string; stakes: string; reflect: string }> | null) | null = null;
+  private m(a: AgentState) { const o = this.modelsFor?.(a); return { routine: o?.routine ?? this.routine, stakes: o?.stakes ?? this.stakes, reflect: o?.reflect ?? this.reflectModel }; }
 
   private async call<T>(model: string, system: string, user: string, schema: z.ZodType<T>, name: string, maxTokens: number): Promise<T | null> {
     // Providers behind OpenRouter accept a subset of JSON Schema: no regex patterns, no defaults, anyOf not oneOf.
@@ -74,7 +77,7 @@ export class OpenRouterBrain implements Brain {
   }
 
   async decide(p: Perception, a: AgentState, tier: Tier): Promise<ActionProposal> {
-    const out = await this.call(tier >= 2 ? this.stakes : this.routine, `${WORLD}\n\n${personaBlock(a)}`, decidePrompt(p), ActionProposal, "action_proposal", 1024);
+    const mm = this.m(a); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, `${WORLD}\n\n${personaBlock(a)}`, decidePrompt(p), ActionProposal, "action_proposal", 1024);
     return out ?? this.fallback.decide(p, a, tier);
   }
   async converse(ctx: ConverseContext): Promise<Dialogue> {
@@ -82,11 +85,11 @@ export class OpenRouterBrain implements Brain {
     return out ?? this.fallback.converse(ctx);
   }
   async reflect(ctx: ReflectContext): Promise<Reflection> {
-    const out = await this.call(this.reflectModel, `${WORLD}\n\n${personaBlock(ctx.agent)}`, reflectPrompt(ctx), Reflection, "reflection", 2000);
+    const out = await this.call(this.m(ctx.agent).reflect, `${WORLD}\n\n${personaBlock(ctx.agent)}`, reflectPrompt(ctx), Reflection, "reflection", 2000);
     return out ?? this.fallback.reflect(ctx);
   }
   async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
-    const out = await this.call(tier >= 2 ? this.stakes : this.routine, `${WORLD}\n\n${personaBlock(ctx.agent)}`, planPrompt(ctx), DayPlan, "day_plan", 1200);
+    const mm = this.m(ctx.agent); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, `${WORLD}\n\n${personaBlock(ctx.agent)}`, planPrompt(ctx), DayPlan, "day_plan", 1200);
     return out ?? this.fallback.plan(ctx, tier);
   }
   async digest(ctx: DigestContext): Promise<DigestText> {

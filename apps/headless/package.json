@@ -1,5 +1,5 @@
 {
-  "name": "@smallhours/headless",
+  "name": "@unwatched/headless",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@smallhours/cognition": "workspace:*",
-    "@smallhours/engine": "workspace:*",
-    "@smallhours/protocol": "workspace:*"
+    "@unwatched/cognition": "workspace:*",
+    "@unwatched/engine": "workspace:*",
+    "@unwatched/protocol": "workspace:*"
   },
   "devDependencies": { "tsx": "^4.23.0", "typescript": "^5.8.0", "@types/node": "^22.15.0" }
 }

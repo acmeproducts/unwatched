@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town, MINUTES_PER_DAY } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal, Persona } from "@smallhours/protocol";
+import type { Perception, ActionProposal, Persona } from "@unwatched/protocol";
 
 const persona = (name: string): Persona => ({ name, age: 33, origin: "the mainland", summary: "A restless person.", want: "somewhere better", fear: "staying", secret: "none", strangers: "curious", advice: "weighs it", traits: { warmth: 0.6, pride: 0.4, caution: 0.3, honesty: 0.7, ambition: 0.8 } });
 const none: Brain = {

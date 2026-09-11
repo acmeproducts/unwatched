@@ -1,12 +1,12 @@
 {
-  "name": "small-hours",
+  "name": "unwatched",
   "private": true,
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kresogalic8/small-hours.git"
+    "url": "https://github.com/kresogalic8/unwatched.git"
   },
-  "homepage": "https://small-hours-mic8w.ondigitalocean.app",
+  "homepage": "https://unwatched-mic8w.ondigitalocean.app",
   "packageManager": "pnpm@10.10.0",
   "engines": {
     "node": ">=22"
@@ -16,7 +16,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "soak": "pnpm --filter @smallhours/headless soak"
+    "soak": "pnpm --filter @unwatched/headless soak"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

@@ -1,5 +1,5 @@
-import type { LifeText, DayPlan, DigestText, Child, Judgement } from "@smallhours/protocol";
-import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@smallhours/protocol";
+import type { LifeText, DayPlan, DigestText, Child, Judgement } from "@unwatched/protocol";
+import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@unwatched/protocol";
 
 export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic" | "plot" | "wild";
 

@@ -1,4 +1,4 @@
-import type { AgentState } from "@smallhours/engine";
+import type { AgentState } from "@unwatched/engine";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,14 +11,14 @@ import { z } from "zod";
 import { Voices, voiceOf, voicesEnabled } from "./voice.ts";
 import { Looks, looksEnabled } from "./looks.ts";
 import { createClient } from "@supabase/supabase-js";
-import { Town, Rng, MINUTES_PER_DAY, sha256, canonicalEvent } from "@smallhours/engine";
-import type { Brain } from "@smallhours/engine";
-import { Action, Persona, type TownEvent, Passenger } from "@smallhours/protocol";
-import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@smallhours/cognition";
-import { TownStore, FileStore } from "@smallhours/store";
+import { Town, Rng, MINUTES_PER_DAY, sha256, canonicalEvent } from "@unwatched/engine";
+import type { Brain } from "@unwatched/engine";
+import { Action, Persona, type TownEvent, Passenger } from "@unwatched/protocol";
+import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@unwatched/cognition";
+import { TownStore, FileStore } from "@unwatched/store";
 import { publicAgent, ownerAgent, clockOf, realClock } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
-import type { BrainRow, Plan, Store } from "@smallhours/store";
+import type { BrainRow, Plan, Store } from "@unwatched/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
 import { Metrics } from "./ops.ts";
 import { RealWorld, parsePlace, resolveZone } from "./realworld.ts";
@@ -28,25 +28,25 @@ const envFile = resolve(here, "../../../.env");
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const PORT = Number(process.env.PORT ?? 4000);
-const SEED = Number(process.env.SH_SEED ?? 42);
-const MS_PER_SIM_MINUTE = Number(process.env.SH_MS_PER_SIM_MINUTE ?? 1000); // 60000 is real time
-const BRAIN = process.env.SH_BRAIN ?? "mock";
-const CITIZENS = Number(process.env.SH_CITIZENS ?? 20);
+const SEED = Number(process.env.UW_SEED ?? 42);
+const MS_PER_SIM_MINUTE = Number(process.env.UW_MS_PER_SIM_MINUTE ?? 1000); // 60000 is real time
+const BRAIN = process.env.UW_BRAIN ?? "mock";
+const CITIZENS = Number(process.env.UW_CITIZENS ?? 20);
 const log = (l: string) => console.log(`[town] ${l}`);
 
 const townBrain: Brain = BRAIN === "openrouter" ? new OpenRouterBrain({ log }) : BRAIN === "anthropic" ? new AnthropicBrain({ log }) : new MockBrain(SEED);
 const router = new BrainRouter(townBrain, log);
-const MODELS = { routine: process.env.SH_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5", stakes: process.env.SH_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5", reflect: process.env.SH_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" };
+const MODELS = { routine: process.env.UW_OR_MODEL_ROUTINE ?? "anthropic/claude-haiku-4.5", stakes: process.env.UW_OR_MODEL_STAKES ?? "anthropic/claude-sonnet-5", reflect: process.env.UW_OR_MODEL_REFLECT ?? "anthropic/claude-opus-5" };
 let clockRef = () => ({ day: 1, hour: 6, t: 0 });
 const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
 if (townBrain instanceof OpenRouterBrain) townBrain.onFallback = (f) => metrics.fallback(f);
-const TOWN_ID = process.env.SH_TOWN_ID ?? "island";
-const TOWN_NAME = process.env.SH_TOWN_NAME ?? "The island";
-/** Other islands a boat runs to: SH_HARBORS="north=https://north.example/engine,west=http://localhost:4011". Names are fetched from them. */
-const HARBORS: { id: string; url: string; name: string }[] = (process.env.SH_HARBORS ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const [id, url] = x.split("="); return { id: id!.trim(), url: (url ?? "").trim().replace(/\/$/, ""), name: id!.trim() }; }).filter((h) => h.url);
-const BOAT_SECRET = process.env.SH_BOAT_SECRET ?? "";
+const TOWN_ID = process.env.UW_TOWN_ID ?? "island";
+const TOWN_NAME = process.env.UW_TOWN_NAME ?? "The island";
+/** Other islands a boat runs to: UW_HARBORS="north=https://north.example/engine,west=http://localhost:4011". Names are fetched from them. */
+const HARBORS: { id: string; url: string; name: string }[] = (process.env.UW_HARBORS ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const [id, url] = x.split("="); return { id: id!.trim(), url: (url ?? "").trim().replace(/\/$/, ""), name: id!.trim() }; }).filter((h) => h.url);
+const BOAT_SECRET = process.env.UW_BOAT_SECRET ?? "";
 const harborStats = new Map<string, { at: number; data: Record<string, unknown> | null }>();
 async function harborTown(h: { id: string; url: string }): Promise<Record<string, unknown> | null> {
   const hit = harborStats.get(h.id); if (hit && Date.now() - hit.at < 60000) return hit.data;
@@ -62,9 +62,9 @@ async function boatTo(passenger: Passenger, to: string): Promise<boolean> {
     return true;
   } catch (err) { log(`boat to ${h.id}: ${(err as Error).message}`); return false; }
 }
-let store: Store | null = process.env.SH_STORE === "none" ? null : TownStore.fromEnv(TOWN_ID);
+let store: Store | null = process.env.UW_STORE === "none" ? null : TownStore.fromEnv(TOWN_ID);
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
-if (!store && process.env.SH_STORE !== "none") { store = FileStore.fromEnv(TOWN_ID); log(`record kept in ${process.env.SH_DATA_DIR ?? "out/town"}/${TOWN_ID}.json (set SUPABASE_URL for the shared record, SH_STORE=none for none)`); }
+if (!store && process.env.UW_STORE !== "none") { store = FileStore.fromEnv(TOWN_ID); log(`record kept in ${process.env.UW_DATA_DIR ?? "out/town"}/${TOWN_ID}.json (set SUPABASE_URL for the shared record, UW_STORE=none for none)`); }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
@@ -86,7 +86,7 @@ if (saved && saved.agents.length > 0) {
 }
 clockRef = () => ({ day: town.day, hour: town.hour, t: town.t });
 // the island keeps our time: the sky, calendar, clock and timetable of a real point on the earth, by latitude and longitude
-const REAL = process.env.SH_REAL_WORLD ? await (async () => { const p = parsePlace(process.env.SH_REAL_WORLD!, process.env.SH_REAL_WORLD_NAME); if (!p) { log(`SH_REAL_WORLD should be "lat,lon" or "lat,lon,Area/City" (got ${JSON.stringify(process.env.SH_REAL_WORLD)}); the island keeps its own time`); return null; } return resolveZone(p); })() : null;
+const REAL = process.env.UW_REAL_WORLD ? await (async () => { const p = parsePlace(process.env.UW_REAL_WORLD!, process.env.UW_REAL_WORLD_NAME); if (!p) { log(`UW_REAL_WORLD should be "lat,lon" or "lat,lon,Area/City" (got ${JSON.stringify(process.env.UW_REAL_WORLD)}); the island keeps its own time`); return null; } return resolveZone(p); })() : null;
 const real = REAL ? new RealWorld(town, REAL, log) : null;
 if (real) {
   const jumped = real.alignClock();
@@ -95,7 +95,7 @@ if (real) {
   log(`the island keeps the time at ${REAL!.lat}, ${REAL!.lon} (${REAL!.tz})${jumped ? `; moved the clock ${jumped} minutes forward to ${town.clock()}` : ""}; the sky is ${REAL!.name}'s, the boat keeps the ${town.season} timetable`);
 }
 for (const h of HARBORS) void harborTown(h).then((d) => { const n = (d as { name?: string } | null)?.name; if (n) { h.name = n; const th = town.harbors.find((x) => x.id === h.id); if (th) th.name = n; } });
-if (HARBORS.length) log(`boats run to ${HARBORS.map((h) => h.id).join(", ")}${BOAT_SECRET ? "" : " (no SH_BOAT_SECRET: arrivals from other islands are refused)"}`);
+if (HARBORS.length) log(`boats run to ${HARBORS.map((h) => h.id).join(", ")}${BOAT_SECRET ? "" : " (no UW_BOAT_SECRET: arrivals from other islands are refused)"}`);
 log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? (store instanceof FileStore ? "file" : "supabase") : "memory only"} · sign-in ${process.env.SUPABASE_URL ? "supabase" : "dev names"}`);
 
 // ---- the clock ----
@@ -149,14 +149,14 @@ const sb = process.env.SUPABASE_URL && authKey ? createClient(process.env.SUPABA
 async function ownerOf(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization");
   if (sb && auth?.startsWith("Bearer ")) { const { data } = await sb.auth.getUser(auth.slice(7)); return data.user?.id ?? null; }
-  // Local development only: a name in X-Owner counts as a person. Never set SH_DEV_OWNER where strangers can reach the server.
-  if (!sb || process.env.SH_DEV_OWNER === "1") return req.headers.get("x-owner");
+  // Local development only: a name in X-Owner counts as a person. Never set UW_DEV_OWNER where strangers can reach the server.
+  if (!sb || process.env.UW_DEV_OWNER === "1") return req.headers.get("x-owner");
   return null;
 }
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
-const placeView = (p: import("@smallhours/engine").Place) => ({ id: p.id, name: p.nickname ? `${p.name} (${p.nickname})` : p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(p.look ? { look: p.look } : {}), ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
-const childView = (ch: import("@smallhours/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
+const placeView = (p: import("@unwatched/engine").Place) => ({ id: p.id, name: p.nickname ? `${p.name} (${p.nickname})` : p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(p.look ? { look: p.look } : {}), ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
+const childView = (ch: import("@unwatched/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
 /** The far end of the boat. Another island puts a passenger here; they step off at our harbor with what they carry and what they remember. */
 // cargo: another island asks what we are short of, and sends what it has spare; the shelves pay
 app.get("/api/boat/wants", (c) => (!BOAT_SECRET || c.req.header("x-boat") !== BOAT_SECRET) ? c.json({ error: "this harbor takes no boats from there" }, 403) : c.json({ island: TOWN_NAME, wants: town.cargoWants() }));
@@ -192,14 +192,14 @@ app.post("/api/boat/arrive", async (c) => {
   return c.json({ ok: true, id: a.id, island: TOWN_NAME });
 });
 // the boat office tells the web which sign-in it expects, so a build without the public keys can say so instead of failing at the last step
-app.get("/api/office", (c) => c.json({ signIn: sb && process.env.SH_DEV_OWNER !== "1" ? "supabase" : "dev" }));
+app.get("/api/office", (c) => c.json({ signIn: sb && process.env.UW_DEV_OWNER !== "1" ? "supabase" : "dev" }));
 app.get("/api/town", (c) => c.json({ ...clockOf(town), name: TOWN_NAME, id: TOWN_ID, size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws, children: town.children.map(childView) }));
 /** Children of the island who could be adopted: unowned, growing up or already grown. Adopting means writing to them; nothing more. */
 app.get("/api/children", (c) => c.json({
   growing: town.children.filter((ch) => !ch.adoptedBy).map(childView),
   grown: [...town.agents.values()].filter((a) => !a.owner && a.persona.origin.startsWith("born on the island")).map((a) => publicAgent(town, a)),
 }));
-const BOAT_SPACES = Number(process.env.SH_BOAT_SPACES ?? 8);
+const BOAT_SPACES = Number(process.env.UW_BOAT_SPACES ?? 8);
 const nextBoat = () => { const n = town.nextBoat(); return `${String(n.hour).padStart(2, "0")}:00${n.tomorrow ? " tomorrow" : ""}`; };
 const liveTown = () => ({ id: store?.townId ?? "island", name: TOWN_NAME, live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boats: town.boatHeld ? "The boat is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : real ? `${town.boatTimes.length} crossings a day, the ${town.season} timetable` : "Boats hourly, 06:00 to 20:00", next: town.boatRunning ? nextBoat() : null, spaces: town.boatRunning ? Math.max(0, BOAT_SPACES - town.pendingArrivals()) : 0 });
 app.get("/api/towns", async (c) => {
@@ -291,13 +291,13 @@ app.get("/api/agents/:id/book", async (c) => {
   return c.json({ id, name: live.persona.name, persona: live.persona, arrivedT: live.arrivedAt, leftT: null, ...life });
 });
 // looks: what a citizen built, drawn the way they described it, for everyone
-const looks = new Looks(resolve(process.env.SH_DATA_DIR ?? "out/town", "looks", TOWN_ID), resolve(dirname(fileURLToPath(import.meta.url)), "..", "patterns"), store, log);
+const looks = new Looks(resolve(process.env.UW_DATA_DIR ?? "out/town", "looks", TOWN_ID), resolve(dirname(fileURLToPath(import.meta.url)), "..", "patterns"), store, log);
 for (const p of town.places.values()) if (p.look && p.sprite.startsWith("look:")) void looks.ensure(p.sprite.slice(5), p.look, p.kind === "shop" ? "shop" : "house");
 app.get("/api/looks", async (c) => c.json({ enabled: looksEnabled(), looks: await looks.list(), patterns: looks.patternBook() }));
 app.get("/api/looks/pattern/:name", (c) => { const svg = looks.pattern(c.req.param("name")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no such pattern" }, 404); });
 app.get("/api/looks/:hash", async (c) => { const svg = await looks.get(c.req.param("hash").replace(/\.svg$/, "")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no drawing yet" }, 404); });
 // voices: a letter home, read aloud in the writer's own voice, for the owner who asked
-const voices = new Voices(resolve(process.env.SH_DATA_DIR ?? "out/town", "voices", TOWN_ID));
+const voices = new Voices(resolve(process.env.UW_DATA_DIR ?? "out/town", "voices", TOWN_ID));
 app.get("/api/events/:id/voice", async (c) => {
   if (!voicesEnabled()) return c.json({ error: "this island has no voices; set GEMINI_API_KEY" }, 503);
   const id = Number(c.req.param("id")); const e = town.events.find((x) => x.id === id && x.kind === "agent.letter");
@@ -391,9 +391,9 @@ app.post("/api/me/credits/checkout", async (c) => {
 });
 app.post("/api/stripe/webhook", async (c) => { const r = await billing.webhook(await c.req.text(), c.req.header("stripe-signature")); return c.json(r, r.ok ? 200 : 400); });
 // ---- ops, behind a token ----
-const opsOk = (req: Request) => !!process.env.SH_OPS_TOKEN && req.headers.get("x-ops") === process.env.SH_OPS_TOKEN;
+const opsOk = (req: Request) => !!process.env.UW_OPS_TOKEN && req.headers.get("x-ops") === process.env.UW_OPS_TOKEN;
 app.get("/api/ops", (c) => {
-  if (!opsOk(c.req.raw)) return c.json({ error: process.env.SH_OPS_TOKEN ? "ops token required" : "set SH_OPS_TOKEN to open the ops room" }, 401);
+  if (!opsOk(c.req.raw)) return c.json({ error: process.env.UW_OPS_TOKEN ? "ops token required" : "set UW_OPS_TOKEN to open the ops room" }, 401);
   const agents = [...town.agents.values()]; const funded = agents.filter((a) => a.funded && (a.owner || a.brainKind === "hosted"));
   const hosted = agents.filter((a) => a.brainKind === "hosted"), ownKey = agents.filter((a) => a.brainKind === "own_key"), ownBrain = agents.filter((a) => a.brainKind === "own_brain");
   const today = metrics.today(town.day);
@@ -405,7 +405,7 @@ app.get("/api/ops", (c) => {
   const ticks = [...metrics.tickMs].sort((x, y) => x - y);
   return c.json({
     clock: clockOf(town), switches: { paused: town.paused, economyFrozen: town.economyFrozen, boatHeld: town.boatHeld },
-    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, fallbacksToday: metrics.fallbacks.filter((f) => Date.now() - f.at < 86400000).length, cachedTokens: townBrain instanceof OpenRouterBrain ? townBrain.cachedTokens() : 0, ceiling: Number(process.env.SH_DAILY_CEILING_USD ?? 120) },
+    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, fallbacksToday: metrics.fallbacks.filter((f) => Date.now() - f.at < 86400000).length, cachedTokens: townBrain instanceof OpenRouterBrain ? townBrain.cachedTokens() : 0, ceiling: Number(process.env.UW_DAILY_CEILING_USD ?? 120) },
     hours: metrics.hours.filter((h) => h.day === town.day).map((h) => ({ hour: h.hour, calls: h.t1 + h.t2 + h.t3 + h.converse, t1: h.t1, t2: h.t2, t3: h.t3, converse: h.converse, cost: Math.round(h.cost * 100) / 100 })),
     byTier: [{ tier: "Tier 1 · routine", model: MODELS.routine, calls: today.t1 + today.converse }, { tier: "Tier 2 · stakes", model: MODELS.stakes, calls: today.t2 }, { tier: "Tier 3 · reflection and the paper", model: MODELS.reflect, calls: today.t3 }],
     real: real ? { ...real.state, season: town.season, timetable: town.boatTimes } : null,

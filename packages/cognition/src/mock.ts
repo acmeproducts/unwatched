@@ -1,6 +1,6 @@
-import type { LifeText, Judgement, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@smallhours/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@smallhours/engine";
-import { Rng } from "@smallhours/engine";
+import type { LifeText, Judgement, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@unwatched/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@unwatched/engine";
+import { Rng } from "@unwatched/engine";
 
 /**
  * A mind that costs nothing. Deterministic given the seed, opinionated enough to make a town.

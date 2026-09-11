@@ -1,4 +1,4 @@
-import type { Action } from "@smallhours/protocol";
+import type { Action } from "@unwatched/protocol";
 import { BUILDS, WORKS, buildKind } from "./world.ts";
 import type { AgentState, Place, Job } from "./types.ts";
 

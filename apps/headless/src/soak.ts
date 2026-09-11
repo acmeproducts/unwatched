@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync, createWriteStream, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Town, MINUTES_PER_DAY } from "@smallhours/engine";
-import type { Brain } from "@smallhours/engine";
-import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@smallhours/cognition";
-import { Rng } from "@smallhours/engine";
+import { Town, MINUTES_PER_DAY } from "@unwatched/engine";
+import type { Brain } from "@unwatched/engine";
+import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@unwatched/cognition";
+import { Rng } from "@unwatched/engine";
 
 function arg(name: string, def: string): string {
   const i = process.argv.indexOf(`--${name}`);
@@ -44,7 +44,7 @@ const personas = seedPersonas(new Rng(seed), agents);
 for (const [i, p] of personas.entries()) town.addAgent({ persona: p, owner: i < 3 ? owner : null });
 const mira = town.agents.values().next().value!;
 
-console.log(`Small Hours · ${agents} citizens · ${days} days · brain ${brain.name} · seed ${seed}`);
+console.log(`Unwatched · ${agents} citizens · ${days} days · brain ${brain.name} · seed ${seed}`);
 const t0 = Date.now();
 let lastDay = town.day;
 const startT = town.t;

@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@smallhours/engine";
-import { compress } from "@smallhours/engine";
-import type { TownEvent, Paper } from "@smallhours/protocol";
+import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@unwatched/engine";
+import { compress } from "@unwatched/engine";
+import type { TownEvent, Paper } from "@unwatched/protocol";
 import type { LifeRow, BrainRow, Wallet, TownStore } from "./index.ts";
 
 /** The record's shape, whichever thing keeps it. Both the Supabase store and the file store answer to this. */
@@ -36,7 +36,7 @@ export class FileStore {
     mkdirSync(dir, { recursive: true }); this.file = join(dir, `${townId}.json`);
     this.d = existsSync(this.file) ? (JSON.parse(readFileSync(this.file, "utf8")) as Data) : empty();
   }
-  static fromEnv(townId = "island"): FileStore { return new FileStore(process.env.SH_DATA_DIR ?? "out/town", townId); }
+  static fromEnv(townId = "island"): FileStore { return new FileStore(process.env.UW_DATA_DIR ?? "out/town", townId); }
   private save(): void { const tmp = `${this.file}.tmp`; writeFileSync(tmp, JSON.stringify(this.d)); renameSync(tmp, this.file); this.dirty = false; }
 
   async probe(): Promise<string | null> { return null; }

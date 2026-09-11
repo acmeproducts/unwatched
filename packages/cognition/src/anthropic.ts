@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement } from "@smallhours/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@smallhours/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement } from "@unwatched/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@unwatched/engine";
 import { MockBrain } from "./mock.ts";
 import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, judgeSystem, judgePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
@@ -25,9 +25,9 @@ export class AnthropicBrain implements Brain {
   private routine: string; private stakes: string; private reflectModel: string;
   private log: (l: string) => void;
   constructor(o: AnthropicBrainOptions = {}) {
-    this.routine = o.routine ?? process.env.SH_MODEL_ROUTINE ?? "claude-haiku-4-5";
-    this.stakes = o.stakes ?? process.env.SH_MODEL_STAKES ?? "claude-sonnet-5";
-    this.reflectModel = o.reflect ?? process.env.SH_MODEL_REFLECT ?? "claude-opus-5";
+    this.routine = o.routine ?? process.env.UW_MODEL_ROUTINE ?? "claude-haiku-4-5";
+    this.stakes = o.stakes ?? process.env.UW_MODEL_STAKES ?? "claude-sonnet-5";
+    this.reflectModel = o.reflect ?? process.env.UW_MODEL_REFLECT ?? "claude-opus-5";
     this.log = o.log ?? (() => {});
   }
 

@@ -1,5 +1,5 @@
-import type { Town, AgentState } from "@smallhours/engine";
-import type { TownEvent } from "@smallhours/protocol";
+import type { Town, AgentState } from "@unwatched/engine";
+import type { TownEvent } from "@unwatched/protocol";
 
 /** What anyone may see about a person: what the town knows. */
 export function publicAgent(town: Town, a: AgentState) {

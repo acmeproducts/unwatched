@@ -1,19 +1,19 @@
 # DigitalOcean App Platform. One app, two services from images in the DigitalOcean container registry:
 # the town (one long-lived process with WebSockets, reached under /town) and the web at /.
 # deploy/do.sh builds, pushes, and applies this spec. Secrets are set once with `doctl apps update` and never committed.
-name: small-hours
+name: unwatched
 region: fra
 # The island's own address. DNS points here with a CNAME to the app's default hostname; the certificate is DigitalOcean's.
 domains:
-  - domain: small-hours.world
+  - domain: unwatched.world
     type: PRIMARY
-  - domain: www.small-hours.world
+  - domain: www.unwatched.world
     type: ALIAS
 services:
   - name: town
     image:
       registry_type: DOCR
-      repository: small-hours-town
+      repository: unwatched-town
       tag: latest
     http_port: 4000
     instance_count: 1
@@ -27,24 +27,24 @@ services:
     envs:
       - key: PORT
         value: "4000"
-      - key: SH_BRAIN
+      - key: UW_BRAIN
         value: openrouter
-      - key: SH_MS_PER_SIM_MINUTE
+      - key: UW_MS_PER_SIM_MINUTE
         value: "60000"
-      - key: SH_SEED
+      - key: UW_SEED
         value: "42"
-      - key: SH_CITIZENS
+      - key: UW_CITIZENS
         value: "20"
-      - key: SH_BOAT_SPACES
+      - key: UW_BOAT_SPACES
         value: "8"
-      - key: SH_REAL_WORLD
+      - key: UW_REAL_WORLD
         value: 43.17,16.44,Europe/Zagreb
-      - key: SH_TOWN_NAME
+      - key: UW_TOWN_NAME
         value: The island
   - name: web
     image:
       registry_type: DOCR
-      repository: small-hours-web
+      repository: unwatched-web
       tag: latest
     http_port: 3000
     instance_count: 1

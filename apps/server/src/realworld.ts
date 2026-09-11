@@ -1,4 +1,4 @@
-import type { Town } from "@smallhours/engine";
+import type { Town } from "@unwatched/engine";
 
 /**
  * The island keeps our time. Its weather is the live weather at a real point on the earth, its seasons are that
@@ -13,7 +13,7 @@ export const PLACES: Record<string, RealPlace> = {
   vis: { id: "vis", name: "the coast", lat: 43.06, lon: 16.18, tz: "Europe/Zagreb" },
   korcula: { id: "korcula", name: "the coast", lat: 42.96, lon: 17.13, tz: "Europe/Zagreb" },
 };
-/** Read SH_REAL_WORLD: a preset id, or "lat,lon" or "lat,lon,Area/City". The time zone, when not given, is learned from the sky on the first fetch. */
+/** Read UW_REAL_WORLD: a preset id, or "lat,lon" or "lat,lon,Area/City". The time zone, when not given, is learned from the sky on the first fetch. */
 export function parsePlace(spec: string, name?: string): RealPlace | null {
   const preset = PLACES[spec.trim().toLowerCase()]; if (preset) return { ...preset, ...(name ? { name } : {}) };
   const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*([A-Za-z_]+\/[A-Za-z_\/+-]+))?\s*$/.exec(spec);

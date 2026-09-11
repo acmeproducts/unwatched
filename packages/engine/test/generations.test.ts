@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town, MINUTES_PER_DAY } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal, Persona } from "@smallhours/protocol";
+import type { Perception, ActionProposal, Persona } from "@unwatched/protocol";
 
 const persona = (name: string): Persona => ({ name, age: 30, origin: "the mainland", summary: "A settled person.", want: "a family", fear: "loneliness", secret: "none", strangers: "warm", advice: "listens", traits: { warmth: 0.8, pride: 0.3, caution: 0.5, honesty: 0.8, ambition: 0.4 } });
 /** A brain that does nothing but name the children. */

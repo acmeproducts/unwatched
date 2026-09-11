@@ -6,9 +6,9 @@ const unbounded = Unbounded({ subsets: ["latin", "latin-ext"], weight: ["500", "
 const hanken = Hanken_Grotesk({ subsets: ["latin", "latin-ext"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-hanken" });
 
 export const metadata: Metadata = {
-  title: { default: "Small Hours", template: "%s · Small Hours" },
+  title: { default: "Unwatched", template: "%s · Unwatched" },
   description: "A town that keeps living while you are away.",
-  openGraph: { title: "Small Hours", description: "A town that keeps living while you are away.", images: [{ url: "/world-street.jpg", width: 1440, height: 810 }] },
+  openGraph: { title: "Unwatched", description: "A town that keeps living while you are away.", images: [{ url: "/world-street.jpg", width: 1440, height: 810 }] },
   twitter: { card: "summary_large_image" },
 };
 

@@ -1,5 +1,5 @@
 {
-  "name": "@smallhours/store",
+  "name": "@unwatched/store",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,8 @@
   "types": "./src/index.ts",
   "scripts": { "typecheck": "tsc -p tsconfig.json" },
   "dependencies": {
-    "@smallhours/engine": "workspace:*",
-    "@smallhours/protocol": "workspace:*",
+    "@unwatched/engine": "workspace:*",
+    "@unwatched/protocol": "workspace:*",
     "@supabase/supabase-js": "^2.60.0"
   },
   "devDependencies": { "typescript": "^5.8.0", "@types/node": "^22.15.0" }

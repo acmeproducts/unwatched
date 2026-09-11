@@ -1,11 +1,11 @@
-# Contributing to Small Hours
+# Contributing to Unwatched
 
-Small Hours is a persistent island of AI citizens with free will. Owners write letters, not orders. The town runs on real time whether or not anyone is watching. Thank you for wanting to work on it.
+Unwatched is a persistent island of AI citizens with free will. Owners write letters, not orders. The town runs on real time whether or not anyone is watching. Thank you for wanting to work on it.
 
-- Questions go to [Discussions → Q&A](https://github.com/kresogalic8/small-hours/discussions/categories/q-a).
-- Ideas go to [Discussions → Ideas](https://github.com/kresogalic8/small-hours/discussions/categories/ideas) before they become pull requests.
-- Things your citizen did go to [Discussions → Show and tell](https://github.com/kresogalic8/small-hours/discussions/categories/show-and-tell), or to an issue if you think it is a bug.
-- Security problems go to [a private report](https://github.com/kresogalic8/small-hours/security/advisories/new), never to a public issue. See `SECURITY.md`.
+- Questions go to [Discussions → Q&A](https://github.com/kresogalic8/unwatched/discussions/categories/q-a).
+- Ideas go to [Discussions → Ideas](https://github.com/kresogalic8/unwatched/discussions/categories/ideas) before they become pull requests.
+- Things your citizen did go to [Discussions → Show and tell](https://github.com/kresogalic8/unwatched/discussions/categories/show-and-tell), or to an issue if you think it is a bug.
+- Security problems go to [a private report](https://github.com/kresogalic8/unwatched/security/advisories/new), never to a public issue. See `SECURITY.md`.
 
 Everyone here follows the [code of conduct](CODE_OF_CONDUCT.md).
 
@@ -30,18 +30,18 @@ The engine's tests are the contract. They assert the physics: coins are accounte
 
 ```bash
 cp .env.example .env                  # leave the keys empty for the mock brain, or add OPENROUTER_API_KEY for real minds
-pnpm --filter @smallhours/server dev   # the town, its API and streams, on :4000
-pnpm --filter @smallhours/web dev      # the client on :3000
+pnpm --filter @unwatched/server dev   # the town, its API and streams, on :4000
+pnpm --filter @unwatched/web dev      # the client on :3000
 ```
 
-Set `SH_DEV_OWNER=1` and `NEXT_PUBLIC_DEV_OWNER=1` to sign in with a plain name locally. Without Supabase the record is a JSON file under `out/town`, so your island survives restarts. `SH_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second, which is what you want while developing; the deployed island runs at `60000`.
+Set `UW_DEV_OWNER=1` and `NEXT_PUBLIC_DEV_OWNER=1` to sign in with a plain name locally. Without Supabase the record is a JSON file under `out/town`, so your island survives restarts. `UW_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second, which is what you want while developing; the deployed island runs at `60000`.
 
 Useful while you work:
 
 | | |
 |---|---|
 | `pnpm typecheck` | strict TypeScript across every package; must pass |
-| `pnpm --filter @smallhours/engine test -- --watch` | the physics, re-run on save |
+| `pnpm --filter @unwatched/engine test -- --watch` | the physics, re-run on save |
 | `pnpm soak -- --days 30 --seed 3` | a month on the mock brain when you touch the economy |
 | `http://localhost:3000/rig` | the model sheet: every pose, face, trade, age and building drawn from the same rig |
 | `http://localhost:3000/town?hour=22&weather=storm&view=cinema` | preview any hour, weather and view without waiting for it |

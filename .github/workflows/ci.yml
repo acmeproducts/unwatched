@@ -16,5 +16,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       # ten days of the island with the mock brain, no keys: the town must run and people must build
-      - run: pnpm --filter @smallhours/headless soak -- --days 10 --agents 20 --brain mock --seed 7 --tick 1
+      - run: pnpm --filter @unwatched/headless soak -- --days 10 --agents 20 --brain mock --seed 7 --tick 1
       - run: grep -q "finished" apps/headless/out/gazette-day*.md

@@ -1,21 +1,21 @@
 <p align="center">
-  <img src="docs/banner.png" alt="Small Hours. An island of people with free will, owned by people who write letters, not orders, running on real time under the live sky of a real coast." width="100%">
+  <img src="docs/banner.png" alt="Unwatched. An island of people with free will, owned by people who write letters, not orders, running on real time under the live sky of a real coast." width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/kresogalic8/small-hours/actions/workflows/ci.yml"><img src="https://github.com/kresogalic8/small-hours/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/kresogalic8/unwatched/actions/workflows/ci.yml"><img src="https://github.com/kresogalic8/unwatched/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-1E5A63" alt="Apache-2.0"></a>
-  <a href="https://small-hours-mic8w.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
-  <a href="https://github.com/kresogalic8/small-hours/discussions"><img src="https://img.shields.io/badge/talk-discussions-111B2B" alt="discussions"></a>
+  <a href="https://unwatched-mic8w.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
+  <a href="https://github.com/kresogalic8/unwatched/discussions"><img src="https://img.shields.io/badge/talk-discussions-111B2B" alt="discussions"></a>
 </p>
 
 <p align="center"><b>A town that keeps living while you are away.</b></p>
 
-Small Hours is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time, under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened.
+Unwatched is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time, under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened.
 
 ![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island with real minds](docs/demo.gif)
 
-<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [small-hours-mic8w.ondigitalocean.app](https://small-hours-mic8w.ondigitalocean.app).</sub>
+<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [unwatched-mic8w.ondigitalocean.app](https://unwatched-mic8w.ondigitalocean.app).</sub>
 
 ## The six rules
 
@@ -71,11 +71,11 @@ By noon there is a council, a roof to fix, a banker looking for borrowers, and a
 
 ```bash
 cp .env.example .env                  # leave the keys empty for the mock brain, or add OPENROUTER_API_KEY for real minds
-pnpm --filter @smallhours/server dev   # the town, its API and streams, on :4000
-pnpm --filter @smallhours/web dev      # the client on :3000
+pnpm --filter @unwatched/server dev   # the town, its API and streams, on :4000
+pnpm --filter @unwatched/web dev      # the client on :3000
 ```
 
-Without Supabase the record is kept in `out/town/<island>.json`, so a clone keeps its island across restarts. With `SUPABASE_URL` and a service role key it is kept in Postgres with row-level security; the migrations are in `packages/store/supabase/migrations`. `SH_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second while you develop; the live island runs at `60000`.
+Without Supabase the record is kept in `out/town/<island>.json`, so a clone keeps its island across restarts. With `SUPABASE_URL` and a service role key it is kept in Postgres with row-level security; the migrations are in `packages/store/supabase/migrations`. `UW_MS_PER_SIM_MINUTE=1000` makes a sim minute one real second while you develop; the live island runs at `60000`.
 
 ## How it fits together
 
@@ -105,7 +105,7 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 
 ## What the island does
 
-**It keeps our time.** Set `SH_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island's weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset. The island stays fictional and calls the place whatever `SH_REAL_WORLD_NAME` says, "the coast" by default. It rains in Small Hours when it rains there.
+**It keeps our time.** Set `UW_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island's weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset. The island stays fictional and calls the place whatever `UW_REAL_WORLD_NAME` says, "the coast" by default. It rains on the island when it rains there.
 
 **A week, a shelf, a council.** Sunday has no shifts and a chapel bell at ten; Saturday is market day; the first of the month is council day; the island keeps its own feasts, and lavender blooms in June. Shops sell only what is on the shelf: the fields grow grain, the mill turns it to flour, the bakery bakes it, the fishhouse and the orchard fill the market, the pinewood feeds the sawpit, and a cart moves it all at six each morning. When a link fails there is no bread, and the paper says so.
 
@@ -150,13 +150,13 @@ Everything is read from the environment; `.env.example` documents every line. Th
 
 | | |
 |---|---|
-| `SH_BRAIN` | `mock`, `openrouter` or `anthropic`. The mock brain needs no key. |
-| `OPENROUTER_API_KEY`, `SH_OR_MODEL_*` | the hosted minds: a routine, a stakes and a reflection model |
-| `SH_MS_PER_SIM_MINUTE` | `60000` is real time; `1000` for development |
-| `SH_REAL_WORLD`, `SH_REAL_WORLD_NAME` | the point on the earth whose sky the island keeps |
+| `UW_BRAIN` | `mock`, `openrouter` or `anthropic`. The mock brain needs no key. |
+| `OPENROUTER_API_KEY`, `UW_OR_MODEL_*` | the hosted minds: a routine, a stakes and a reflection model |
+| `UW_MS_PER_SIM_MINUTE` | `60000` is real time; `1000` for development |
+| `UW_REAL_WORLD`, `UW_REAL_WORLD_NAME` | the point on the earth whose sky the island keeps |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | the record in Postgres; leave unset for a JSON file |
 | `GEMINI_API_KEY` | voices for letters, and the Lyria music beds via `apps/web/scripts/gen-music.mjs` |
-| `SH_HARBORS`, `SH_BOAT_SECRET` | islands that connect |
+| `UW_HARBORS`, `UW_BOAT_SECRET` | islands that connect |
 
 ## Deploy
 
@@ -168,8 +168,8 @@ Alpha. One island is live and has run on real time since it was seeded; the engi
 
 ## Community
 
-- [Discussions](https://github.com/kresogalic8/small-hours/discussions): questions in Q&A, proposals in Ideas, and what your citizen did in Show and tell.
-- [Issues](https://github.com/kresogalic8/small-hours/issues): the physics broke, a citizen did something strange, a place to add. Templates for each.
+- [Discussions](https://github.com/kresogalic8/unwatched/discussions): questions in Q&A, proposals in Ideas, and what your citizen did in Show and tell.
+- [Issues](https://github.com/kresogalic8/unwatched/issues): the physics broke, a citizen did something strange, a place to add. Templates for each.
 - [Contributing](CONTRIBUTING.md): the six rules, the layout, how a verb is added, how reviews go.
 - [Code of conduct](CODE_OF_CONDUCT.md): citizens may be cruel; the people building the island may not.
 - [Security](SECURITY.md): report privately, get an answer within three days.

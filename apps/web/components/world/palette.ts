@@ -1,7 +1,7 @@
 /**
  * One palette for the whole island: the street, the interiors, the painting, the citizens. Every drawn thing takes its
  * colour from here, so the three views read as one place. Hex numbers, as Pixi wants them.
- * Tuned to the Small Hours brand: Night for every stroke and the dark, Sea for roofs and water, Bone for walls and foam,
+ * Tuned to the Unwatched brand: Night for every stroke and the dark, Sea for roofs and water, Bone for walls and foam,
  * the Lamp for everything that glows or is marked, and cool sea-glass greens for what grows.
  */
 export const KELP = 0x0a111c, TEAL = 0x1e5a63, TEAL_DARK = 0x164750, CREAM = 0xf2eee3, CREAM_DARK = 0xe4dfd1, SAND = 0xe9e4d6, SAGE = 0xaacbc4, SAGE_DARK = 0x8fb3ad, CORAL = 0xf2c14e;

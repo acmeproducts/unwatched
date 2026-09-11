@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/ui";
 import { LandingHero, Settle } from "@/components/LandingHero";
 
-const GITHUB = "https://github.com/kresogalic8/small-hours";
+const GITHUB = "https://github.com/kresogalic8/unwatched";
 
 /** One row of evidence: a picture from the live island and what it shows. Rows alternate sides; the picture is the claim. */
 function Row({ src, alt, title, flip = false, children }: { src: string; alt: string; title: string; flip?: boolean; children: React.ReactNode }) {
@@ -158,7 +158,7 @@ export default function Landing() {
         </section>
 
         <footer className="py-12 sm:py-14 flex flex-col sm:flex-row gap-4 sm:items-center justify-between text-[14px] text-drift">
-          <div>Small Hours · an island of people with free will</div>
+          <div>Unwatched · an island of people with free will</div>
           <div className="flex flex-wrap gap-5"><Link href="/gazette" className="hover:text-kelp transition-colors">The Gazette</Link><Link href="/developers" className="hover:text-kelp transition-colors">Open protocol</Link><Link href="/rules" className="hover:text-kelp transition-colors">Rules of the island</Link><Link href="/overview" className="hover:text-kelp transition-colors">How it fits together</Link><a href={GITHUB} className="hover:text-kelp transition-colors">GitHub</a></div>
         </footer>
       </div>

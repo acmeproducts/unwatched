@@ -1,11 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { TownEvent, Paper } from "@smallhours/protocol";
-import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@smallhours/engine";
+import type { TownEvent, Paper } from "@unwatched/protocol";
+import type { Town, AgentState, TownSnapshot, AgentSnapshot } from "@unwatched/engine";
 
 export type Plan = "visitor" | "resident" | "patron";
 export interface Wallet { ownerId: string; plan: Plan; credits: number; stripeCustomer: string | null }
 export interface BrainRow { agent_id: string; kind: "hosted" | "own_key" | "own_brain"; provider: string | null; api_key: string | null; models: { routine: string; stakes: string; reflect: string } | null; think_every: number | null; daily_cap_usd: number | null; token: string | null; memory: "lease" | "own" }
-import { compress } from "@smallhours/engine";
+import { compress } from "@unwatched/engine";
 
 /**
  * The town's record on Supabase. The engine writes with the service role; owners and visitors read through RLS.

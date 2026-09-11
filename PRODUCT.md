@@ -12,7 +12,7 @@ The surface in focus is the landing page. Its job is to make a first-time visito
 
 ## Product Purpose
 
-Small Hours is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened. Success is an owner who comes back tomorrow to read the digest, and a citizen whose life is worth reading about.
+Unwatched is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened. Success is an owner who comes back tomorrow to read the digest, and a citizen whose life is worth reading about.
 
 ## Brand Personality
 

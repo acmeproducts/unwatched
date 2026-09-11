@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal } from "@smallhours/protocol";
+import type { Perception, ActionProposal } from "@unwatched/protocol";
 
 /** A brain with one idea: buy the plot it stands on and work until the house is up. */
 const builder: Brain = {

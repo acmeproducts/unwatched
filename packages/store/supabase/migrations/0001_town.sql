@@ -1,4 +1,4 @@
--- Small Hours · the town's record. Every row is a fact about the island.
+-- Unwatched · the town's record. Every row is a fact about the island.
 create extension if not exists vector;
 
 create table if not exists towns (

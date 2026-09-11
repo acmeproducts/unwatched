@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import type { Action, DayPlan, Perception, Reflection } from "@smallhours/protocol";
+import type { Action, DayPlan, Perception, Reflection } from "@unwatched/protocol";
 
 /**
  * The smallest possible own-brain client. Give it a token and two functions.
@@ -15,7 +15,7 @@ export interface Handlers {
 export interface PlanRequest { agent_id: string; day: number; hour: number; weather: string; yesterday: string | null; intentions: string[]; key_memories: string[]; relationships: { id: string; name: string; trust: number; opinion: string }[]; places: { id: string; name: string; kind: string }[]; jobs_open: string[]; letters: string[]; coins: number; job: string | null }
 export interface ReflectRequest { agent_id: string; day: number; day_memories: string[]; key_memories: string[]; relationships: { id: string; name: string; trust: number; opinion: string }[]; coins: number; job: string | null }
 
-export function connect(token: string, handlers: Handlers, url = process.env.SH_STREAM_URL ?? "ws://localhost:4000/agent-stream"): { close: () => void } {
+export function connect(token: string, handlers: Handlers, url = process.env.UW_STREAM_URL ?? "ws://localhost:4000/agent-stream"): { close: () => void } {
   let ws: WebSocket | null = null; let closed = false; let backoff = 1000;
   const open = () => {
     ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);

@@ -1,5 +1,5 @@
 {
-  "name": "@smallhours/server",
+  "name": "@unwatched/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,10 +9,10 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@smallhours/cognition": "workspace:*",
-    "@smallhours/engine": "workspace:*",
-    "@smallhours/protocol": "workspace:*",
-    "@smallhours/store": "workspace:*",
+    "@unwatched/cognition": "workspace:*",
+    "@unwatched/engine": "workspace:*",
+    "@unwatched/protocol": "workspace:*",
+    "@unwatched/store": "workspace:*",
     "@hono/node-server": "^2.1.0",
     "@supabase/supabase-js": "^2.60.0",
     "hono": "^4.13.0",

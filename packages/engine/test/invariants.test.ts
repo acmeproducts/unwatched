@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Town, MINUTES_PER_DAY } from "../src/index.ts";
 import type { Brain, AgentState, Tier } from "../src/index.ts";
-import type { Perception, ActionProposal } from "@smallhours/protocol";
+import type { Perception, ActionProposal } from "@unwatched/protocol";
 
 /** The physics that every contributor's change must keep. Runs on habit alone, so no key is needed. */
 const persona = (i: number, ambition = 0.5) => ({ name: `Citizen ${i}`, age: 30 + i, origin: "the mainland", summary: "A person.", want: "a quiet life", fear: "debt", secret: "none", strangers: "polite", advice: "listens", traits: { warmth: 0.5, pride: 0.4, caution: 0.5, honesty: 0.7, ambition } });

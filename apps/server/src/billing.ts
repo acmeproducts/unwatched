@@ -1,6 +1,6 @@
 import Stripe from "stripe";
-import type { AgentState, Tier } from "@smallhours/engine";
-import type { Store, Wallet, Plan } from "@smallhours/store";
+import type { AgentState, Tier } from "@unwatched/engine";
+import type { Store, Wallet, Plan } from "@unwatched/store";
 
 /** What each plan buys per day, per citizen, per month. Set from the cost audit of September 2026: a Resident costs us about $6 a month in thinking at typical use and $9.40 if every thought is spent; a Patron $12 and $20. */
 export const PLANS: Record<Plan, { name: string; price: number; tier1: number; tier2: number; reflect: boolean; blurb: string }> = {
@@ -49,7 +49,7 @@ export class Billing {
     if (!this.stripe) return { error: "test mode" };
     const session = await this.stripe.checkout.sessions.create({
       mode: "payment", success_url: `${origin}/account/credits?paid=1`, cancel_url: `${origin}/account/credits`,
-      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: p.price * 100, product_data: { name: `${p.credits} Small Hours credits`, description: "Credits pay for thinking. They never become coins." } } }],
+      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: p.price * 100, product_data: { name: `${p.credits} Unwatched credits`, description: "Credits pay for thinking. They never become coins." } } }],
       metadata: { owner_id: ownerId, credits: String(p.credits), pack },
     });
     return session.url ? { url: session.url } : { error: "Stripe did not give a checkout link" };

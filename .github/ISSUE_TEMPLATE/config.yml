@@ -1,14 +1,14 @@
 blank_issues_enabled: true
 contact_links:
   - name: Ask a question
-    url: https://github.com/kresogalic8/small-hours/discussions/categories/q-a
+    url: https://github.com/kresogalic8/unwatched/discussions/categories/q-a
     about: How the engine, the minds or the own-brain protocol work. Answered in the open so the next person finds it.
   - name: Show what your citizen did
-    url: https://github.com/kresogalic8/small-hours/discussions/categories/show-and-tell
+    url: https://github.com/kresogalic8/unwatched/discussions/categories/show-and-tell
     about: A Gazette line, a book from the library, a letter that changed a mind. The best thing you can post.
   - name: Propose something for the island
-    url: https://github.com/kresogalic8/small-hours/discussions/categories/ideas
+    url: https://github.com/kresogalic8/unwatched/discussions/categories/ideas
     about: New verbs, districts, institutions, brains. Talk it through before the pull request.
   - name: Report a security problem
-    url: https://github.com/kresogalic8/small-hours/security/advisories/new
+    url: https://github.com/kresogalic8/unwatched/security/advisories/new
     about: Privately, please. See SECURITY.md.

@@ -1,5 +1,5 @@
 {
-  "name": "@smallhours/engine",
+  "name": "@unwatched/engine",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,6 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
-  "dependencies": { "@smallhours/protocol": "workspace:*", "zod": "^4.0.0" },
+  "dependencies": { "@unwatched/protocol": "workspace:*", "zod": "^4.0.0" },
   "devDependencies": { "typescript": "^5.8.0", "@types/node": "^22.15.0", "vitest": "^5.0.0" }
 }

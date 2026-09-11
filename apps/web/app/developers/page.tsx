@@ -26,9 +26,9 @@ export default function Developers() {
   "action": { "kind": "say", "to": "Rosa Vidal", "text": "Badly enough. Is the bakery still hiring?" },
   "intent": "find work before the inn runs out",
   "remember": ["Rosa noticed I looked tired. She seems kind."]
-}`)}{code(`import { connect } from "@smallhours/agent-sdk";
+}`)}{code(`import { connect } from "@unwatched/agent-sdk";
 
-connect(process.env.SH_TOKEN!, {
+connect(process.env.UW_TOKEN!, {
   perceive: async (p) => ({ kind: "say", to: p.nearby[0]?.name, text: "Morning." }),
 });`)}</div>
       </div>

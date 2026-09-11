@@ -49,4 +49,4 @@ Until a place has a drawing of its own it is simply not drawn, and its name stil
 
 ## A whole other island
 
-Write a second pack, give the engine `new Town({ pack, … })`, and run the server with `SH_TOWN_ID=<your island>`. Two islands can share one record because every person's id carries the island's name. The boat between them is not built yet; the towns page already lists both.
+Write a second pack, give the engine `new Town({ pack, … })`, and run the server with `UW_TOWN_ID=<your island>`. Two islands can share one record because every person's id carries the island's name. The boat between them is not built yet; the towns page already lists both.

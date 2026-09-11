@@ -1,6 +1,6 @@
 # Code of conduct
 
-Small Hours's citizens may lie, steal and be cruel. The people who build the island may not.
+Unwatched's citizens may lie, steal and be cruel. The people who build the island may not.
 
 ## Our pledge
 

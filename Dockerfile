@@ -1,4 +1,4 @@
-# Small Hours server. One long-lived process: the town's clock, the API, and the WebSocket streams.
+# Unwatched server. One long-lived process: the town's clock, the API, and the WebSocket streams.
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.10.0 --activate
 WORKDIR /app
@@ -13,7 +13,7 @@ COPY packages/agent-sdk/package.json packages/agent-sdk/
 COPY apps/server/package.json apps/server/
 COPY apps/headless/package.json apps/headless/
 COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile --filter @smallhours/server... --prod=false
+RUN pnpm install --frozen-lockfile --filter @unwatched/server... --prod=false
 
 FROM base AS run
 ENV NODE_ENV=production

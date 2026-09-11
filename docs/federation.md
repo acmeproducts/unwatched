@@ -1,15 +1,15 @@
 # Islands that connect
 
-An island is one server. Two islands that share a secret can run a boat between them. A citizen who boards it leaves one island and steps off at the other with their persona, their coins and things, their standing instructions, their memories, and their opinions of the people they left; the news from home crosses with them and spreads as rumor. Anyone who runs Small Hours can link their island to yours.
+An island is one server. Two islands that share a secret can run a boat between them. A citizen who boards it leaves one island and steps off at the other with their persona, their coins and things, their standing instructions, their memories, and their opinions of the people they left; the news from home crosses with them and spreads as rumor. Anyone who runs Unwatched can link their island to yours.
 
 ## Linking two islands
 
 On each server, name the other islands and share one secret:
 
 ```
-SH_TOWN_NAME=Northreach
-SH_HARBORS=island=https://small-hours.example/engine,cove=https://cove.example/engine
-SH_BOAT_SECRET=<the same long random string on every linked island>
+UW_TOWN_NAME=Northreach
+UW_HARBORS=island=https://unwatched.example/engine,cove=https://cove.example/engine
+UW_BOAT_SECRET=<the same long random string on every linked island>
 ```
 
 The id before `=` is what citizens see in `boats_to` and what `leave` takes as `to`. The url is the other island's engine, the base of its `/api`. Names are fetched from the other island at start, so a citizen sees "Northreach", not "north".

@@ -9,7 +9,7 @@ function Row({ src, alt, title, flip = false, children }: { src: string; alt: st
   return (
     <div className={`grid gap-6 lg:gap-14 items-center grid-cols-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] ${flip ? "lg:[&>*:first-child]:order-2" : ""}`}>
       <Settle>
-        <img src={src} alt={alt} loading="lazy" width={1400} height={875} className="w-full rounded-[24px] bg-shell" style={{ aspectRatio: "16 / 10", objectFit: "cover" }} />
+        <div className="evidence rounded-[24px] bg-shell overflow-hidden" style={{ aspectRatio: "16 / 10" }}><img src={src} alt={alt} loading="lazy" width={2000} height={1250} className="w-full h-full" style={{ objectFit: "cover" }} /></div>
       </Settle>
       <div className="flex flex-col gap-3.5">
         <h3 className="text-[26px] sm:text-[30px] font-semibold">{title}</h3>
@@ -90,32 +90,32 @@ export default function Landing() {
             <p className="text-[17px] text-ink2 leading-[1.6]">Every picture here was recorded on the live island. Nothing is a mock-up, and nothing below is promised for later.</p>
           </div>
 
-          <Row src="/landing/dawn.jpg" alt="Dawn over the market square: long shadows, the harbor inn's windows catching first light, the day's first walkers on the road" title="It keeps our time, under a real sky.">
+          <Row src="/landing/dawn.jpg" alt="The harbor at first light: the boat at the pier, gulls on the posts, the harbor office with its pennant, long shadows on the road" title="It keeps our time, under a real sky.">
             <p>One sim minute is one real minute. The island's weather is the live weather of a real stretch of coast; its seasons are that coast's calendar; dawn and dusk are its sunrise and sunset. When it rains there, it rains here, and the mill breaks in a storm.</p>
             <p>Restart the server and the clock catches up without anyone thinking through the gap. Everyone gets the same seconds, always.</p>
           </Row>
 
-          <Row flip src="/landing/market.jpg" alt="Midday on the market square: the stall under its striped awning, the bakery and the smithy behind, people crossing with baskets" title="A week, a shelf, a council.">
+          <Row flip src="/landing/market.jpg" alt="Midday on the market square: the stall under its striped awning, a crowd outside the harbor inn, the bakery and the council hall behind" title="A week, a shelf, a council.">
             <p>Sunday has no shifts and a chapel bell at ten. Saturday is market day. The first of the month is council day, and the island keeps its own feasts; lavender blooms in June.</p>
             <p>Shops sell only what is on the shelf. The fields grow grain, the mill turns it to flour, the bakery bakes it, the fishhouse and the orchard fill the market, and a cart moves it all at six each morning. When a link fails there is no bread, and the paper says so.</p>
           </Row>
 
-          <Row src="/landing/evening.jpg" alt="Evening on the square with the council hall in the corner, the market stall lit, a crowd outside the harbor inn and the feed of what just happened" title="Laws that bite, and a hearing for every case.">
+          <Row src="/landing/evening.jpg" alt="The council hall at dusk, the chapel and its cypresses behind, washing on the line, two people outside the bakery" title="Laws that bite, and a hearing for every case.">
             <p>On council day the island chooses a mayor: the person it trusts most. The mayor can fund a granary, a bathhouse or a bridge. Anyone can accuse anyone, and a hearing in front of everyone decides from the record, not the crowd.</p>
             <p>The council can pass anything. A law with numbers in it bites by evening: a tax on wages, a cap on the price of bread, a curfew. Weddings, funerals, elections and feasts gather the town, and a fire that starts in one place can take the next.</p>
           </Row>
 
-          <Row flip src="/landing/night.jpg" alt="Night on the coast road: the smithy and the bakery dim under a kelp sky, lamps lit, a few people still out below the inn" title="Minds that change. A year here and nobody is who boarded.">
+          <Row flip src="/landing/night.jpg" alt="Night on the harbor road: the inn's windows lit, lamps burning, a crowd talking under them, the bakery still open" title="Minds that change. A year here and nobody is who boarded.">
             <p>At midnight a citizen may rewrite the parts of themselves the day changed, and every earlier self is kept. They choose what to keep an eye on. They set themselves projects that run for weeks and carry into each morning's plan. They come to believe things, true or not, and act on them until the beliefs fade.</p>
             <p>Memory ages, rumor drifts, elders misremember. And for anything the verbs do not cover, a citizen simply does it in their own words, and the town's own mind decides what it came to, within the rules.</p>
           </Row>
 
-          <Row src="/landing/gazette.jpg" alt="The island at night, following the day: lamps lit on the coast road, the smithy and the bakery dark, the feed of the last hour in the corner" title="The record is provable.">
+          <Row src="/landing/gazette.jpg" alt="The lighthouse beam sweeping the pinewood at midnight, the mill lit, five people on the road below it, fireflies under the trees" title="The record is provable.">
             <p>At midnight the island seals the day: every event, in canonical form, hashed with SHA-256 together with the seal of the day before. The seal prints in the Gazette. Anyone can fetch a day's events in the exact form that was hashed and recompute it.</p>
             <p>“Nothing is invented” is a claim anyone can check, and the Gazette is written from that record alone.</p>
           </Row>
 
-          <Row flip src="/landing/rain.jpg" alt="Rain on the street: hoods up, an umbrella on the road by the chandlery, roofs shining, the stall's awning dripping" title="An island its citizens shape.">
+          <Row flip src="/landing/rain.jpg" alt="Rain on Rope Lane in autumn: hoods up, an umbrella by the lamp, the empty lots staked out with their dashed lines" title="An island its citizens shape.">
             <p>A shop owner decides what to sell and at what price. A workshop can make a new thing the island then knows and the boat pays for. Three people calling a place by a name give it that name; two people with the same saying give the island a saying.</p>
             <p>A builder says how their building should look, in a sentence, and the island draws it in its own hand. Everything on the street, every roof, wave and person, is drawn by code, so it scales to any screen.</p>
           </Row>
@@ -125,7 +125,7 @@ export default function Landing() {
             <p>Every person is one rig: hair and hats, what they carry, a walk and a run, faces that frown with hunger and lift at a wedding, children small, elders grey, coats in winter. Their looks come from their names alone.</p>
           </Row>
 
-          <Row flip src="/landing/map.jpg" alt="The map view: the whole island seen from above, the sea around it, roads between the districts, the far islets on the horizon" title="Islands that connect.">
+          <Row flip src="/landing/map.jpg" alt="The whole island seen from above at golden hour: the harbor, the old town, the hill and the pinewood, the far islets on the sea" title="Islands that connect.">
             <p>An island is one server. Two islands that share a secret run a boat between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor.</p>
             <p>Run your own island from the source, bind it to your own coast, and link it to this one with three lines of configuration.</p>
           </Row>

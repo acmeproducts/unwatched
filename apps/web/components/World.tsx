@@ -81,6 +81,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
   const clockRef = useRef<Clock | null>(null);
   const ambienceRef = useRef<Ambience | null>(null);
   const [sound, setSound] = useState(false);
+  const [cleanUi, setCleanUi] = useState(false);
   const [placeInfo, setPlaceInfo] = useState<{ id: string; name: string; district: string; kind: string; sprite: string; owner: string | null; site: PlaceView["site"]; people: InteriorPerson[] } | null>(null);
   const [mini, setMini] = useState<{ w: number; h: number; places: { id: string; x: number; y: number; kind: string; crowd: number }[]; view: { x: number; y: number; w: number; h: number }; people: { x: number; y: number; mine: boolean }[] } | null>(null);
 
@@ -91,6 +92,13 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const townView = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView;
       const W = townView.size?.w ?? 3000, H = townView.size?.h ?? 1800;
       const places = new Map<string, PlaceView>(townView.places.map((p) => [p.id, p]));
+      const hourParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("hour") : null; const forcedHour = hourParam === null ? NaN : Number(hourParam); // ?hour=23 previews the light without waiting for it
+      const forcedWeather = typeof location !== "undefined" ? new URLSearchParams(location.search).get("weather") : null; // ?weather=storm previews the weather
+      const forcedSeason = typeof location !== "undefined" ? new URLSearchParams(location.search).get("season") : null; // ?season=autumn previews the leaves
+      // ?at=harbor,40,-20&zoom=1.6 parks the camera on a place for a picture; the hand still moves it
+      const clean = typeof location !== "undefined" && new URLSearchParams(location.search).get("clean") === "1"; setCleanUi(clean); // ?clean=1: the island with nothing over it, for pictures
+      const atParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("at") : null; const zoomParam = typeof location !== "undefined" ? Number(new URLSearchParams(location.search).get("zoom")) : NaN;
+      const parked = atParam ? (() => { const [id, dx, dy] = atParam.split(","); const p = places.get(id ?? ""); return p ? { x: p.x + (Number(dx) || 0), y: p.y + (Number(dy) || 0) } : null; })() : null;
       if (!alive) return;
       app = new Application();
       await app.init({ background: C.water, resizeTo: el, antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true });
@@ -218,7 +226,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         for (const t of trees) t.destroy({ children: true }); trees = [];
         for (const d of decor) { if (!/tree|bush/.test(d.sprite)) continue; const sp = put(d.sprite, d.x, d.y, d.w, d.flip); if (!sp) continue; const sh = new Graphics(); sh.ellipse(d.w ? d.w * 0.12 : 8, 3, d.sprite === "tree-large" ? 40 : d.sprite === "bush" ? 12 : 26, d.sprite === "tree-large" ? 12 : d.sprite === "bush" ? 4 : 8).fill({ color: C.kelp, alpha: 0.09 }); sp.addChildAt(sh, 0); trees.push(sp); }
       };
-      setSeason(clockRef.current?.season ?? townView.season ?? "summer");
+      setSeason(forcedSeason ?? clockRef.current?.season ?? townView.season ?? "summer");
       for (const d of decor) { if (/tree|bush/.test(d.sprite)) continue; put(d.sprite, d.x, d.y, d.w, d.flip); }
       plantTrees();
       const SEASON_CAST: Record<string, number> = { winter: 0xeaf0f0, spring: 0xffffff, summer: 0xfbf2dc, autumn: 0xf7e9d2 };
@@ -280,9 +288,6 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
       const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
       const moonPhase = () => { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000; return (days / 29.530588) % 1; }; // 0 new, 0.5 full
-      const hourParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("hour") : null; const forcedHour = hourParam === null ? NaN : Number(hourParam); // ?hour=23 previews the light without waiting for it
-      const forcedWeather = typeof location !== "undefined" ? new URLSearchParams(location.search).get("weather") : null; // ?weather=storm previews the weather
-      const forcedSeason = typeof location !== "undefined" ? new URLSearchParams(location.search).get("season") : null; // ?season=autumn previews the leaves
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
       const ambience = new Ambience(); ambienceRef.current = ambience;
 
@@ -360,7 +365,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         const talking = followed ? followed.pose === "talk" : false;
         // the cinema breathes: the zoom swells and settles over half a minute; a followed conversation draws the camera in a step
         const zoom = viewRef.current === "map" ? Math.min(Wd / (W * 1.1), Hd / (H * 1.24)) : viewRef.current === "cinema" ? 1.22 + Math.sin(tick / 1400) * 0.06 : hand ? hand.zoom : talking ? 1.16 : 1.05; // the map leaves sea around the island, so the horizon shows
-        cam.zoom += (zoom - cam.zoom) * (hand ? 0.16 : 0.05);
+        cam.zoom += ((parked && !hand && Number.isFinite(zoomParam) ? zoomParam : zoom) - cam.zoom) * (hand ? 0.16 : 0.05);
         let fx = W / 2, fy = H / 2 + 40;
         if (hand) { hand.vx = Math.max(-22, Math.min(22, hand.vx)); hand.vy = Math.max(-22, Math.min(22, hand.vy)); hand.x = Math.max(-200, Math.min(W + 200, hand.x + hand.vx)); hand.y = Math.max(-150, Math.min(H + 150, hand.y + hand.vy)); hand.vx *= 0.86; hand.vy *= 0.86; fx = hand.x; fy = hand.y; } // the hand stays over the island and never flings it
         else if (viewRef.current === "street") { if (followed) { const lead = Math.max(-70, Math.min(70, (followed.tx - followed.x) * 0.7)); fx = followed.x + lead; fy = followed.y - 60; } else { const mk = places.get("market"); if (mk) { fx = mk.x; fy = mk.y; } } }
@@ -369,6 +374,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         if (viewRef.current === "cinema" && stagedNow) { fx = stagedNow.x; fy = stagedNow.y + 20; }
         else if (viewRef.current === "cinema") { const cn = cinema.current; if (cn && Date.now() - cn.at < 120000) { const f = cn.ids[0] ? figs.current.get(cn.ids[0]) : null; fx = f?.x ?? cn.x; fy = (f?.y ?? cn.y) - 50; } else { let best: PlaceView | null = null; for (const p of places.values()) if (!best || p.crowd > best.crowd) best = p; if (best) { fx = best.x; fy = best.y - 20; } } }
         if (viewRef.current === "cinema") { const key = stagedNow ? `s:${stagedNow.place}` : cinema.current ? `c:${cinema.current.at}` : "idle"; if (key !== lastCut) { lastCut = key; cutAt = tick; } fx += Math.sin(tick / 900) * 36; fy += Math.cos(tick / 1100) * 18; } // a slow drift while the moment plays
+        if (parked && !hand) { fx = parked.x; fy = parked.y; }
         const tx = Wd / 2 - fx * cam.zoom, ty = Hd / 2 - fy * cam.zoom;
         const cutting = viewRef.current === "cinema" && tick - cutAt < 90; // a new moment is a cut, not a crawl
         const ease = hand ? 1 : viewRef.current === "cinema" ? (cutting ? 0.09 : 0.02) : 0.08; cam.x += (tx - cam.x) * ease; cam.y += (ty - cam.y) * ease;
@@ -383,7 +389,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         if (tick % 6 === 0) { ripples.clear(); for (let i = 0; i < 48; i++) { const yy = ((i * 97 + tick * 0.4) % (H + 600)) - 300; const xx = ((i * 331) % (W + 800)) - 400 + Math.sin(tick / 90 + i) * 12; ripples.moveTo(xx, yy).lineTo(xx + 60 + (i % 3) * 20, yy).stroke({ width: 3, color: C.waterDeep, cap: "round" }); } }
         // weather: what falls, what lingers, what blows
         perfMark("weather");
-        const c = clockRef.current; const weather = forcedWeather ?? c?.weather ?? "clear"; const winter = c?.season === "winter";
+        const c = clockRef.current; const weather = forcedWeather ?? c?.weather ?? "clear"; const winter = (forcedSeason ?? c?.season) === "winter";
         const wet = weather === "rain" || weather === "storm" || weather === "snow"; const snowing = weather === "snow" || (wet && winter);
         const wind = weather === "storm" ? 1 : weather === "wind" ? 0.8 : weather === "rain" ? 0.45 : weather === "fog" ? 0.1 : 0.2;
         // the sea itself: the foam breathes, the water darkens and breaks white in a blow, rain rings the surface
@@ -432,8 +438,8 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
           if (wetness > 0.05) for (const p of places.values()) { if (p.kind === "plot" || p.kind === "wild" || p.kind === "public") continue; caps.ellipse(p.x + 12, p.y - 66, 40, 9).fill({ color: 0xffffff, alpha: 0.16 * wetness }); }
           prints_.clear(); for (const pr of prints) { const ageT = (tick - pr.at) / 900; if (ageT > 1) continue; prints_.ellipse(pr.x, pr.y, 3, 1.6).fill({ color: C.kelp, alpha: 0.18 * (1 - ageT) * snowiness }); }
         }
-        if (tick % 60 === 0 && c && setSeason(c.season)) { plantTrees(); }
-        if (tick % 60 === 0) ground.tint = SEASON_CAST[c?.season ?? "summer"] ?? 0xffffff;
+        if (tick % 60 === 0 && c && setSeason(forcedSeason ?? c.season)) { plantTrees(); }
+        if (tick % 60 === 0) ground.tint = SEASON_CAST[forcedSeason ?? c?.season ?? "summer"] ?? 0xffffff;
         // the short season: the fields turn to lavender
         if (tick % 60 === 0) { const bloom = !!c?.inSeason?.includes("lavender"); if (bloom !== lavender.visible) { lavender.visible = bloom; } }
         if (tick % 15 === 0) { puddles.clear(); if (wetness > 0.02) for (let i = 0; i < 26; i++) { const xx = ((i * 587) % (W - 400)) + 200, yy = ((i * 911) % (H - 400)) + 200; puddles.ellipse(xx, yy, 26 + (i % 4) * 8, 9 + (i % 3) * 3).fill({ color: C.waterDeep, alpha: 0.55 * wetness }); } }
@@ -564,8 +570,8 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       <div ref={host} className="absolute inset-0" />
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-teal font-bold">Crossing to the island…</div>}
       <div className="absolute inset-0 pointer-events-none crossfade" style={{ background: "radial-gradient(ellipse at center, rgba(30,42,43,0) 55%, rgba(30,42,43,0.22) 100%)", opacity: view === "map" ? 0.5 : view === "cinema" ? 1 : 0.7 }} />
-      <button onClick={() => { const a = ambienceRef.current; if (!a) return; if (sound) { void a.disable(); setSound(false); } else { void a.enable().then(() => setSound(true)); } }} className="absolute right-3 top-3 sm:right-6 sm:top-6 h-9 px-3.5 rounded-full bg-shell text-teal text-[13px] font-bold pointer-events-auto transition-colors" aria-pressed={sound}>{sound ? "Sound on" : "Sound off"}</button>
-      <div className="absolute inset-0 pointer-events-none">
+      <button hidden={cleanUi} onClick={() => { const a = ambienceRef.current; if (!a) return; if (sound) { void a.disable(); setSound(false); } else { void a.enable().then(() => setSound(true)); } }} className="absolute right-3 top-3 sm:right-6 sm:top-6 h-9 px-3.5 rounded-full bg-shell text-teal text-[13px] font-bold pointer-events-auto transition-colors" aria-pressed={sound}>{sound ? "Sound on" : "Sound off"}</button>
+      <div hidden={cleanUi} className="absolute inset-0 pointer-events-none">
         {labels.map((l) => (
           <div key={l.id} className="absolute flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-full" style={{ left: l.x, top: l.y }}>
             {l.bubble && <div className="bg-glass px-3 py-2 italic text-[13px] max-w-[260px] leading-[1.3] pointer-events-auto shadow-none" style={{ borderRadius: "16px 16px 16px 4px" }}>“{l.bubble}”</div>}
@@ -573,7 +579,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
           </div>
         ))}
       </div>
-      {mini && <svg className="absolute right-3 bottom-3 sm:right-6 sm:bottom-6 hidden sm:block rounded-2xl bg-shell/90 pointer-events-none" width={180} height={Math.round(180 * mini.h / mini.w)} viewBox={`0 0 ${mini.w} ${mini.h}`} aria-hidden>
+      {mini && !cleanUi && <svg className="absolute right-3 bottom-3 sm:right-6 sm:bottom-6 hidden sm:block rounded-2xl bg-shell/90 pointer-events-none" width={180} height={Math.round(180 * mini.h / mini.w)} viewBox={`0 0 ${mini.w} ${mini.h}`} aria-hidden>
         {mini.places.filter((p) => p.kind !== "public" && p.kind !== "wild").map((p) => <circle key={p.id} cx={p.x} cy={p.y} r={p.kind === "plot" ? 22 : 34} fill={p.kind === "plot" ? "#B9CFC8" : "#1F5F5B"} opacity={0.55} />)}
         {mini.people.map((pp, i) => <circle key={i} cx={pp.x} cy={pp.y} r={pp.mine ? 30 : 16} fill={pp.mine ? "#E8735A" : "#1E2A2B"} />)}
         <rect x={mini.view.x} y={mini.view.y} width={mini.view.w} height={mini.view.h} fill="none" stroke="#1F5F5B" strokeWidth={18} rx={40} />
@@ -586,7 +592,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         {placeInfo.kind === "plot" && !placeInfo.site && <div className="text-sm text-ink2">Empty land. A house costs 15 coins and six mornings; a shop 30 and ten.</div>}
         <div className="text-sm">{placeInfo.people.length === 0 ? <span className="text-drift">Nobody here right now.</span> : placeInfo.people.map((pp) => <div key={pp.name} className="flex items-center gap-2 py-0.5"><Portrait name={pp.name} appearance={pp.appearance} age={pp.age ?? 30} size={26} /><span>{pp.name}{pp.asleep ? ", asleep" : pp.job ? `, ${pp.job}` : ""}</span></div>)}</div>
       </div>}
-      <div className="absolute left-3 bottom-3 sm:left-6 sm:bottom-6 bg-shell rounded-card p-3 sm:p-4 w-[calc(100%-24px)] sm:w-[330px] flex flex-col gap-1.5 pointer-events-auto max-h-[38%] sm:max-h-none overflow-hidden">
+      <div hidden={cleanUi} className="absolute left-3 bottom-3 sm:left-6 sm:bottom-6 bg-shell rounded-card p-3 sm:p-4 w-[calc(100%-24px)] sm:w-[330px] flex flex-col gap-1.5 pointer-events-auto max-h-[38%] sm:max-h-none overflow-hidden">
         <div className="label">Just now{clock ? ` · day ${clock.day} ${String(clock.hour).padStart(2, "0")}:${String(clock.minute % 60).padStart(2, "0")} · ${clock.weather}${typeof clock.temperatureC === "number" ? ` · ${Math.round(clock.temperatureC)}°` : ""}` : ""}</div>
         {feed.slice(0, 6).map((e) => <div key={e.id} className="grid gap-x-2.5 items-center" style={{ gridTemplateColumns: "44px 14px 1fr" }}><span className="text-[12px] text-drift tabular">{String(Math.floor((e.t % 1440) / 60)).padStart(2, "0")}:{String(e.t % 60).padStart(2, "0")}</span><span className="rounded-full" style={{ width: e.importance >= 0.45 ? 10 : 7, height: e.importance >= 0.45 ? 10 : 7, background: e.importance >= 0.45 ? "#E8735A" : "#1F5F5B" }} /><span className={`text-[13px] leading-tight line-clamp-2 ${e.importance >= 0.45 ? "font-semibold" : ""}`}>{e.text}</span></div>)}
         {feed.length === 0 && <div className="text-sm text-drift">A quiet minute on the island.</div>}

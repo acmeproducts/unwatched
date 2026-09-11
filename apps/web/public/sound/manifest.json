@@ -1,1 +1,9 @@
-{}
+{
+ "music-day": "music-day.m4a",
+ "music-rain": "music-rain.m4a",
+ "music-night": "music-night.m4a",
+ "music-tavern": "music-tavern.m4a",
+ "music-storm": "music-storm.m4a",
+ "music-fog": "music-fog.m4a",
+ "music-winter": "music-winter.m4a"
+}

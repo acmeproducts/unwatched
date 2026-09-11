@@ -5,7 +5,7 @@
 //   node scripts/gen-music.mjs --force --seconds 60        regenerate all, longer
 //
 // Each bed is streamed from Lyria for a while, trimmed of its first bars so it starts mid-flow, and written as a
-// 48 kHz stereo WAV under public/sound as music-<scene>.wav. The manifest gains the entries the world reads.
+// 48 kHz stereo WAV under public/sound, compressed to music-<scene>.m4a for the web. The manifest gains the entries the world reads.
 // The key comes from GEMINI_API_KEY or GOOGLE_API_KEY in the environment; the repo's .env is loaded if present.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -71,7 +71,14 @@ for (const [scene, spec] of Object.entries(SCENES)) {
   const file = `music-${scene}.wav`; const name = `music-${scene}`;
   if (!force && existsSync(resolve(OUT, file))) { manifest[name] = file; continue; }
   process.stdout.write(`${scene}: streaming ${SECONDS}s from Lyria… `);
-  try { const buf = await record(scene, spec); writeFileSync(resolve(OUT, file), buf); manifest[name] = file; made++; console.log(`wrote ${file} (${(buf.length / 1048576).toFixed(1)} MB)`); }
+  try {
+    const buf = await record(scene, spec); writeFileSync(resolve(OUT, file), buf); made++;
+    // the web gets a small AAC file when ffmpeg is on the machine (its built-in encoder, no extra libraries); the WAV stays out of git either way
+    const m4a = `music-${scene}.m4a`; const { spawnSync } = await import("node:child_process");
+    const r = spawnSync("ffmpeg", ["-loglevel", "error", "-y", "-i", resolve(OUT, file), "-c:a", "aac", "-b:a", "128k", resolve(OUT, m4a)]);
+    manifest[name] = r.status === 0 ? m4a : file;
+    console.log(`wrote ${r.status === 0 ? m4a : file} (${(buf.length / 1048576).toFixed(1)} MB of PCM${r.status === 0 ? ", compressed" : ", no ffmpeg found"})`);
+  }
   catch (e) { console.log(`failed: ${e.message}`); }
 }
 writeFileSync(MANIFEST, JSON.stringify(manifest, null, 1));

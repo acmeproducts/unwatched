@@ -108,6 +108,13 @@ export class TownStore {
     };
   }
 
+  /** The tail of the record, so the street feed is not empty after a restart. */
+  async recentEvents(n = 300): Promise<TownEvent[]> {
+    const { data, error } = await this.sb.from("events").select("id, t, day, kind, actors, place, text, importance, payload").eq("town_id", this.townId).order("id", { ascending: false }).limit(n);
+    if (error || !data) return [];
+    return data.reverse().map((r) => ({ id: Number(r.id), t: Number(r.t), day: r.day, kind: r.kind as TownEvent["kind"], actors: r.actors, text: r.text, importance: r.importance, ...(r.place ? { place: r.place } : {}), ...(r.payload ? { payload: r.payload as Record<string, unknown> } : {}) }));
+  }
+
   async savePaper(paper: Paper): Promise<void> {
     const { error } = await this.sb.from("papers").upsert({ town_id: this.townId, edition: paper.edition, paper }, { onConflict: "town_id,edition" });
     if (error) console.error("paper upsert failed:", error.message);

@@ -36,6 +36,7 @@ const town = new Town({ seed: SEED, brain, log, onEvent: (e) => { store?.sink(e)
 const saved = store ? await store.loadSnapshot() : null;
 if (saved) {
   town.restore(saved);
+  town.events.push(...(await store!.recentEvents(300)));
   log(`restored the island from its record: ${town.clock()}, ${town.agents.size} citizens, ${saved.papers.length} editions`);
 } else {
   for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });

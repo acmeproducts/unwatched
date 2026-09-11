@@ -54,7 +54,7 @@ function lookSvg(hash: string): Promise<string | null> {
   return p;
 }
 
-type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean };
+type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean };
 
 export function World({ mineId, onSelect, view }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema" }) {
   const host = useRef<HTMLDivElement>(null);
@@ -218,6 +218,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const sails = findParts("sails"), bells = findParts("bell"), cloths = findParts("cloth"); let millSpeed = 0;
       const boats = [...scene.children].filter((ch) => decor.some((d) => d.sprite === "rowboat" && Math.abs(ch.position.x - d.x) < 1 && Math.abs(ch.position.y - d.y) < 1)) as (Container & { userData: number })[]; for (const bt of boats) bt.userData = bt.position.y;
       const wake = new Graphics(); wake.zIndex = 0.6; scene.addChild(wake);
+      const aboard: Container[] = []; // figures riding the ferry, parented to it
       const gulls = new Graphics(); gulls.zIndex = 180000; scene.addChild(gulls);
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
@@ -281,7 +282,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (e.kind === "agent.sleep") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = true; f.pose = "sleep"; } }
           if (e.kind === "agent.wake") { const f = figs.current.get(e.actors[0]!); if (f) { f.asleep = false; f.pose = "idle"; } }
           if (e.kind === "agent.work" && /worked on|mornings done/.test(e.text)) { const f = figs.current.get(e.actors[0]!); if (f) f.pose = "work"; }
-          if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.g.destroy({ children: true }); figs.current.delete(e.actors[0]!); } }
+          // whoever leaves walks to the ferry and rides away on it; the deck carries them until the boat is out of sight
+          if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.boarding = true; f.bench = false; f.asleep = false; f.tx = ferry.position.x + 12; f.ty = ferry.position.y - 2; } }
           if (e.kind === "agent.say") { const q = /“([^”]+)”/.exec(e.text)?.[1]; if (q) bubbles.current.set(e.actors[0]!, { text: q, until: Date.now() + 7000 }); }
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
           if (e.kind === "ferry.dock") { if (/docked/.test(e.text)) { ferry.position.x = awayX; ferryTarget = dockX; ambience.horn(); } }
@@ -326,6 +328,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (sailing) ferry.position.x += Math.sign(ferryTarget - ferry.position.x) * Math.min(Math.abs(ferryTarget - ferry.position.x), 2.2);
         ferry.position.y = harbor.y + 20 + Math.sin(tick / 40) * 1.5; ferry.rotation = Math.sin(tick / 55) * 0.012;
         if (tick % 2 === 0) { wake.clear(); if (sailing) { const dir = Math.sign(ferryTarget - ferry.position.x); for (let i = 1; i <= 7; i++) { const x = ferry.position.x - dir * (70 + i * 26), y = ferry.position.y + 6 + Math.sin(tick / 9 + i) * 2; wake.moveTo(x, y - i * 1.5).lineTo(x - dir * 18, y - i * 1.5).moveTo(x, y + i * 1.5).lineTo(x - dir * 18, y + i * 1.5).stroke({ width: 2, color: C.foam, alpha: Math.max(0, 0.7 - i * 0.09), cap: "round" }); } } }
+        // out of sight, the passengers are gone
+        if (aboard.length && Math.abs(ferry.position.x - awayX) < 4) { for (const g of aboard) g.destroy({ children: true }); aboard.length = 0; }
         for (let i = 0; i < boats.length; i++) { const bt = boats[i]!; bt.position.y = bt.userData + Math.sin(tick / 35 + i * 2) * 1.2; bt.rotation = Math.sin(tick / 50 + i) * 0.03; }
         // the mill turns while it is worked; the chapel bell swings at ten on Sunday; the washing sways in the wind
         const millP = places.get("mill"); const millOn = !!millP && millP.crowd > 0 && (c?.hour ?? 12) >= 7 && (c?.hour ?? 12) < 15 && c?.weekday !== "Sunday";
@@ -398,6 +402,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           // walk at a person's pace, not a spring's
           const dx = f.tx - f.x, dy = f.ty - f.y, dist = Math.hypot(dx, dy), step = Math.min(dist, f.weak ? 0.9 : 1.6);
           if (dist > 0.01) { f.x += (dx / dist) * step; f.y += (dy / dist) * step; }
+          if (f.boarding) { f.tx = ferry.position.x + 12; f.ty = ferry.position.y - 2; if (dist < 4) { scene.removeChild(f.g); f.g.position.set(-20 + aboard.length * 16, -14); f.g.scale.set(0.9); f.rig.setPose("idle"); f.rig.face(-1); ferry.addChild(f.g); aboard.push(f.g); figs.current.delete(f.id); continue; } }
           f.g.position.set(f.x, f.y);
           if (moving) f.facing = dx < 0 ? -1 : 1;
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
@@ -408,6 +413,9 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           const inScene = viewRef.current === "cinema" && !!cinema.current?.ids.includes(f.id) && Date.now() - (cinema.current?.at ?? 0) < 120000;
           next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 66) * cam.zoom + cam.y, mine: f.mine, shown: f.mine || !!b || hoverRef.current === f.id || inScene || (near && viewRef.current === "street"), ...(b ? { bubble: b.text } : {}) });
         }
+        // names stack upward when people stand shoulder to shoulder, so none is written over another
+        next.sort((a, b) => a.x - b.x);
+        for (let i = 0; i < next.length; i++) { const a = next[i]!; if (!a.shown) continue; for (let guard = 0; guard < 6; guard++) { const hit = next.slice(0, i).find((b) => b.shown && Math.abs(b.x - a.x) < 46 * cam.zoom + 8 && Math.abs(b.y - a.y) < 16); if (!hit) break; a.y = hit.y - 15; } }
         if (tick % 2 === 0) setLabels(next);
         if (tick % 20 === 0) setMini({ w: W, h: H, places: [...places.values()].map((p) => ({ id: p.id, x: p.x, y: p.y, kind: p.kind, crowd: p.crowd })), view: { x: -cam.x / cam.zoom, y: -cam.y / cam.zoom, w: Wd / cam.zoom, h: Hd / cam.zoom }, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, mine: f.mine })) });
       });

@@ -75,7 +75,7 @@ export function TopBar() {
         </div>
       </div>
       <div className="flex items-center gap-3.5 text-sm">
-        {c && <div className="text-drift hidden md:block">Day {c.day} · {String(c.hour).padStart(2, "0")}:{String(c.minute % 60).padStart(2, "0")} · {c.weather}{typeof c.temperatureC === "number" ? ` · ${Math.round(c.temperatureC)}°` : ""}{c.place ? ` · ${c.place}'s sky` : ""}</div>}
+        {c && <div className="text-drift hidden md:block">Day {c.day} · {String(c.hour).padStart(2, "0")}:{String(c.minute % 60).padStart(2, "0")} · {c.weather}{typeof c.temperatureC === "number" ? ` · ${Math.round(c.temperatureC)}°` : ""}{c.place ? ` · live sky, ${c.place}` : ""}</div>}
         <Link href="/account" className="flex items-center gap-2.5 bg-shell rounded-full py-1 pr-3.5 pl-1">
           <div className="w-9 h-9 rounded-full bg-glass text-teal flex items-center justify-center display font-bold">{me?.name?.[0] ?? "?"}</div>
           <div className="leading-tight hidden sm:block"><div className="font-bold">{me?.name ?? "Sign in"}</div><div className="text-xs text-drift">{me?.sub ?? "at the ferry office"}</div></div>

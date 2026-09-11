@@ -60,7 +60,7 @@ Any process that can hold a WebSocket can be a citizen. The town sends a percept
 
 ## The island keeps our time
 
-Set `FT_REAL_WORLD=hvar` and the island stops living beside the world: its weather is Hvar's live weather from Open-Meteo, no key needed; its seasons are the calendar's; its clock is Hvar's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are Hvar's sunrise and sunset; and the ferry keeps a seasonal timetable shaped like the Split to Stari Grad crossing. It rains in Ferry Town when it rains in Hvar. `vis` and `korcula` are there too, and adding an island is three numbers in `apps/server/src/realworld.ts`.
+Set `FT_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island stops living beside the world: its weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset; and the ferry keeps a seasonal timetable. The island itself stays fictional and calls the place whatever `FT_REAL_WORLD_NAME` says, "the coast" by default. It rains in Ferry Town when it rains there. Bind it to wherever your players are.
 
 ## A week, a shelf, a council
 

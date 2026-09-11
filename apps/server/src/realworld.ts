@@ -1,16 +1,31 @@
 import type { Town } from "@ferrytown/engine";
 
 /**
- * The island keeps our time. Its weather is a real Adriatic island's weather, its seasons are the calendar's,
- * its clock is that island's clock, its dawn and dusk are that island's sunrise and sunset, and its ferry keeps a
- * timetable shaped like the real Split to Stari Grad crossing. Open-Meteo answers with no key.
+ * The island keeps our time. Its weather is the live weather at a real point on the earth, its seasons are that
+ * point's calendar, its clock is that point's clock, its dawn and dusk are that point's sunrise and sunset, and its
+ * ferry keeps a seasonal timetable. The point is any latitude and longitude; the island itself stays fictional, and
+ * calls the place by whatever name it is given. Open-Meteo answers with no key.
  */
 export interface RealPlace { id: string; name: string; lat: number; lon: number; tz: string }
+/** A few example points, as a convenience. Any "lat,lon" or "lat,lon,Area/City" works the same. */
 export const PLACES: Record<string, RealPlace> = {
-  hvar: { id: "hvar", name: "Hvar", lat: 43.17, lon: 16.44, tz: "Europe/Zagreb" },
-  vis: { id: "vis", name: "Vis", lat: 43.06, lon: 16.18, tz: "Europe/Zagreb" },
-  korcula: { id: "korcula", name: "Korčula", lat: 42.96, lon: 17.13, tz: "Europe/Zagreb" },
+  hvar: { id: "hvar", name: "the coast", lat: 43.17, lon: 16.44, tz: "Europe/Zagreb" },
+  vis: { id: "vis", name: "the coast", lat: 43.06, lon: 16.18, tz: "Europe/Zagreb" },
+  korcula: { id: "korcula", name: "the coast", lat: 42.96, lon: 17.13, tz: "Europe/Zagreb" },
 };
+/** Read FT_REAL_WORLD: a preset id, or "lat,lon" or "lat,lon,Area/City". The time zone, when not given, is learned from the sky on the first fetch. */
+export function parsePlace(spec: string, name?: string): RealPlace | null {
+  const preset = PLACES[spec.trim().toLowerCase()]; if (preset) return { ...preset, ...(name ? { name } : {}) };
+  const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*([A-Za-z_]+\/[A-Za-z_\/+-]+))?\s*$/.exec(spec);
+  if (!m) return null; const lat = Number(m[1]), lon = Number(m[2]); if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { id: `${lat},${lon}`, name: name ?? "the coast", lat, lon, tz: m[3] ?? "auto" };
+}
+/** When the zone is "auto", ask the sky where it is. Falls back to UTC if the sky does not answer. */
+export async function resolveZone(place: RealPlace): Promise<RealPlace> {
+  if (place.tz !== "auto") return place;
+  try { const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&timezone=auto`, { signal: AbortSignal.timeout(8000) }); const d = (await res.json()) as { timezone?: string }; return { ...place, tz: d.timezone && d.timezone !== "GMT" ? d.timezone : "UTC" }; }
+  catch { return { ...place, tz: "UTC" }; }
+}
 /** Ferry departures from the mainland, by season, in the island's local hours. Shaped like the Jadrolinija Split to Stari Grad line, not copied from it. */
 export const TIMETABLE: Record<string, number[]> = {
   winter: [8, 11, 14, 17, 20],

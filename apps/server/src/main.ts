@@ -21,7 +21,7 @@ import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
 import type { BrainRow, Plan, Store } from "@ferrytown/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
 import { Metrics } from "./ops.ts";
-import { RealWorld, PLACES } from "./realworld.ts";
+import { RealWorld, parsePlace, resolveZone } from "./realworld.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const envFile = resolve(here, "../../../.env");
@@ -85,14 +85,14 @@ if (saved && saved.agents.length > 0) {
   log("a new island: seeded the first citizens");
 }
 clockRef = () => ({ day: town.day, hour: town.hour, t: town.t });
-// the island keeps our time: a real Adriatic island's sky, calendar, clock and timetable
-const REAL = process.env.FT_REAL_WORLD ? (PLACES[process.env.FT_REAL_WORLD] ?? PLACES.hvar!) : null;
+// the island keeps our time: the sky, calendar, clock and timetable of a real point on the earth, by latitude and longitude
+const REAL = process.env.FT_REAL_WORLD ? await (async () => { const p = parsePlace(process.env.FT_REAL_WORLD!, process.env.FT_REAL_WORLD_NAME); if (!p) { log(`FT_REAL_WORLD should be "lat,lon" or "lat,lon,Area/City" (got ${JSON.stringify(process.env.FT_REAL_WORLD)}); the island keeps its own time`); return null; } return resolveZone(p); })() : null;
 const real = REAL ? new RealWorld(town, REAL, log) : null;
 if (real) {
   const jumped = real.alignClock();
   real.onUpdate = () => { realClock.temperatureC = real.state.temperatureC; realClock.sunrise = real.state.sunrise; realClock.sunset = real.state.sunset; broadcast({ type: "clock", clock: clockOf(town) }); };
   real.start(); realClock.place = REAL!.name;
-  log(`the island keeps ${REAL!.name}'s time${jumped ? ` (moved the clock ${jumped} minutes forward to ${town.clock()})` : ""}; the sky is ${REAL!.name}'s, the ferry keeps the ${town.season} timetable`);
+  log(`the island keeps the time at ${REAL!.lat}, ${REAL!.lon} (${REAL!.tz})${jumped ? `; moved the clock ${jumped} minutes forward to ${town.clock()}` : ""}; the sky is ${REAL!.name}'s, the ferry keeps the ${town.season} timetable`);
 }
 for (const h of HARBORS) void harborTown(h).then((d) => { const n = (d as { name?: string } | null)?.name; if (n) { h.name = n; const th = town.harbors.find((x) => x.id === h.id); if (th) th.name = n; } });
 if (HARBORS.length) log(`ferries run to ${HARBORS.map((h) => h.id).join(", ")}${FERRY_SECRET ? "" : " (no FT_FERRY_SECRET: arrivals from other islands are refused)"}`);

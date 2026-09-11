@@ -166,6 +166,8 @@ app.post("/api/ferry/arrive", async (c) => {
   if (store) await store.snapshot(town);
   return c.json({ ok: true, id: a.id, island: TOWN_NAME });
 });
+// the ferry office tells the web which sign-in it expects, so a build without the public keys can say so instead of failing at the last step
+app.get("/api/office", (c) => c.json({ signIn: sb && process.env.FT_DEV_OWNER !== "1" ? "supabase" : "dev" }));
 app.get("/api/town", (c) => c.json({ ...clockOf(town), name: TOWN_NAME, id: TOWN_ID, size: town.pack.size, places: [...town.places.values()].map(placeView), laws: town.laws, children: town.children.map(childView) }));
 /** Children of the island who could be adopted: unowned, growing up or already grown. Adopting means writing to them; nothing more. */
 app.get("/api/children", (c) => c.json({

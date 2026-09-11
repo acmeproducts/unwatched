@@ -56,6 +56,11 @@ echo "app is at $URL"
 
 echo "building the web against $URL/engine"
 set -a; [[ -f .env ]] && source .env; set +a
+# the web build bakes in the public Supabase keys; without them the gate offers a name box the server will refuse
+NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY:-}}
+if [[ -n "${SUPABASE_URL:-}" && -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]]; then echo "SUPABASE_URL is set but no anon key: put SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY) in .env, or nobody can sign in on the deployed site"; exit 1; fi
+export NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY
 docker build --platform linux/amd64 -t "$REGURL/ferry-town-web:$TAG" -f apps/web/Dockerfile \
   --build-arg NEXT_PUBLIC_API_URL="$URL/engine" \
   --build-arg NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-}" \

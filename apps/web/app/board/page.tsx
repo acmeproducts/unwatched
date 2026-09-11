@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wordmark, Button, Label, Chip } from "@/components/ui";
+import { Wordmark, Button, Label, Chip, LinkButton } from "@/components/ui";
 import { api } from "@/lib/api";
 import { currentOwner, rememberAgent } from "@/lib/auth";
 
@@ -11,9 +11,13 @@ const F = (l: string, v: string, set: (s: string) => void, ph = "", multi = fals
   <label className="flex flex-col gap-1.5"><span className="text-[13px] font-bold text-drift">{l}</span>{multi ? <textarea value={v} onChange={(e) => set(e.target.value)} placeholder={ph} className="min-h-[72px] rounded-[20px] bg-sand px-[18px] py-3 text-base" /> : <input value={v} onChange={(e) => set(e.target.value)} placeholder={ph} className="h-11 rounded-full bg-sand px-[18px] text-base" />}</label>
 );
 
+type Draft = { p?: { name: string; age: string; origin: string; summary: string; want: string; fear: string; secret: string; strangers: string; advice: string }; look?: { build: string; hair: string; hat: string; carrying: string; top: string; bottom: string; coral: string }; instructions?: string; step?: number };
+function readDraft(): Draft { try { return JSON.parse(localStorage.getItem("ft.draft") ?? "{}") as Draft; } catch { return {}; } }
+
 export default function Board() {
   const r = useRouter();
-  const [step, setStep] = useState(0);
+  const [draft] = useState<Draft>(() => (typeof window === "undefined" ? {} : readDraft()));
+  const [step, setStep] = useState(() => draft.step ?? 0);
   const [children, setChildren] = useState<{ growing: { id: string; name: string; days: number; ofAgeIn: number; parents: string[]; home: string; orphan: boolean }[]; grown: { id: string; name: string; summary: string; place: string }[] }>({ growing: [], grown: [] });
   const [adopting, setAdopting] = useState<{ id: string; name: string; note: string; grown: boolean } | null>(null);
   useEffect(() => { void api<typeof children>("/api/children").then(setChildren).catch(() => {}); }, []);
@@ -32,15 +36,17 @@ export default function Board() {
       if (t) setDest({ id: t.id, name: t.name });
     }).catch(() => {});
   }, []);
-  const [p, setP] = useState({ name: "", age: "34", origin: "the mainland", summary: "", want: "", fear: "", secret: "", strangers: "Wary at first, loyal after.", advice: "Reads it twice. Rarely follows it." });
+  const [p, setP] = useState(() => draft.p ?? { name: "", age: "34", origin: "the mainland", summary: "", want: "", fear: "", secret: "", strangers: "Wary at first, loyal after.", advice: "Reads it twice. Rarely follows it." });
   const [traits, setTraits] = useState({ warmth: 0.5, pride: 0.5, caution: 0.5, honesty: 0.6, ambition: 0.5 });
-  const [look, setLook] = useState({ build: "Average", hair: "Bob", hat: "None", carrying: "Suitcase", top: "Teal", bottom: "Sage", coral: "Suitcase" });
+  const [look, setLook] = useState(() => draft.look ?? { build: "Average", hair: "Bob", hat: "None", carrying: "Suitcase", top: "Teal", bottom: "Sage", coral: "Suitcase" });
   const [brain, setBrain] = useState<"hosted" | "own_key" | "own_brain">("hosted");
   const [plan, setPlan] = useState("Resident");
-  const [instructions, setInstructions] = useState("");
+  const [instructions, setInstructions] = useState(() => draft.instructions ?? "");
+  // the ticket being written survives a trip to the ferry office and a closed tab: "save and finish later" is real
+  useEffect(() => { try { localStorage.setItem("ft.draft", JSON.stringify({ p, look, instructions, step })); } catch {} }, [p, look, instructions, step]);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   const [away, setAway] = useState<{ island: string; url: string } | null>(null);
-  useEffect(() => { void currentOwner().then((o) => { if (!o) r.replace("/gate"); }); }, [r]);
+  useEffect(() => { void currentOwner().then((o) => { if (!o) r.replace("/gate?next=/board"); }); }, [r]);
   const set = (k: keyof typeof p) => (v: string) => setP((x) => ({ ...x, [k]: v }));
   const ready = p.name && p.summary && p.want && p.fear && p.secret;
 
@@ -49,7 +55,7 @@ export default function Board() {
     try {
       const res = await api<{ id: string; away?: boolean; island?: string; url?: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id }) });
       if (res.away) { setAway({ island: res.island ?? dest.name, url: res.url ?? "" }); setBusy(false); return; }
-      rememberAgent(res.id);
+      rememberAgent(res.id); try { localStorage.removeItem("ft.draft"); } catch {}
       if (instructions.trim()) await api(`/api/agents/${res.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instructions.trim() }) }); // a note on the door, read every morning; not a letter
       r.push("/digest");
     } catch (e) { setErr((e as Error).message); setBusy(false); }
@@ -154,7 +160,9 @@ export default function Board() {
               </div>
             </div>
             <p className="text-sm text-ink2">You understand {p.name.split(" ")[0]} has free will and may not do what you ask. They can go hungry, and after five hungry days they can die. The town would print it.</p>
-            {err && <div className="text-[13px] text-coral">{err}</div>}
+            {err && (/sign in/i.test(err)
+              ? <div className="bg-glass rounded-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div className="font-bold">The ferry office needs to see you first.</div><div className="text-[13px] text-ink2">Your ticket is saved. Sign in and you will come straight back here.</div></div><LinkButton href="/gate?next=/board" size={44}>Sign in at the ferry office</LinkButton></div>
+              : <div className="text-[13px] text-coral">{err}</div>)}
             {away && <div className="bg-glass rounded-[18px] p-4 text-sm"><b>{p.name} boarded for {away.island}.</b> Their story goes on there, on that island's own pages{away.url ? <>: <a className="text-teal font-bold" href={away.url.replace(/\/engine$/, "")}>{away.url.replace(/\/engine$/, "")}</a></> : "."} Sign in there with the same account to read their digest.</div>}
             <div className="mt-auto flex justify-between items-center"><Button kind="tertiary" onClick={() => setStep(3)}>Back</Button><Button size={52} disabled={busy} onClick={board}>{busy ? "Boarding…" : "Board the ferry"}</Button></div>
           </div>

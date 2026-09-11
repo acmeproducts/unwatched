@@ -11,6 +11,7 @@ import { CORAL, CREAM, DARK, KELP, LIGHT, WOOD_DARK } from "./palette";
 import type { LightSource } from "./fx";
 
 type Pt = { x: number; y: number };
+export type LifeSound = "gull" | "flap" | "bark" | "meow" | "cluck" | "oars";
 export type LifePlaces = {
   perches: (Pt & { dir: 1 | -1 })[];
   catSpots: Pt[];
@@ -48,6 +49,8 @@ export class Life {
   readonly critters: Critter[] = [];
   /** Light the animals and the lamp give off, for the night to take. */
   lights: LightSource[] = [];
+  /** What made a sound this tick, and where; the world hands them to the ambience with the camera's distance. */
+  sounds: { name: LifeSound; x: number; y: number; level?: number }[] = [];
   private gulls: Gull[];
   private leaves: Leaf[] = [];
   private bugs: { x: number; y: number; ph: number; speed: number; color: number; zone: number }[] = [];
@@ -79,7 +82,7 @@ export class Life {
     const cold = o.season === "winter";
     const people = [...o.people];
     const nearest = (x: number, y: number): number => { let d = 1e9; for (const p of people) { const dd = Math.hypot(p.x - x, p.y - y); if (dd < d) d = dd; } return d; };
-    this.lights = [];
+    this.lights = []; this.sounds = [];
     // the pennant: it hangs in a calm, lifts and cracks in a blow, and always points where the wind is going
     if (tick % 2 === 0) {
       const f = this.flag; f.clear(); const { x, y } = P.flag; f.moveTo(0, 0).lineTo(0, -48).stroke({ width: 2.2, color: WOOD_DARK }); f.circle(0, -49, 1.8).fill(KELP);
@@ -89,10 +92,11 @@ export class Life {
       f.moveTo(top[0]![0], top[0]![1]); for (const p of top.slice(1)) f.lineTo(p[0], p[1]); for (const p of bot.reverse()) f.lineTo(p[0], p[1]); f.closePath().fill(CORAL);
       f.position.set(x, y);
     }
+    if (o.wind > 0.35 && tick % Math.max(8, Math.round(26 / o.wind)) === 0) this.sounds.push({ name: "flap", x: P.flag.x, y: P.flag.y - 40, level: 0.35 + o.wind * 0.3 });
     // the fishing boat: out past the point at sunrise, back before the light goes, and never in a storm
     { const goOut = day && o.hour > o.rise + 0.3 && o.hour < o.set - 1.4 && !storm && !cold; const to = goOut ? P.spot : P.moor;
       const dx = to.x - this.boatX, dy = to.y - this.boatY, d = Math.hypot(dx, dy); const moving = d > 1.5; if (moving) { const st = Math.min(d, 1.3); this.boatX += (dx / d) * st; this.boatY += (dy / d) * st; }
-      this.boatOut = goOut;
+      this.boatOut = goOut; if (moving && tick % 75 === 0) this.sounds.push({ name: "oars", x: this.boatX, y: this.boatY, level: 0.8 });
       if (tick % 2 === 0) { const b = this.boat; b.clear(); const bob = Math.sin(tick / 38) * 1.4, dir = dx < 0 ? -1 : 1; b.position.set(this.boatX, this.boatY + bob); b.rotation = Math.sin(tick / 52) * 0.02;
         b.moveTo(-18, -4).lineTo(18, -4).lineTo(13, 4).lineTo(-13, 4).closePath().fill(WOOD_DARK).stroke({ width: 1.2, color: KELP, alpha: 0.8 }); b.moveTo(-16, -5).lineTo(16, -5).stroke({ width: 1.5, color: CREAM, alpha: 0.6 });
         b.moveTo(2, -4).lineTo(2, -34).stroke({ width: 1.6, color: KELP });
@@ -103,7 +107,7 @@ export class Life {
       } }
     // the gulls: some wheel, some sit on the posts and the rocks, and a walker on the pier sends them up
     for (const gl of this.gulls) {
-      if (!gl.away && (nearest(gl.perch.x, gl.perch.y) < 72 || !day || storm)) { gl.away = true; gl.t0 = tick; gl.back = tick + 500 + ((gl.seed * 97) % 900); }
+      if (!gl.away && (nearest(gl.perch.x, gl.perch.y) < 72 || !day || storm)) { gl.away = true; gl.t0 = tick; gl.back = tick + 500 + ((gl.seed * 97) % 900); if (day) { this.sounds.push({ name: "flap", x: gl.perch.x, y: gl.perch.y }); if (gl.seed % 3 === 0) this.sounds.push({ name: "gull", x: gl.perch.x, y: gl.perch.y - 40, level: 0.7 }); } }
       if (gl.away && tick > gl.back && day && !storm && nearest(gl.perch.x, gl.perch.y) > 120) { gl.away = false; gl.t0 = tick; }
       if (!gl.away && tick % 180 === gl.seed % 180) gl.turned = tick + 30;
     }
@@ -112,14 +116,16 @@ export class Life {
       const r = c.seed; const near = nearest(c.x, c.y);
       if (c.kind === "cat") {
         if (wet || !day) { if (c.state !== "hide" && c.state !== "sleep") { const s = P.catSpots[0]!; c.tx = s.x + 18; c.ty = s.y + 6; c.state = "walk"; c.until = tick + 2000; } }
-        if (c.state === "sit" && near < 44) { const s = P.catSpots[1 + Math.floor(r() * (P.catSpots.length - 1))]!; c.tx = s.x + 14; c.ty = s.y + 6; c.state = "walk"; c.until = tick + 2000; }
+        if (c.state === "sit" && near < 44) { const s = P.catSpots[1 + Math.floor(r() * (P.catSpots.length - 1))]!; c.tx = s.x + 14; c.ty = s.y + 6; c.state = "walk"; c.until = tick + 2000; if (r() < 0.6) this.sounds.push({ name: "meow", x: c.x, y: c.y, level: 0.8 }); }
         if (tick > c.until && c.state !== "walk") { if (r() < 0.55 && day && !wet) { const s = P.catSpots[Math.floor(r() * P.catSpots.length)]!; c.tx = s.x + 14 + (r() - 0.5) * 20; c.ty = s.y + 6 + (r() - 0.5) * 10; c.state = "walk"; c.until = tick + 3000; } else { c.state = !day || wet ? (Math.hypot(c.x - P.catSpots[0]!.x - 18, c.y - P.catSpots[0]!.y - 6) < 30 ? "sleep" : "hide") : r() < 0.3 ? "sleep" : "sit"; c.until = tick + 300 + r() * 900; } }
       } else if (c.kind === "dog") {
+        if (c.state === "sit" && day && tick % 900 === 0 && r() < 0.4) this.sounds.push({ name: "bark", x: c.x, y: c.y, level: 0.7 });
         if (c.state === "follow") { const w = c.who!; if (tick > c.until || wet || !day) { c.state = "walk"; c.tx = P.dogHome.x; c.ty = P.dogHome.y; c.until = tick + 3000; c.who = undefined; } else { c.tx = w.x - 22 * Math.sign(w.x - c.x || 1); c.ty = w.y + 4; } }
-        else if (tick > c.until && c.state !== "walk") { if (day && !wet && r() < 0.5) { let pick: Pt | null = null; for (const p of people) if (Math.hypot(p.x - c.x, p.y - c.y) < 220) { pick = p; if (r() < 0.5) break; } if (pick) { c.who = pick; c.state = "follow"; c.until = tick + 500 + r() * 700; } else { c.state = "sit"; c.until = tick + 200 + r() * 400; } } else { c.state = !day || wet ? "sleep" : "sit"; c.until = tick + 300 + r() * 600; } }
+        else if (tick > c.until && c.state !== "walk") { if (day && !wet && r() < 0.5) { let pick: Pt | null = null; for (const p of people) if (Math.hypot(p.x - c.x, p.y - c.y) < 220) { pick = p; if (r() < 0.5) break; } if (pick) { c.who = pick; c.state = "follow"; c.until = tick + 500 + r() * 700; this.sounds.push({ name: "bark", x: c.x, y: c.y }); } else { c.state = "sit"; c.until = tick + 200 + r() * 400; } } else { c.state = !day || wet ? "sleep" : "sit"; c.until = tick + 300 + r() * 600; } }
       } else {
         if (!day || wet) { c.state = "hide"; c.until = tick + 60; }
-        else if (near < 40 && c.state !== "walk") { const ax = c.x - people.reduce((b, p) => (Math.hypot(p.x - c.x, p.y - c.y) < 40 ? p : b), { x: c.x + 1, y: c.y }).x; c.tx = Math.max(P.yard.x - P.yard.r, Math.min(P.yard.x + P.yard.r, c.x + Math.sign(ax || 1) * 50)); c.ty = c.y + (r() - 0.5) * 20; c.state = "walk"; c.until = tick + 400; c.speed = 1.6; }
+        else if (near < 40 && c.state !== "walk") { const ax = c.x - people.reduce((b, p) => (Math.hypot(p.x - c.x, p.y - c.y) < 40 ? p : b), { x: c.x + 1, y: c.y }).x; c.tx = Math.max(P.yard.x - P.yard.r, Math.min(P.yard.x + P.yard.r, c.x + Math.sign(ax || 1) * 50)); c.ty = c.y + (r() - 0.5) * 20; c.state = "walk"; c.until = tick + 400; c.speed = 1.6; this.sounds.push({ name: "cluck", x: c.x, y: c.y, level: 1 }); }
+        else if (c.state === "peck" && tick % 240 === 0 && r() < 0.5) this.sounds.push({ name: "cluck", x: c.x, y: c.y, level: 0.5 });
         else if (tick > c.until && c.state !== "walk") { if (r() < 0.4) { c.tx = P.yard.x + (r() - 0.5) * 2 * P.yard.r; c.ty = P.yard.y + (r() - 0.5) * 1.2 * P.yard.r; c.state = "walk"; c.until = tick + 600; c.speed = 0.5; } else { c.state = "peck"; c.until = tick + 60 + r() * 200; } }
       }
       const dx = c.tx - c.x, dy = c.ty - c.y, d = Math.hypot(dx, dy);

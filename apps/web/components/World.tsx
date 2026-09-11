@@ -235,6 +235,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const aboard: Container[] = []; // figures riding the boat, parented to it
       const gulls = new Graphics(); gulls.zIndex = 180000; scene.addChild(gulls);
       const CHIMNEYS: Record<string, [number, number]> = { smithy: [44, -150], bakery: [30, -180], inn: [60, -210], mill: [0, -220], tavern: [40, -150], fishhouse: [30, -120] };
+      const litHearths = new Set<string>();
       const HEARTHS: Record<string, [number, number]> = { inn: [60, -210], tavern: [40, -150], chandlery: [30, -150], boatshed: [20, -120], council: [50, -190] }; // where a fire is kept for the people inside, not the work
       const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
       const dockX = harbor.x - 420, awayX = -760;
@@ -450,6 +451,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
         perfMark("life");
         life.update({ tick, hour, rise, set, night: night.alpha / 0.42, season: forcedSeason ?? c?.season ?? "summer", weather, wind, people: figs.current.values(), effects: effectsOn });
+        for (const snd of life.sounds) ambience.cue(snd.name, Math.hypot(snd.x - cam.x, snd.y - cam.y), snd.x - cam.x, snd.level ?? 1);
         if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; rain.visible = !effectsOn; fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }
         if (effectsOn) {
           const up = hour > rise && hour < set; let lx: number, ly: number, ls: number;
@@ -496,9 +498,9 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         if (tick % 2 === 0) { moths.clear(); if (night.alpha > 0.15) for (const d of decor) { if (d.sprite !== "lamp") continue; for (let i = 0; i < 3; i++) { const t = tick / (9 + i * 3) + i * 2; moths.circle(d.x + Math.cos(t) * (10 + i * 4) + Math.sin(t * 2.3) * 3, d.y - 26 + Math.sin(t * 1.7) * (7 + i * 2), 1.3).fill({ color: LIGHT.star, alpha: 0.8 }); } } }
         // smoke from a chimney where someone works
         perfMark("smoke");
-        if (tick % 2 === 0) { smoke.clear(); const sn = forcedSeason ?? c?.season; const cold = sn === "winter" || sn === "autumn"; const evening = hour >= 16.5 || hour < 8; for (const [id, [ox, oy]] of [...Object.entries(CHIMNEYS).filter(([, ]) => hour >= 6 && hour <= 20), ...Object.entries(HEARTHS).filter(() => cold || evening)]) { const p = places.get(id); if (!p || p.crowd === 0) continue; for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
+        if (tick % 2 === 0) { smoke.clear(); const sn = forcedSeason ?? c?.season; const cold = sn === "winter" || sn === "autumn"; const evening = hour >= 16.5 || hour < 8; litHearths.clear(); for (const [id, [ox, oy]] of [...Object.entries(CHIMNEYS).filter(([, ]) => hour >= 6 && hour <= 20), ...Object.entries(HEARTHS).filter(() => cold || evening)]) { const p = places.get(id); if (!p || p.crowd === 0) continue; if (id in HEARTHS && (cold || evening)) litHearths.add(id); for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
         // sound follows the camera
-        if (tick % 30 === 0 && c) { const f = cam.follow ? figs.current.get(cam.follow) : null; const p = places.get(f?.place ?? "market"); ambience.tick({ mood: stagedNow ? (stagedNow.kind === "wedding" || stagedNow.kind === "feast" ? "tavern" : stagedNow.kind === "funeral" ? "night" : stagedNow.kind === "fire" ? "storm" : "day") : null, weather, hour: c.hour, season: c.season, district: p?.district ?? "old town", place: p?.id ?? "market", crowd: p?.crowd ?? 0 }); }
+        if (tick % 30 === 0 && c) { const f = cam.follow ? figs.current.get(cam.follow) : null; const p = places.get(f?.place ?? "market"); ambience.tick({ mood: stagedNow ? (stagedNow.kind === "wedding" || stagedNow.kind === "feast" ? "tavern" : stagedNow.kind === "funeral" ? "night" : stagedNow.kind === "fire" ? "storm" : "day") : null, weather, hour: c.hour, season: c.season, district: p?.district ?? "old town", place: p?.id ?? "market", crowd: p?.crowd ?? 0, hearth: !!p && litHearths.has(p.id), walking: !!f && !f.asleep && Math.hypot(f.tx - f.x, f.ty - f.y) > 1.5, wind }); }
         // people
         perfMark("people");
         const now = Date.now(); const next: typeof labels = []; const secs = now / 1000;

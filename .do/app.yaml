@@ -3,6 +3,12 @@
 # deploy/do.sh builds, pushes, and applies this spec. Secrets are set once with `doctl apps update` and never committed.
 name: ferry-town
 region: fra
+# The island's own address. DNS points here with a CNAME to the app's default hostname; the certificate is DigitalOcean's.
+domains:
+  - domain: small-hours.world
+    type: PRIMARY
+  - domain: www.small-hours.world
+    type: ALIAS
 services:
   - name: town
     image:

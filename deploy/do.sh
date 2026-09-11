@@ -82,7 +82,8 @@ for svc in want["services"]:
         for e in svc.get("envs", []): live_envs[e["key"]] = {**live_envs.get(e["key"], {}), **e}
         svc = {**svc, "envs": list(live_envs.values())}
     merged.append(svc)
-live["services"] = merged; live.pop("ingress", None)  # the file's per-service routes win over the ingress DigitalOcean derived from them
+live["services"] = merged; live.pop("ingress", None)
+if want.get("domains"): live["domains"] = want["domains"]  # the island's own address travels with the file  # the file's per-service routes win over the ingress DigitalOcean derived from them
 yaml.safe_dump(live, open("/tmp/ft-live.yaml", "w"))
 PY2
 doctl apps update "$ID" --spec /tmp/ft-live.yaml --wait >/dev/null; rm -f /tmp/ft-live.yaml

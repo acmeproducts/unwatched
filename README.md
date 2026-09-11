@@ -1,18 +1,25 @@
-# Small Hours
+<p align="center">
+  <img src="docs/banner.png" alt="Small Hours. An island of people with free will, owned by people who write letters, not orders, running on real time under the live sky of a real coast." width="100%">
+</p>
 
-**A town that keeps living while you are away.**
+<p align="center">
+  <a href="https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml"><img src="https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-1E5A63" alt="Apache-2.0"></a>
+  <a href="https://ferry-town-usg5k.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
+  <a href="https://github.com/kresogalic8/ferry-town/discussions"><img src="https://img.shields.io/badge/talk-discussions-111B2B" alt="discussions"></a>
+</p>
+
+<p align="center"><b>A town that keeps living while you are away.</b></p>
 
 Small Hours is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time, under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened.
 
-[![the town](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml/badge.svg)](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml) [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2b6b60)](LICENSE) [![live island](https://img.shields.io/badge/island-live-e0654a)](https://ferry-town-usg5k.ondigitalocean.app) [![discussions](https://img.shields.io/badge/talk-discussions-1e2a2b)](https://github.com/kresogalic8/ferry-town/discussions)
+![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island with real minds](docs/demo.gif)
 
-![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island](docs/demo.gif)
-
-<sub>Recorded on the island as it runs. The full 41-second cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [ferry-town-usg5k.ondigitalocean.app](https://ferry-town-usg5k.ondigitalocean.app).</sub>
+<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [ferry-town-usg5k.ondigitalocean.app](https://ferry-town-usg5k.ondigitalocean.app).</sub>
 
 ## The six rules
 
-The whole design is these, and they are enforced in code.
+The whole design is these six sentences, and they are enforced in code.
 
 | | |
 |---|---|
@@ -33,6 +40,32 @@ pnpm soak -- --days 10 --agents 20 --brain mock --seed 7 --tick 1
 ```
 
 Read `apps/headless/out/gazette-day*.md`, one newspaper per day. Somebody usually builds a house by day eight.
+
+## The first morning
+
+The record of a fresh island with real minds, the morning this README's film was shot. Every line is an event the engine emitted, in the words the Gazette prints. Nothing here was written by hand.
+
+> Twenty people arrived on the ferry, each with forty coins, a suitcase and three nights at the harbor inn.
+>
+> Petar Ilić set out to find out what's become of the bakery and whether it still stands. Stjepan Vuković set out to find the chapel and see what state its roof is in. Ana Perić set out to find something worth writing about this island. Davor Novak set out to get a clear read on how this town actually works before committing coins to anything.
+>
+> Davor Novak and Katarina Jurić talked at the harbor. Davor Novak: "Morning. You work here at the harbor, or just watching the rain like I am." Katarina Jurić: "Both. You're the one staying at the inn. Three nights paid." Davor Novak: "News travels fast. I'm Davor, from the mainland. Banking. I'm here to see if there's a place for lending on an island like this."
+>
+> Luka Babić and Franjo Kovač talked at the mill. Luka Babić: "The roof's bad. You the owner here?" Franjo Kovač: "I am. You looking for work or here to gawk at my problems?" Luka Babić: "I know roofs. Fix them." Franjo Kovač: "Come on then. Rain won't wait and neither will the council."
+>
+> Vesna Marić and Mara Tomić talked at the harbor inn. Vesna Marić: "I've got a room upstairs, clean, drier than the harbor gets. Fifteen coins a week." Mara Tomić: "Fifteen's steep for someone just landed. I'd want to know where your coins are coming from first."
+>
+> Iva Božić bought bread for 1.
+
+By noon there is a council, a roof to fix, a banker looking for borrowers, and a landlady nobody trusts yet. Nobody wrote any of it.
+
+## You do not play it. You check on it.
+
+| | | |
+|---|---|---|
+| **Day one** | Write a person, not a character. | A name, one sentence, a want, a fear, a secret. Choose how they look, and who does their thinking: our minds, a model on your own key, or code you wrote. They arrive with forty coins, a suitcase and three nights at the harbor inn. |
+| **Every morning** | Read what happened. | They found work, or lost it. Someone stopped trusting them. A law passed at ten and bit by evening. The digest is a day of a life in a minute, and every line in it happened. |
+| **When it matters** | They write to you. | At a crossroads, your citizen sends a letter. You write back. It is advice. A stubborn one ignores it; a proud one does the opposite. Earning their trust is the whole game. |
 
 ## Run the whole town
 
@@ -67,7 +100,7 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 | `packages/store` | the record: Supabase, or a JSON file. |
 | `packages/agent-sdk` | `connect(token, { perceive, plan, reflect })` for your own brain. See `docs/protocol.md`. |
 | `apps/server` | Hono. The API, the WebSocket streams, billing, the ops room, the clock, voices, looks. |
-| `apps/web` | Next and PixiJS. The world, drawn entirely in code, the digest, letters, the Gazette, the library, boarding. |
+| `apps/web` | Next and PixiJS. The world, drawn entirely in code, the digest, letters, the Gazette, the library, arrivals. |
 | `apps/headless` | the soak: days of the island with no client, for CI and for reading. |
 
 ## What the island does

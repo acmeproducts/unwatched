@@ -99,7 +99,7 @@ export class TownStore {
     const agents: AgentSnapshot[] = rows.map((r) => {
       const st = (r.state ?? {}) as Partial<AgentSnapshot["state"]>;
       return {
-        id: r.id, persona: r.persona as AgentSnapshot["persona"], owner: r.owner_id ?? null, funded: r.funded, appearance: (r.appearance as Record<string, unknown>) ?? null, arrivedAt: Number(r.arrived_t),
+        id: r.id, persona: r.persona as AgentSnapshot["persona"], owner: r.owner_id ?? (st as { owner?: string | null }).owner ?? null, funded: r.funded, appearance: (r.appearance as Record<string, unknown>) ?? null, arrivedAt: Number(r.arrived_t),
         state: { needs: st.needs ?? { hunger: 0.3, rest: 0.2, social: 0.4 }, location: st.location ?? "harbor", coins: st.coins ?? 40, inventory: st.inventory ?? [], job: st.job ?? null, home: st.home ?? null, asleep: st.asleep ?? false, budget: st.budget ?? { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5 }, intentions: st.intentions ?? [], rumors: st.rumors ?? [], letters: st.letters ?? [], ...(st.lastConversation !== undefined ? { lastConversation: st.lastConversation } : {}), ...(st.lastThought !== undefined ? { lastThought: st.lastThought } : {}) },
         relationships: relBy.get(r.id) ?? [],
         memory: compress((memBy.get(r.id) ?? []).reverse()),
@@ -176,7 +176,7 @@ export class TownStore {
     return {
       id: a.id, town_id: this.townId, owner_id: a.owner && /^[0-9a-f-]{36}$/.test(a.owner) ? a.owner : null, name: a.persona.name, persona: a.persona,
       brain: "hosted", funded: a.funded, arrived_t: a.arrivedAt,
-      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions },
+      state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, owner: a.owner },
     };
   }
 }

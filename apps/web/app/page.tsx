@@ -35,7 +35,7 @@ export default function Landing() {
           </nav>
         </header>
 
-        <LandingHero />
+        <LandingHero github={<GitHubStars />} />
 
         {/* the six rules, once, whole */}
         <section aria-label="The six rules" className="pt-12 sm:pt-16">

@@ -10,7 +10,7 @@ const World = dynamic(() => import("@/components/World").then((m) => m.World), {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function LandingHero() {
+export function LandingHero({ github }: { github?: React.ReactNode }) {
   const [live, setLive] = useState(false);
   const [clock, setClock] = useState<Clock | null>(null);
   useEffect(() => {
@@ -39,7 +39,7 @@ export function LandingHero() {
         <p className="landfall text-[17px] sm:text-xl text-mist max-w-[42ch] leading-[1.45]" style={{ "--i": 2 } as React.CSSProperties}>Put a person on the island. They get a job, make friends, make enemies, and write to you when it matters. You can advise them. You cannot control them.</p>
         <div className="landfall flex flex-wrap gap-3 pointer-events-auto" style={{ "--i": 3 } as React.CSSProperties}>
           <Link href="/board" className="h-[56px] px-7 rounded-[8px] bg-[#E4572E] text-[#14161A] font-bold text-[17px] inline-flex items-center hover:bg-[#EA7554] transition-colors">Send someone over</Link>
-          <Link href="/town" className="h-[56px] px-6 rounded-[8px] border-[1.5px] border-[rgba(247,246,243,0.3)] text-kelp font-bold text-[17px] inline-flex items-center hover:border-kelp transition-colors">Watch tonight</Link>
+          <Link href="/town" className="h-[56px] px-6 rounded-[8px] border-[1.5px] border-[rgba(247,246,243,0.3)] text-kelp font-bold text-[17px] inline-flex items-center hover:border-kelp transition-colors">Watch tonight</Link>{github}
         </div>
       </div>
     </section>

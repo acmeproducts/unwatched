@@ -46,7 +46,8 @@ export function Chip({ active = false, onClick, children }: { active?: boolean; 
   return <button type="button" onClick={onClick} className={`h-9 px-3.5 rounded-full text-[13px] font-bold transition-colors ${active ? "bg-teal text-sand" : "bg-sand text-kelp hover:bg-[#E7E3D6]"}`}>{children}</button>;
 }
 export function Logo({ size = 30, dark = false }: { size?: number; dark?: boolean }) {
-  return <img src="/logo-unwatched.svg" width={size} height={size} alt="" style={{ display: "block" }} data-dark={dark ? "true" : undefined} />;
+  // drawn inline so the frame takes the text colour: ink on paper, paper on ink; the dot is always the signal
+  return <svg width={size} height={size} viewBox="0 0 200 200" aria-hidden="true" style={{ display: "block", color: dark ? "#F7F6F3" : "var(--color-kelp)" }}><path d="M44 96 V44 H96 M104 44 H156 V96 M44 104 V156 H96" fill="none" stroke="currentColor" strokeWidth="14" strokeLinecap="square" /><circle cx="168" cy="168" r="15" fill="#E4572E" /></svg>;
 }
 export function Wordmark({ size = 21, dark = false }: { size?: number; dark?: boolean }) {
   return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display" style={{ fontSize: size * 1.05, fontWeight: 600, letterSpacing: "-0.03em", whiteSpace: "nowrap", color: dark ? "#F7F6F3" : "var(--color-kelp)" }}>unwatched</span></Link>;

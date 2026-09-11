@@ -7,6 +7,7 @@ import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
 import { Interior, type InteriorPerson } from "./Interior";
+import { Portrait } from "./Portrait";
 
 /**
  * The island, drawn by PixiJS from the live event stream, in the Tide style.
@@ -204,7 +205,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         const t = new Text({ text: p.name.replace(/^the /, "").replace(/^an? /, "").toUpperCase(), style: nameStyle }); t.anchor.set(0.5, 0); t.position.set(0, p.site ? 22 : 6); t.zIndex = 100000; g.addChild(t);
         g.position.set(p.x, p.y);
         g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -90 && x < 90 && y > -170 && y < 30 } as never;
-        g.on("pointertap", () => { const here = [...agents.current.values()].filter((a) => a.location === p.id); setPlaceInfo({ id: p.id, name: p.name, district: p.district, kind: p.kind, sprite: p.sprite, owner: p.owner, site: p.site, people: here.map((a) => ({ id: a.id, name: a.name, asleep: a.asleep, job: a.job, appearance: a.appearance, ...(a.pose ? { pose: a.pose } : {}) })) }); });
+        g.on("pointertap", () => { const here = [...agents.current.values()].filter((a) => a.location === p.id); setPlaceInfo({ id: p.id, name: p.name, district: p.district, kind: p.kind, sprite: p.sprite, owner: p.owner, site: p.site, people: here.map((a) => ({ id: a.id, name: a.name, asleep: a.asleep, job: a.job, appearance: a.appearance, age: a.age, ...(a.pose ? { pose: a.pose } : {}) })) }); });
       };
       for (const p of places.values()) drawPlace(p);
       const decor = decorFor([...places.values()]);
@@ -499,7 +500,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         {placeInfo.owner && <div className="text-sm text-ink2">Owned by {placeInfo.owner}.</div>}
         {placeInfo.site && <div className="text-sm text-ink2">{placeInfo.site.by} is building {placeInfo.site.name}: {placeInfo.site.done} of {placeInfo.site.of} mornings done.</div>}
         {placeInfo.kind === "plot" && !placeInfo.site && <div className="text-sm text-ink2">Empty land. A house costs 15 coins and six mornings; a shop 30 and ten.</div>}
-        <div className="text-sm">{placeInfo.people.length === 0 ? <span className="text-drift">Nobody here right now.</span> : placeInfo.people.map((pp) => <div key={pp.name}>{pp.name}{pp.asleep ? ", asleep" : pp.job ? `, ${pp.job}` : ""}</div>)}</div>
+        <div className="text-sm">{placeInfo.people.length === 0 ? <span className="text-drift">Nobody here right now.</span> : placeInfo.people.map((pp) => <div key={pp.name} className="flex items-center gap-2 py-0.5"><Portrait name={pp.name} appearance={pp.appearance} age={pp.age ?? 30} size={26} /><span>{pp.name}{pp.asleep ? ", asleep" : pp.job ? `, ${pp.job}` : ""}</span></div>)}</div>
       </div>}
       <div className="absolute left-3 bottom-3 sm:left-6 sm:bottom-6 bg-shell rounded-card p-3 sm:p-4 w-[calc(100%-24px)] sm:w-[330px] flex flex-col gap-1.5 pointer-events-auto max-h-[38%] sm:max-h-none overflow-hidden">
         <div className="label">Just now{clock ? ` · day ${clock.day} ${String(clock.hour).padStart(2, "0")}:${String(clock.minute % 60).padStart(2, "0")} · ${clock.weather}${typeof clock.temperatureC === "number" ? ` · ${Math.round(clock.temperatureC)}°` : ""}` : ""}</div>

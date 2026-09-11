@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Page, Card, Label, LinkButton } from "@/components/ui";
 import { Loading } from "@/components/states";
+import { Portrait } from "@/components/Portrait";
 import { api, type Life } from "@/lib/api";
 
 /** The library: one book for every life that ended on the island, written by the town from the record. */
@@ -20,7 +21,7 @@ export default function Library() {
           <div className="flex flex-col gap-2">
             {lives.map((l) => (
               <button key={l.agentId} onClick={() => setOpen(l)} className={`text-left rounded-[20px] px-4 py-3 border transition-colors ${open?.agentId === l.agentId ? "bg-teal text-sand border-teal" : "bg-shell border-line hover:bg-sand"}`}>
-                <div className="font-bold leading-tight">{l.title}</div>
+                <div className="flex items-center gap-2"><Portrait name={l.name} age={40} size={28} /><div className="font-bold leading-tight">{l.title}</div></div>
                 <div className={`text-[13px] ${open?.agentId === l.agentId ? "text-mist" : "text-drift"}`}>{l.name} · day {l.arrivedDay} to {l.leftDay} · {l.how === "died" ? "died" : l.how === "left" ? "left on the ferry" : "sent away"}</div>
               </button>
             ))}

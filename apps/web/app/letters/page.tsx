@@ -4,6 +4,7 @@ import { Page, Card, Label, Bubble, Button, Dot, LinkButton } from "@/components
 import { Icon } from "@/components/icons";
 import { api, apiBlob, clock, type TownEvent } from "@/lib/api";
 import { useMyAgent } from "@/lib/useAgent";
+import { Portrait } from "@/components/Portrait";
 import { Loading, SignedOut, NoAgent } from "@/components/states";
 
 export default function Letters() {
@@ -41,7 +42,7 @@ export default function Letters() {
     <Page>
       <div className="grid gap-5 grow grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="bg-shell rounded-card p-4 sm:p-7 flex flex-col gap-3 min-h-[520px]">
-          <div className="flex justify-between items-center border-b border-line pb-3"><div><div className="display text-[22px] font-semibold">{agent.name}</div><div className="text-[13px] text-drift">at {agent.place} · {agent.coins} coins · reads letters in the morning</div></div><LinkButton href="/town" kind="secondary" size={36}>Visit</LinkButton></div>
+          <div className="flex justify-between items-center border-b border-line pb-3"><div className="flex items-center gap-3"><Portrait name={agent.name} appearance={agent.appearance} age={agent.age} size={44} /><div><div className="display text-[22px] font-semibold">{agent.name}</div><div className="text-[13px] text-drift">at {agent.place} · {agent.coins} coins · reads letters in the morning</div></div></div><LinkButton href="/town" kind="secondary" size={36}>Visit</LinkButton></div>
           <div className="flex flex-col gap-3.5 grow">
             {thread.length === 0 && <p className="text-drift text-sm">Nothing yet. {first} writes when it matters. You can write first, if you want them to know something.</p>}
             {thread.map((m, i) => <div key={i} className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"} ${m.mine && i === thread.length - 1 ? "land" : ""}`}><div className="text-[11px] text-drift">{m.mine ? "you" : first}</div><Bubble mine={m.mine} max={560}>{m.mine ? m.text : `“${m.text}”`}</Bubble>{!m.mine && voices && m.id !== undefined && <button onClick={() => void hear(m.id!)} disabled={hearing === m.id} className="text-[12px] font-bold text-teal hover:underline disabled:opacity-60">{hearing === m.id ? `${first} is reading…` : `Hear it in ${first}'s voice`}</button>}</div>)}

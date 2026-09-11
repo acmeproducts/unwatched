@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Application, Container, Graphics } from "pixi.js";
 import { Citizen, lookFor, type Look, type Pose } from "@/components/world/citizen";
 
-export type InteriorPerson = { id: string; name: string; asleep: boolean; job: string | null; appearance: Record<string, unknown> | null; pose?: "sleep" | "work" | "sit" | "idle" };
+export type InteriorPerson = { id: string; name: string; asleep: boolean; job: string | null; appearance: Record<string, unknown> | null; age?: number; pose?: "sleep" | "work" | "sit" | "idle" };
 
 import { KELP as INK, CREAM as WALL, CREAM_DARK as WALL2, WOOD as FLOOR, WOOD_DARK as FLOOR2, WOOD_DARK as WOOD, TEAL as CLOTH, CORAL, CREAM, GLASS, SAND, DRIFT, LIGHT } from "@/components/world/palette";
 

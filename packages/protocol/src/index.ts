@@ -221,6 +221,8 @@ export const Paper = z.object({
   briefs: z.array(z.object({ headline: z.string().max(120), body: z.string().max(700) })).max(4),
   notices: z.array(z.string().max(240)).max(6),
   scene: PaperScene.optional(),
+  /** The day's seal: a hash of every event of the day, chained to the day before. Anyone with the record can recompute it. */
+  seal: z.object({ day: z.number().int(), hash: z.string(), prev: z.string(), events: z.number().int() }).optional(),
 });
 export type Paper = z.infer<typeof Paper>;
 

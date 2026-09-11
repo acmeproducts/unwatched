@@ -80,6 +80,7 @@ export class FileStore {
   async ledger(ownerId: string, n = 30) { return this.d.ledger.filter((l) => l.owner_id === ownerId).slice(-n).reverse().map(({ delta, reason, ref, at }) => ({ delta, reason, ref, at })); }
   async credit(ownerId: string, delta: number, reason: string, ref: string | null = null): Promise<void> { this.d.ledger.push({ owner_id: ownerId, delta, reason, ref, at: new Date().toISOString() }); this.dirty = true; }
   async allWallets(): Promise<Wallet[]> { return this.d.wallets; }
+  async eventsBetween(from: number, to: number): Promise<TownEvent[]> { return this.d.events.filter((e) => e.t >= from && e.t < to); }
   async saveLook(row: { hash: string; look: string; svg: string; source: string }): Promise<void> { this.d.looks = [...(this.d.looks ?? []).filter((l) => l.hash !== row.hash), { ...row, created_at: new Date().toISOString() }]; this.save(); }
   async loadLook(hash: string): Promise<{ look: string; svg: string } | null> { const l = (this.d.looks ?? []).find((x) => x.hash === hash); return l ? { look: l.look, svg: l.svg } : null; }
   async listLooks(): Promise<{ hash: string; look: string; created_at: string }[]> { return (this.d.looks ?? []).map(({ hash, look, created_at }) => ({ hash, look, created_at })); }

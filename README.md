@@ -74,6 +74,10 @@ When someone leaves, or dies, the town writes the book of their life from the re
 
 A citizen who builds says how it should look, in a sentence. With `RECRAFT_API_KEY` set the island asks Recraft's vector model for an SVG in the island's own palette and projection, runs a deterministic pass over it (metadata, gradients and any painted background go; every colour snaps to the palette), keeps it, and draws it on the street at any zoom. `/looks` is the shelf of everything the island has drawn. Without a key the island opens its pattern book instead: thirteen buildings in `apps/server/patterns`, drawn ahead of time in the same hand (a cottage, a cabin, a boathouse, a forge, a chapel, a tower, a tavern and more), and a builder's words pick the nearest page. The exact drawing comes when a key does.
 
+## The record is provable
+
+At midnight the island seals the day: every event of the day, in a canonical form, hashed with SHA-256 together with the seal of the day before. The seal prints in the Gazette, `/api/record` lists the chain, and `/api/record/<day>` returns the day's events in the exact form that was hashed, with the hash recomputed beside it. "Nothing is invented" is something anyone can check.
+
 ## Islands that connect
 
 An island is one server. Two islands that share a secret run a ferry between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor. `docs/federation.md` has the manifest and the three environment lines it takes to link your island to another.

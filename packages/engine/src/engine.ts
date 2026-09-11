@@ -1,9 +1,10 @@
 import type { Action, ActionProposal, AgentId, PlaceId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan, Child, Passenger } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
-import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext, Gathering } from "./types.ts";
+import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext, Gathering, Seal } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, lookHash, siteName, ISLAND, type WorldPack } from "./world.ts";
 import { retrieve, compress, age, drift } from "./memory.ts";
+import { sha256, canonicalEvent } from "./hash.ts";
 import { validate } from "./validator.ts";
 import { habit } from "./habit.ts";
 import { salience, wantsConversation } from "./salience.ts";
@@ -54,6 +55,8 @@ export class Town {
   mayor: AgentId | null = null; electedDay = 0; works: string[] = [];
   /** What the town will come to, and what it has: weddings, funerals, hearings, elections, feasts. */
   gatherings: Gathering[] = []; wedded = new Set<string>(); private nextGatheringId = 1;
+  /** The chain of seals: one per day, each hashing the day's events and the seal before it. Nothing is invented, and this is how anyone can check. */
+  chain: Seal[] = [];
   t = 0;
   day: number;
   weather: string = "clear";
@@ -207,7 +210,7 @@ export class Town {
     this.papers = [...snap.papers];
     this.laws.splice(0, this.laws.length, ...snap.laws);
     this.children.splice(0, this.children.length, ...(snap.children ?? []));
-    if (snap.civic) { this.mayor = snap.civic.mayor && this.agents.has(snap.civic.mayor) ? snap.civic.mayor : null; this.electedDay = snap.civic.elected; this.works = [...snap.civic.works]; this.gatherings = (snap.civic.gatherings ?? []).map((g) => ({ ...g })); this.wedded = new Set(snap.civic.wedded ?? []); this.nextGatheringId = 1 + Math.max(0, ...this.gatherings.map((g) => g.id)); }
+    if (snap.civic) { this.mayor = snap.civic.mayor && this.agents.has(snap.civic.mayor) ? snap.civic.mayor : null; this.electedDay = snap.civic.elected; this.works = [...snap.civic.works]; this.gatherings = (snap.civic.gatherings ?? []).map((g) => ({ ...g })); this.wedded = new Set(snap.civic.wedded ?? []); this.chain = [...(snap.civic.chain ?? [])]; this.nextGatheringId = 1 + Math.max(0, ...this.gatherings.map((g) => g.id)); }
     this.nextLetterId = 1 + Math.max(0, ...[...this.agents.values()].flatMap((a) => a.letters.map((l) => l.id)));
   }
 
@@ -222,7 +225,7 @@ export class Town {
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
-      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })), civic: { mayor: this.mayor, elected: this.electedDay, works: [...this.works], gatherings: this.gatherings.filter((g) => !g.held).map((g) => ({ ...g })), wedded: [...this.wedded] },
+      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })), civic: { mayor: this.mayor, elected: this.electedDay, works: [...this.works], gatherings: this.gatherings.filter((g) => !g.held).map((g) => ({ ...g })), wedded: [...this.wedded], chain: this.chain.slice(-400) },
     };
   }
 
@@ -750,6 +753,7 @@ export class Town {
       }
     }
     await this.generations();
+    this.wear();
     // debts come due
     for (const a of this.agents.values()) for (const d of a.debts) if (this.t >= d.due && !(d as { nagged?: boolean }).nagged) {
       const lender = this.agents.get(d.to); (d as { nagged?: boolean }).nagged = true; if (!lender) continue;
@@ -759,8 +763,11 @@ export class Town {
     }
     // relationships drift toward indifference when people do not meet
     for (const a of this.agents.values()) for (const r of a.relationships.values()) if (this.t - r.lastSeen > MINUTES_PER_DAY * 2) r.trust += (0.3 - r.trust) * 0.05;
+    // the seal: the day's record, hashed and chained
+    const seal = this.sealDay();
     // the paper
     await this.printPaper();
+    const last = this.papers[this.papers.length - 1]; if (last && last.edition === this.day) last.seal = { day: seal.day, hash: seal.hash, prev: seal.prev, events: seal.events };
     // new day
     this.emit("tick.day", [], undefined, `Day ${this.day} ended.`, 0.02);
     this.day++;
@@ -1099,6 +1106,33 @@ export class Town {
     const g = this.gatherings.filter((x) => !x.held && (x.day > this.day || (x.day === this.day && x.hour >= this.hour))).sort((x, y) => x.day - y.day || x.hour - y.hour)[0]; if (!g) return null;
     const when = g.day === this.day ? `today at ${g.hour}:00` : g.day === this.day + 1 ? `tomorrow at ${g.hour}:00` : `on day ${g.day} at ${g.hour}:00`;
     return `${this.describeGathering(g)}, ${when}, at ${this.places.get(g.place)?.name ?? g.place}; the whole town goes`;
+  }
+  /** Nights wear on a person. What the day did moves the temperament a little: money feeds ambition, a fine feeds caution, a family feeds warmth, hunger eats it, a theft eats honesty, a house or a chair feeds pride. A year here and nobody is who boarded. */
+  private wear(): void {
+    const from = (this.day - 1) * MINUTES_PER_DAY; const today = this.events.filter((e) => e.t >= from);
+    const clampT = (x: number) => Math.max(0.05, Math.min(0.95, x));
+    for (const a of this.agents.values()) {
+      const t = a.persona.traits; const mine = today.filter((e) => e.actors[0] === a.id);
+      const paid = mine.filter((e) => e.kind === "agent.work").length; const took = mine.filter((e) => e.kind === "agent.take").length;
+      const fined = today.some((e) => e.kind === "town.gathering" && e.actors[1] === a.id && /fined|the ferry/.test(e.text)); const robbed = today.some((e) => e.kind === "agent.take" && e.actors[1] === a.id);
+      if (paid >= 1 && a.coins > 40) t.ambition = clampT(t.ambition + 0.004);
+      if (fined || robbed || a.starving >= 2) t.caution = clampT(t.caution + 0.01);
+      if (this.partnerOf(a) || this.children.some((c) => c.parents.includes(a.id))) t.warmth = clampT(t.warmth + 0.003);
+      if (a.starving >= 2) t.warmth = clampT(t.warmth - 0.008);
+      if (took) t.honesty = clampT(t.honesty - 0.02 * took);
+      if (this.mayor === a.id || mine.some((e) => e.kind === "town.built")) t.pride = clampT(t.pride + 0.006);
+      if (mine.some((e) => e.kind === "agent.unpaid") || fined) t.pride = clampT(t.pride - 0.006);
+    }
+  }
+  /** Seal a day: every event of the day in canonical form, hashed with the seal of the day before. The same day, from the same record, always seals the same. */
+  sealDay(day = this.day): Seal {
+    const from = (day - 1) * MINUTES_PER_DAY, to = day * MINUTES_PER_DAY;
+    const events = this.events.filter((e) => e.t >= from && e.t < to).sort((x, y) => x.id - y.id);
+    const prev = this.chain[this.chain.length - 1]?.hash ?? "0".repeat(64);
+    const hash = sha256(prev + "\n" + events.map(canonicalEvent).join("\n"));
+    const seal: Seal = { day, hash, prev, events: events.length, from, to };
+    if (!this.chain.some((s) => s.day === day)) this.chain.push(seal);
+    return seal;
   }
   /** Fire. A storm at night, a forge or an oven worked hard, a lamp in winter: one hour in a few hundred, something catches. The town runs with buckets; the more who come, the less burns. */
   private sparks(h: number): void {

@@ -11,7 +11,7 @@ import { z } from "zod";
 import { Voices, voiceOf, voicesEnabled } from "./voice.ts";
 import { Looks, looksEnabled } from "./looks.ts";
 import { createClient } from "@supabase/supabase-js";
-import { Town, Rng, MINUTES_PER_DAY } from "@ferrytown/engine";
+import { Town, Rng, MINUTES_PER_DAY, sha256, canonicalEvent } from "@ferrytown/engine";
 import type { Brain } from "@ferrytown/engine";
 import { Action, Persona, type TownEvent, Passenger } from "@ferrytown/protocol";
 import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferrytown/cognition";
@@ -428,6 +428,13 @@ app.post("/api/ops/switch", async (c) => {
 });
 app.post("/api/ops/hold/:id", (c) => { if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401); const h = metrics.holds.find((x) => x.id === Number(c.req.param("id"))); if (h) h.done = true; return c.json({ ok: !!h }); });
 app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
+// the record's seals: one hash per day, chained; and the day's events in the exact form that was hashed, so anyone can recompute it
+app.get("/api/record", (c) => c.json({ chain: town.chain.slice(-60), how: "sha256(prev + '\\n' + events.map(canonical).join('\\n')), canonical = JSON [id, t, kind, actors, place|null, text, importance to 3 places], events of the day by id" }));
+app.get("/api/record/:day", async (c) => {
+  const day = Number(c.req.param("day")); const seal = town.chain.find((s) => s.day === day); if (!seal) return c.json({ error: "no seal for that day" }, 404);
+  const inMemory = town.events.filter((e) => e.t >= seal.from && e.t < seal.to); const events = inMemory.length >= seal.events ? inMemory : store ? (await store.eventsBetween(seal.from, seal.to)) : inMemory;
+  return c.json({ seal, events: events.sort((x, y) => x.id - y.id).map(canonicalEvent), recomputed: sha256(seal.prev + "\n" + events.sort((x, y) => x.id - y.id).map(canonicalEvent).join("\n")) });
+});
 // the library: the book of every life that ended here, public like the paper
 app.get("/api/library", async (c) => { const rows = store ? await store.lives() : []; return c.json(rows.map(({ text: _t, ...r }) => ({ ...r, words: _t.split(/\s+/).length }))); });
 app.get("/api/library/:id", async (c) => { const row = store ? await store.life(c.req.param("id")) : null; return row ? c.json(row) : c.json({ error: "no book by that name on the shelf" }, 404); });

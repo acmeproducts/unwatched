@@ -198,6 +198,11 @@ export class TownStore {
     return (data ?? []).map((d) => ({ ownerId: d.owner_id, plan: d.plan, credits: d.credits, stripeCustomer: d.stripe_customer }));
   }
 
+  /** Every event between two minutes, for sealing and verifying a day. */
+  async eventsBetween(from: number, to: number): Promise<TownEvent[]> {
+    const { data } = await this.sb.from("events").select("id, t, day, kind, actors, place, text, importance, payload").eq("town_id", this.townId).gte("t", from).lt("t", to).order("id", { ascending: true }).limit(20000);
+    return (data ?? []).map((r) => ({ id: Number(r.id), t: Number(r.t), day: r.day, kind: r.kind as TownEvent["kind"], actors: r.actors, text: r.text, importance: r.importance, ...(r.place ? { place: r.place } : {}), ...(r.payload ? { payload: r.payload as Record<string, unknown> } : {}) }));
+  }
   /** The drawing of a building a citizen described. */
   async saveLook(row: { hash: string; look: string; svg: string; source: string }): Promise<void> { const { error } = await this.sb.from("looks").upsert({ town_id: this.townId, hash: row.hash, look: row.look, svg: row.svg, source: row.source }, { onConflict: "town_id,hash" }); if (error) console.error("look save failed:", error.message); }
   async loadLook(hash: string): Promise<{ look: string; svg: string } | null> { const { data } = await this.sb.from("looks").select("look, svg").eq("town_id", this.townId).eq("hash", hash).maybeSingle(); return data ? { look: data.look, svg: data.svg } : null; }

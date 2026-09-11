@@ -7,6 +7,7 @@ import { Citizen, lookFor, aged, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
+import { Lighting, WaterFilter, type LightSource } from "./world/fx";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
 
@@ -58,7 +59,7 @@ function lookSvg(hash: string): Promise<string | null> {
 
 type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean };
 
-export function World({ mineId, onSelect, view }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema" }) {
+export function World({ mineId, onSelect, view, effects = false }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema"; effects?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const [labels, setLabels] = useState<{ id: string; name: string; x: number; y: number; mine: boolean; shown: boolean; bubble?: string }[]>([]);
   const [feed, setFeed] = useState<TownEvent[]>([]);
@@ -70,6 +71,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
   const camera = useRef({ x: 0, y: 0, zoom: 1, follow: mineId as string | null });
   const seatOf = useRef(new Map<string, number>());
   const viewRef = useRef(view); viewRef.current = view;
+  const effectsRef = useRef(effects); effectsRef.current = effects;
   const hoverRef = useRef<string | null>(null);
   /** Where the day is happening: the latest moment that mattered, for the camera to follow. */
   const cinema = useRef<{ x: number; y: number; ids: string[]; at: number } | null>(null);
@@ -243,6 +245,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const fog = new Graphics(); fog.zIndex = 210000; scene.addChild(fog);
       const flash = new Graphics(); flash.rect(-3000, -3000, W + 6000, H + 6000).fill(0xffffff); flash.alpha = 0; world.addChild(flash); let nextBolt = 0;
       const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.night); night.alpha = 0; world.addChild(night);
+      // the GPU's share, behind a switch so the old street and the new can be compared: night the lights cut through, and water that moves
+      const lighting = new Lighting(world, W, H); const water = new WaterFilter(); let effectsOn = false;
       const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.dusk); dusk.alpha = 0; world.addChild(dusk);
       const lamps = new Graphics(); lamps.zIndex = 150000; scene.addChild(lamps);
       const caps = new Graphics(); caps.zIndex = 170000; scene.addChild(caps); // snow and rain on the roofs
@@ -398,6 +402,19 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         const nightAmt = (hour < rise - 1 ? 0.42 : hour < rise + 0.5 ? 0.42 * (rise + 0.5 - hour) / 1.5 : hour < set - 0.5 ? 0 : hour < set + 1 ? 0.42 * (hour - (set - 0.5)) / 1.5 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
         const duskAmt = Math.abs(hour - rise) < 1 ? 0.16 * (1 - Math.abs(hour - rise)) : Math.abs(hour - set) < 1 ? 0.2 * (1 - Math.abs(hour - set)) : 0;
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
+        if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; } }
+        if (effectsOn) {
+          const up = hour > rise && hour < set; let lx: number, ly: number, ls: number;
+          if (up) { const f = (hour - rise) / Math.max(1, set - rise); const ang = Math.PI * (1 - f); lx = cx - Rx * 1.05 * Math.cos(ang); ly = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(ang)) - 30; ls = 0.9; }
+          else { lx = W - 220; ly = 90; ls = 0.55 * Math.max(0, (night.alpha - 0.1) / 0.32); }
+          water.update({ time: tick / 60, cam: { x: cam.x, y: cam.y, zoom: cam.zoom }, sun: { x: lx, y: ly, strength: ls * (weather === "storm" ? 0.15 : weather === "rain" || weather === "fog" ? 0.35 : 1) }, color: GROUND.water, deep: GROUND.waterDeep, glint: up ? 0xffe9a8 : 0xd9e3ff, rough, night: Math.min(1, night.alpha / 0.42) });
+          const sources: LightSource[] = [];
+          if (night.alpha > 0.03) {
+            for (const d of decor) if (d.sprite === "lamp") sources.push({ x: d.x, y: d.y - 24, r: 165, color: LIGHT.lamp, strength: 0.95, flicker: 0.06 });
+            for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") sources.push({ x: p.x - 22, y: p.y - 28, r: 95, color: LIGHT.window, strength: 0.8 });
+          }
+          lighting.update(night.alpha, sources, tick);
+        }
         // long shadows near sunrise and sunset
         const lowSun = Math.max(0, 1 - Math.min(Math.abs(hour - rise), Math.abs(hour - set)) / 1.5) * (night.alpha < 0.3 ? 1 : 0);
         if (tick % 10 === 0) redrawShadows(lowSun, hour < 12 ? -1 : 1);

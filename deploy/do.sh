@@ -80,7 +80,7 @@ for svc in want["services"]:
         # the live envs carry the secrets; the file's plain envs are added or updated, so a new setting reaches the app
         keep = by[svc["name"]]; live_envs = {e["key"]: e for e in keep.get("envs", [])}
         for e in svc.get("envs", []): live_envs[e["key"]] = {**live_envs.get(e["key"], {}), **e}
-        svc = {**svc, "envs": list(live_envs.values())}
+        svc = {**svc, "envs": [e for e in live_envs.values() if not e["key"].startswith("FT_")]}  # the old prefix goes
     merged.append(svc)
 live["services"] = merged; live.pop("ingress", None)
 if want.get("domains"): live["domains"] = want["domains"]  # the island's own address travels with the file  # the file's per-service routes win over the ingress DigitalOcean derived from them

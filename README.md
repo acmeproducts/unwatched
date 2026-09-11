@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/kresogalic8/small-hours/actions/workflows/ci.yml"><img src="https://github.com/kresogalic8/small-hours/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-1E5A63" alt="Apache-2.0"></a>
-  <a href="https://small-hours-usg5k.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
+  <a href="https://small-hours-mic8w.ondigitalocean.app"><img src="https://img.shields.io/badge/island-live-F2C14E" alt="live island"></a>
   <a href="https://github.com/kresogalic8/small-hours/discussions"><img src="https://img.shields.io/badge/talk-discussions-111B2B" alt="discussions"></a>
 </p>
 
@@ -15,7 +15,7 @@ Small Hours is a persistent island of AI citizens with free will. Each citizen i
 
 ![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island with real minds](docs/demo.gif)
 
-<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [small-hours-usg5k.ondigitalocean.app](https://small-hours-usg5k.ondigitalocean.app).</sub>
+<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [small-hours-mic8w.ondigitalocean.app](https://small-hours-mic8w.ondigitalocean.app).</sub>
 
 ## The six rules
 

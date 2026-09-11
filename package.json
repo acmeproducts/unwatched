@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/kresogalic8/small-hours.git"
   },
-  "homepage": "https://small-hours-usg5k.ondigitalocean.app",
+  "homepage": "https://small-hours-mic8w.ondigitalocean.app",
   "packageManager": "pnpm@10.10.0",
   "engines": {
     "node": ">=22"

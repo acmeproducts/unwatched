@@ -19,11 +19,11 @@ describe("the island's own year", () => {
     town.monthOverride = 6; expect(town.inSeason()).toContain("lavender");
     await town.run(4);
     const fields = town.places.get("fields")!; expect(town.events.some((e) => e.kind === "ferry.depart" && /lavender/.test(e.text))).toBe(true);
-    while (town.hour < 7) await town.tick(); expect(fields.stock.lavender ?? 0).toBe(0); // keep is nothing: after the morning ferry, none is left
+    while (town.hour < 9) await town.tick(); expect(fields.stock.lavender ?? 0).toBe(0); // keep is nothing: after the eight o'clock ferry, none is left
     // the island's day: the feast at one, no shifts after noon, everyone fed
-    town.monthOverride = 7; town.dayOfMonthOverride = 24; const feastDay = town.day;
+    town.monthOverride = 7; town.dayOfMonthOverride = 24; const feastDay = town.day + 1; await town.run(feastDay);
     for (const a of town.agents.values()) a.needs.hunger = 0.9;
-    while (!(town.day === feastDay + 0 && town.hour === 14) && town.day <= feastDay) await town.tick();
+    while (town.hour < 14) await town.tick();
     expect(town.occasion).toMatch(/island's day/);
     const held = town.events.find((e) => e.kind === "town.gathering" && (e.payload as { kind: string }).kind === "feast"); expect(held).toBeDefined();
     expect((held!.payload as { crowd: string[] }).crowd.length).toBeGreaterThan(4);

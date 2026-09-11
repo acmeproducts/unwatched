@@ -678,6 +678,7 @@ export class Town {
     }
     if (this.economyFrozen) return;
     if (h === 6) { this.cart(); this.prosper(); }
+    if (h === 8) this.sellToMainland();
     const feast = this.feastToday();
     if (h === 9 && feast && this.places.has(feast.place) && !this.gatherings.some((g) => g.kind === "feast" && g.day === this.day)) this.gather("feast", feast.place, this.day, 13, [], feast.name);
     if (h === 9 && (this.dayOfMonth === 1 || (!this.mayor && this.day >= 2)) && !this.gatherings.some((g) => g.kind === "election" && g.day === this.day)) this.gather("election", "council", this.day, 10, [], this.mayor ? "the council chooses its mayor for the month" : "the council chooses the island's first mayor");
@@ -882,15 +883,44 @@ export class Town {
       const seller = from.owner ? this.agents.get(from.owner) : null; if (seller) seller.coins += paid; else from.treasury += paid;
       void cost;
     }
-    // the ferry: whatever is over what a place keeps back goes to the mainland, and the mainland pays; the harbor takes a tenth for the handling
+    // the ferry: whatever is over what a place keeps back goes across the water. Other islands that want it are served first, at seven, by the server; what is left goes to the mainland at eight.
+  }
+  /** What the island could put on the ferry this morning: the surplus above what each place keeps back. */
+  cargoOffers(): { item: string; qty: number; price: number; place: PlaceId }[] {
+    const out: { item: string; qty: number; price: number; place: PlaceId }[] = [];
+    for (const place of this.places.values()) for (const ex of this.pack.exports) { const surplus = (place.stock[ex.item] ?? 0) - ex.keep; if (surplus > 0) out.push({ item: ex.item, qty: surplus, price: ex.price, place: place.id }); }
+    return out;
+  }
+  /** What the island is short of: room on the shelves the cart fills, that the island itself is not filling. */
+  cargoWants(): { item: string; qty: number }[] {
+    const by = new Map<string, number>();
+    for (const line of this.pack.supply) { const to = this.places.get(line.to); if (!to || line.upTo === undefined) continue; const room = line.upTo - (to.stock[line.item] ?? 0); const from = this.places.get(line.from); const local = from ? (from.stock[line.item] ?? 0) : 0; if (room > 0 && local < line.qty) by.set(line.item, Math.max(by.get(line.item) ?? 0, room)); }
+    return [...by.entries()].map(([item, qty]) => ({ item, qty }));
+  }
+  /** Goods leave for another island: the stock goes, the coins come (the buyer's island burned them; this one mints them), the harbor takes a tenth. */
+  ship(items: { item: string; qty: number; price: number; place: PlaceId }[], to: string): number {
     let sold = 0; const took: string[] = []; const harbor = this.places.get("harbor");
-    for (const place of this.places.values()) for (const ex of this.pack.exports) {
-      const surplus = (place.stock[ex.item] ?? 0) - ex.keep; if (surplus <= 0) continue;
-      place.stock[ex.item] = ex.keep; const paid = surplus * ex.price; const cut = Math.floor(paid / 10);
-      const owner = place.owner ? this.agents.get(place.owner) : null; if (owner) owner.coins += paid - cut; else place.treasury += paid - cut;
-      if (harbor) harbor.treasury += cut; this.minted += paid; sold += paid; took.push(`${surplus} ${ex.item} from ${place.name}`);
+    for (const it of items) { const place = this.places.get(it.place); if (!place) continue; const have = place.stock[it.item] ?? 0; const qty = Math.min(it.qty, have); if (qty <= 0) continue; place.stock[it.item] = have - qty; const paid = qty * it.price; const cut = Math.floor(paid / 10); const owner = place.owner ? this.agents.get(place.owner) : null; if (owner) owner.coins += paid - cut; else place.treasury += paid - cut; if (harbor) harbor.treasury += cut; this.minted += paid; sold += paid; took.push(`${qty} ${it.item}`); }
+    if (sold > 0) this.emit(to === "the mainland" ? "ferry.depart" : "ferry.cargo", [], "harbor", `The ${to === "the mainland" ? "morning ferry" : "ferry"} took ${took.join(", ")} to ${to}, for ${sold} coins.`, to === "the mainland" ? 0.2 : 0.35, { to, coins: sold, items: took });
+    return sold;
+  }
+  /** Goods arrive from another island: the shelves that wanted them fill, and their tills pay (the coins leave this island). Returns what was paid; nothing is taken that cannot be paid for. */
+  receive(items: { item: string; qty: number; price: number }[], from: string): { item: string; qty: number }[] {
+    const taken: { item: string; qty: number }[] = []; let paid = 0;
+    for (const it of items) {
+      const line = this.pack.supply.find((l) => l.item === it.item && l.upTo !== undefined); const to = line ? this.places.get(line.to) : null; if (!line || !to) continue;
+      const room = Math.max(0, line.upTo! - (to.stock[it.item] ?? 0)); const buyer = to.owner ? this.agents.get(to.owner) : null; const purse = buyer ? buyer.coins : to.treasury;
+      const qty = Math.min(it.qty, room, Math.floor(purse / it.price)); if (qty <= 0) continue;
+      const cost = qty * it.price; if (buyer) buyer.coins -= cost; else to.treasury -= cost; this.burned += cost; paid += cost;
+      to.stock[it.item] = (to.stock[it.item] ?? 0) + qty; taken.push({ item: it.item, qty });
     }
-    if (sold > 0) this.emit("ferry.depart", [], "harbor", `The morning ferry took ${took.join(", ")} to the mainland, for ${sold} coins.`, 0.2, { coins: sold });
+    if (taken.length) this.emit("ferry.cargo", [], "harbor", `The ferry brought ${taken.map((t) => `${t.qty} ${t.item}`).join(", ")} from ${from}, for ${paid} coins.`, 0.35, { from, coins: paid, items: taken });
+    return taken;
+  }
+  /** What no island wanted goes to the mainland, which always buys. */
+  sellToMainland(): void {
+    const offers = this.cargoOffers(); if (!offers.length) return;
+    const sold = this.ship(offers, "the mainland"); void sold;
   }
 
   /** An old memory in an old head comes back a little wrong, now and then. The record keeps the truth; the person does not. */

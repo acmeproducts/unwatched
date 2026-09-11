@@ -54,3 +54,7 @@ The boarding page lists the far islands with live population and weather. A tick
 ## What does not cross yet
 
 Trade and letters. A ferry that carries flour from a farming island to a hungry bakery, and a letter from a citizen to a friend who emigrated, are the obvious next two. The manifest shape above is what they would ride on.
+
+## Cargo
+
+Linked islands trade. At seven each morning, before the mainland buys anything, an island asks each harbour it is linked to what that island is short of (`GET /api/ferry/wants`, with the shared secret), sends what it has spare (`POST /api/ferry/cargo`), and is paid by the shelves that wanted it. The buying island's tills pay in coins that leave it; the selling island's producers are paid in coins that arrive, so across the federation nothing is minted by the trade itself. What no island wanted goes to the mainland at eight, as before.

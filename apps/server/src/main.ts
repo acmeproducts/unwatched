@@ -113,7 +113,7 @@ async function loop() {
         const plannedAfter = [...town.agents.values()].filter((a) => a.plan?.day === town.day).length;
         if (store && plannedAfter > plannedBefore) void store.snapshot(town).catch((e: Error) => log(`plan snapshot failed: ${e.message}`));
         if (real) { const lag = real.lag(); if (lag > 3) { town.skip(lag); log(`caught up ${lag} minutes with ${real.place.name}`); } realClock.temperatureC = real.state.temperatureC; realClock.sunrise = real.state.sunrise; realClock.sunset = real.state.sunset; }
-        if (town.hour !== lastHour) { lastHour = town.hour; broadcast({ type: "clock", clock: clockOf(town) }); await hourly(); }
+        if (town.hour !== lastHour) { lastHour = town.hour; broadcast({ type: "clock", clock: clockOf(town) }); if (town.hour === 7) await sailCargo(); await hourly(); }
       } catch (err) { log(`tick failed: ${(err as Error).message}`); }
       ticking = false;
     }
@@ -158,6 +158,31 @@ const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a
 const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, ...(p.look ? { look: p.look } : {}), ...(Object.keys(p.stock).length ? { stock: p.stock } : {}), owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
 const childView = (ch: import("@ferrytown/protocol").Child) => ({ id: ch.id, name: ch.name, days: town.day - ch.bornDay, ofAgeIn: Math.max(0, town.ageOfMajority - (town.day - ch.bornDay)), parents: ch.parentNames, home: town.places.get(ch.home)?.name ?? ch.home, orphan: ch.orphan, adopted: !!ch.adoptedBy });
 /** The far end of the ferry. Another island puts a passenger here; they step off at our harbor with what they carry and what they remember. */
+// cargo: another island asks what we are short of, and sends what it has spare; the shelves pay
+app.get("/api/ferry/wants", (c) => (!FERRY_SECRET || c.req.header("x-ferry") !== FERRY_SECRET) ? c.json({ error: "this harbor takes no ferries from there" }, 403) : c.json({ island: TOWN_NAME, wants: town.cargoWants() }));
+app.post("/api/ferry/cargo", async (c) => {
+  if (!FERRY_SECRET || c.req.header("x-ferry") !== FERRY_SECRET) return c.json({ error: "this harbor takes no ferries from there" }, 403);
+  if (!town.ferryRunning) return c.json({ error: "no crossing today" }, 503);
+  const body = z.object({ from: z.string().max(80), items: z.array(z.object({ item: z.string().max(40), qty: z.number().int().positive(), price: z.number().int().positive() })).max(20) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "bad manifest" }, 400);
+  return c.json({ taken: town.receive(body.data.items, body.data.from) });
+});
+/** At seven each morning, before the mainland, the ferry runs our surplus to any linked island that is short of it. */
+async function sailCargo(): Promise<void> {
+  if (!HARBORS.length || !FERRY_SECRET || !town.ferryRunning) return;
+  for (const h of HARBORS) {
+    try {
+      const offers = town.cargoOffers(); if (!offers.length) return;
+      const res = await fetch(`${h.url}/api/ferry/wants`, { headers: { "X-Ferry": FERRY_SECRET }, signal: AbortSignal.timeout(8000) }); if (!res.ok) continue;
+      const { wants } = (await res.json()) as { wants: { item: string; qty: number }[] };
+      const load = offers.flatMap((o) => { const w = wants.find((x) => x.item === o.item); return w ? [{ ...o, qty: Math.min(o.qty, w.qty) }] : []; }); if (!load.length) continue;
+      const sent = await fetch(`${h.url}/api/ferry/cargo`, { method: "POST", headers: { "Content-Type": "application/json", "X-Ferry": FERRY_SECRET }, body: JSON.stringify({ from: TOWN_NAME, items: load.map(({ item, qty, price }) => ({ item, qty, price })) }), signal: AbortSignal.timeout(8000) });
+      if (!sent.ok) continue;
+      const { taken } = (await sent.json()) as { taken: { item: string; qty: number }[] };
+      town.ship(load.flatMap((o) => { const t = taken.find((x) => x.item === o.item); return t ? [{ ...o, qty: t.qty }] : []; }), h.name);
+    } catch (err) { log(`cargo to ${h.id}: ${(err as Error).message}`); }
+  }
+}
 app.post("/api/ferry/arrive", async (c) => {
   if (!FERRY_SECRET || c.req.header("x-ferry") !== FERRY_SECRET) return c.json({ error: "this harbor takes no ferries from there" }, 403);
   if (!town.ferryRunning) return c.json({ error: town.ferryHeld ? "the ferry is held" : "no crossing in this storm" }, 503);

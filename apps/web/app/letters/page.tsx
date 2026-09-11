@@ -2,20 +2,27 @@
 import { useEffect, useState } from "react";
 import { Page, Card, Label, Bubble, Button, Dot, LinkButton } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { api, clock, type TownEvent } from "@/lib/api";
+import { api, apiBlob, clock, type TownEvent } from "@/lib/api";
 import { useMyAgent } from "@/lib/useAgent";
 import { Loading, SignedOut, NoAgent } from "@/components/states";
 
 export default function Letters() {
   const { agent, reason } = useMyAgent();
-  const [thread, setThread] = useState<{ t: number; mine: boolean; text: string }[]>([]);
+  const [thread, setThread] = useState<{ t: number; mine: boolean; text: string; id?: number }[]>([]);
+  const [voices, setVoices] = useState(false); const [hearing, setHearing] = useState<number | null>(null); const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  useEffect(() => { void api<{ voices?: boolean }>("/api/town").then((c) => setVoices(!!c.voices)).catch(() => {}); }, []);
+  async function hear(id: number) {
+    setHearing(id); setVoiceErr(null);
+    try { const blob = await apiBlob(`/api/events/${id}/voice`); const url = URL.createObjectURL(blob); const audio = new Audio(url); audio.onended = () => { setHearing(null); URL.revokeObjectURL(url); }; await audio.play(); }
+    catch (e) { setVoiceErr((e as Error).message); setHearing(null); }
+  }
   const [draft, setDraft] = useState(""); const [busy, setBusy] = useState(false); const [toast, setToast] = useState<string | null>(null);
   const [instr, setInstr] = useState<string | null>(null); const [savedInstr, setSavedInstr] = useState<string | null>(null);
   async function saveInstr() { if (!agent || instr === null) return; try { await api(`/api/agents/${agent.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instr }) }); setSavedInstr("Saved. Read tomorrow morning."); setTimeout(() => setSavedInstr(null), 3000); } catch (e) { setSavedInstr((e as Error).message); } }
   async function load() {
     if (!agent) return;
     const evs = await api<TownEvent[]>(`/api/agents/${agent.id}/events?since=0`);
-    const fromAgent = evs.filter((e) => e.kind === "agent.letter").map((e) => ({ t: e.t, mine: false, text: String(e.payload?.text ?? e.text) }));
+    const fromAgent = evs.filter((e) => e.kind === "agent.letter").map((e) => ({ t: e.t, mine: false, text: String(e.payload?.text ?? e.text), id: e.id }));
     const toAgent = agent.letters.map((l) => ({ t: l.t, mine: true, text: l.text }));
     setThread([...fromAgent, ...toAgent].sort((a, b) => a.t - b.t));
   }
@@ -37,7 +44,8 @@ export default function Letters() {
           <div className="flex justify-between items-center border-b border-line pb-3"><div><div className="display text-[22px] font-semibold">{agent.name}</div><div className="text-[13px] text-drift">at {agent.place} · {agent.coins} coins · reads letters in the morning</div></div><LinkButton href="/town" kind="secondary" size={36}>Visit</LinkButton></div>
           <div className="flex flex-col gap-3.5 grow">
             {thread.length === 0 && <p className="text-drift text-sm">Nothing yet. {first} writes when it matters. You can write first, if you want them to know something.</p>}
-            {thread.map((m, i) => <div key={i} className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"} ${m.mine && i === thread.length - 1 ? "land" : ""}`}><div className="text-[11px] text-drift">{m.mine ? "you" : first}</div><Bubble mine={m.mine} max={560}>{m.mine ? m.text : `“${m.text}”`}</Bubble></div>)}
+            {thread.map((m, i) => <div key={i} className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"} ${m.mine && i === thread.length - 1 ? "land" : ""}`}><div className="text-[11px] text-drift">{m.mine ? "you" : first}</div><Bubble mine={m.mine} max={560}>{m.mine ? m.text : `“${m.text}”`}</Bubble>{!m.mine && voices && m.id !== undefined && <button onClick={() => void hear(m.id!)} disabled={hearing === m.id} className="text-[12px] font-bold text-teal hover:underline disabled:opacity-60">{hearing === m.id ? `${first} is reading…` : `Hear it in ${first}'s voice`}</button>}</div>)}
+            {voiceErr && <p className="text-xs text-coral">{voiceErr}</p>}
           </div>
           <div className="flex flex-col gap-2 mt-auto"><textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={`Write to ${first}. Advice, not orders.`} className="rounded-[20px] bg-sand px-[18px] py-3.5 min-h-[88px] text-[15px]" /><div className="flex justify-between items-center"><span className="text-xs text-drift">{toast ?? `Advice, not orders. ${first} decides.`}</span><Button disabled={busy || !draft.trim()} onClick={send}><Icon name="send" size={20} />Send the letter</Button></div></div>
         </div>

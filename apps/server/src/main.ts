@@ -8,6 +8,7 @@ import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { WebSocketServer, type WebSocket } from "ws";
 import { z } from "zod";
+import { Voices, voiceOf, voicesEnabled } from "./voice.ts";
 import { createClient } from "@supabase/supabase-js";
 import { Town, Rng, MINUTES_PER_DAY } from "@ferrytown/engine";
 import type { Brain } from "@ferrytown/engine";
@@ -257,6 +258,18 @@ app.get("/api/agents/:id/book", async (c) => {
   if (!live) return c.json({ error: "nobody by that name" }, 404);
   const life = store ? await store.lifeOf(id) : { events: town.events.filter((e) => e.actors.includes(id)), memories: live.memory, letters: [] };
   return c.json({ id, name: live.persona.name, persona: live.persona, arrivedT: live.arrivedAt, leftT: null, ...life });
+});
+// voices: a letter home, read aloud in the writer's own voice, for the owner who asked
+const voices = new Voices(resolve(process.env.FT_DATA_DIR ?? "out/town", "voices", TOWN_ID));
+app.get("/api/events/:id/voice", async (c) => {
+  if (!voicesEnabled()) return c.json({ error: "this island has no voices; set GEMINI_API_KEY" }, 503);
+  const id = Number(c.req.param("id")); const e = town.events.find((x) => x.id === id && x.kind === "agent.letter");
+  if (!e || !e.actors[0]) return c.json({ error: "no such letter" }, 404);
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  const a = town.agents.get(e.actors[0]); if (!a || !owns(a, owner)) return c.json({ error: "not your agent's letter" }, 403);
+  const text = String((e.payload as { text?: string } | undefined)?.text ?? e.text);
+  try { const buf = await voices.read(`${TOWN_ID}-${id}`, a.persona, text); return new Response(new Uint8Array(buf), { headers: { "Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400", "X-Voice": voiceOf(a.persona.name) } }); }
+  catch (err) { log(`voice for letter ${id}: ${(err as Error).message}`); return c.json({ error: (err as Error).message }, 502); }
 });
 app.get("/api/moments/:id", (c) => {
   const id = Number(c.req.param("id")); const e = town.events.find((x) => x.id === id);

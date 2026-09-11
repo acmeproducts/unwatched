@@ -4,6 +4,12 @@ import { authHeaders } from "./auth";
 export const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 export const WS = API.replace(/^http/, "ws") + "/stream";
 
+/** A binary answer from the ferry office, with the same sign-in: a voice, a file. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${API}${path}`, { headers: await authHeaders(), cache: "no-store" });
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error((body as { error?: string }).error ?? `The ferry office answered ${res.status}.`); }
+  return res.blob();
+}
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = { "Content-Type": "application/json", ...(await authHeaders()), ...(init?.headers as Record<string, string> | undefined) };
   const res = await fetch(`${API}${path}`, { ...init, headers, cache: "no-store" });
@@ -27,4 +33,4 @@ export type Digest = { written: { text: string; headline: string } | null; headl
 export type PaperScene = { place: string; placeName: string; sprite: string; actors: string[]; hour: number; weather: string; caption: string };
 export type Paper = { edition: number; date: string; weather: string; lead: { headline: string; deck: string; body: string }; briefs: { headline: string; body: string }[]; notices: string[]; scene?: PaperScene };
 export type Life = { agentId: string; name: string; title: string; text?: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; words?: number };
-export type Clock = { t: number; day: number; minute: number; hour: number; label: string; weather: string; season: string; population: number; flourShortage: boolean; weekday?: string; occasion?: string | null; place?: string; temperatureC?: number | null; sunrise?: string | null; sunset?: string | null };
+export type Clock = { t: number; day: number; minute: number; hour: number; label: string; weather: string; season: string; population: number; flourShortage: boolean; weekday?: string; occasion?: string | null; voices?: boolean; place?: string; temperatureC?: number | null; sunrise?: string | null; sunset?: string | null };

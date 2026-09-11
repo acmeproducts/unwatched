@@ -19,6 +19,7 @@ export function looksEnabled(): boolean { return !!process.env.RECRAFT_API_KEY; 
 
 /** The pattern book: buildings drawn ahead of time, in the island's hand, for the looks people most often ask for. Each pattern is a file in apps/server/patterns and a few words that call it. */
 export const PATTERNS: { name: string; words: RegExp }[] = [
+  { name: "tower", words: /tower|lookout|watch|lighthouse|tall/ },
   { name: "boathouse", words: /boat|harbou?r|pier|jetty|dock/ },
   { name: "fishhut", words: /fish|net|hut on posts|stilt/ },
   { name: "smokehouse", words: /smoke|cur(e|ing)|kiln/ },
@@ -26,8 +27,7 @@ export const PATTERNS: { name: string; words: RegExp }[] = [
   { name: "chapel", words: /chapel|church|bell|shrine|temple/ },
   { name: "warehouse", words: /warehouse|store ?room|storage|depot|barn|granar/ },
   { name: "granary", words: /granary|grain|silo/ },
-  { name: "tower", words: /tower|lookout|watch|lighthouse|tall/ },
-  { name: "tavern", words: /tavern|inn|bar|cafe|café|pub|drink|awning/ },
+  { name: "tavern", words: /tavern|inn\b|bar\b|cafe|café|pub|drink|awning|soup|food|bread|eat|sell/ },
   { name: "workshop", words: /workshop|carpent|joiner|sawy|wood|bench|studio|atelier/ },
   { name: "bathhouse", words: /bath|spa|steam|wash/ },
   { name: "cabin", words: /cabin|log|timber|wooden/ },

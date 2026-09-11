@@ -1,4 +1,4 @@
-import type { LifeText, DayPlan, DigestText, Child } from "@ferrytown/protocol";
+import type { LifeText, DayPlan, DigestText, Child, Judgement } from "@ferrytown/protocol";
 import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@ferrytown/protocol";
 
 export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic" | "plot" | "wild";
@@ -106,6 +106,13 @@ export interface AgentState {
   convictions: number;
   /** Other people's secrets this person has learned, by whose id. */
   secretsKnown: Record<AgentId, string>;
+  /** What they chose to keep an eye on: names of people, places, things. Their attention goes there. */
+  watch: string[];
+  /** Who they were before they rewrote themselves: each earlier self, with the day it ended. */
+  selves: { day: number; summary: string; want: string; fear: string; strangers: string; advice: string }[];
+  lastSelfDay: number;
+  /** Free deeds today; bounded, because each one is a thought of the town's. */
+  doToday: number;
   /** Someone this person went over to talk with this minute; the next conversation pairs them. */
   seek: AgentId | null;
 }
@@ -174,7 +181,10 @@ export interface Brain {
   writePaper(ctx: PaperContext): Promise<Paper>;
   /** The book of a life, written by the town when someone leaves it. */
   life(ctx: LifeContext): Promise<LifeText>;
+  /** The referee: what a free deed came to, within the rules. The town's mind, never a private one. */
+  judge(ctx: JudgeContext): Promise<Judgement>;
 }
+export interface JudgeContext { agent: AgentState; what: string; withName: string | null; place: string; placeKind: string; hour: number; weather: string; nearby: string[]; inventory: string[]; coins: number; stock: string[] }
 
 export type EventSink = (e: TownEvent) => void;
 
@@ -189,7 +199,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number; secretsKnown?: Record<AgentId, string>;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number; secretsKnown?: Record<AgentId, string>; watch?: string[]; selves?: AgentState["selves"]; lastSelfDay?: number;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

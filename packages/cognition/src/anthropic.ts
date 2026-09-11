@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, judgeSystem, judgePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
 
 export interface AnthropicBrainOptions {
   routine?: string;   // tier 1
@@ -119,6 +119,13 @@ export class AnthropicBrain implements Brain {
       if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.writePaper(ctx);
       return res.parsed_output;
     } catch (err) { return this.handle(err, () => this.fallback.writePaper(ctx)); }
+  }
+  async judge(ctx: JudgeContext): Promise<Judgement> {
+    try {
+      const res = await this.client.messages.parse({ model: this.routine, max_tokens: 400, system: judgeSystem, messages: [{ role: "user", content: judgePrompt(ctx) }], output_config: { format: zodOutputFormat(Judgement) } });
+      if (res.stop_reason === "refusal" || !res.parsed_output) return this.fallback.judge(ctx);
+      return res.parsed_output;
+    } catch (err) { return this.handle(err, () => this.fallback.judge(ctx)); }
   }
   async life(ctx: LifeContext): Promise<LifeText> {
     try {

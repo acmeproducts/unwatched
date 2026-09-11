@@ -6,7 +6,7 @@ import type { Perception, ActionProposal, Persona } from "@ferrytown/protocol";
 const persona = (name: string): Persona => ({ name, age: 30, origin: "the mainland", summary: "A settled person.", want: "a family", fear: "loneliness", secret: "none", strangers: "warm", advice: "listens", traits: { warmth: 0.8, pride: 0.3, caution: 0.5, honesty: 0.8, ambition: 0.4 } });
 /** A brain that does nothing but name the children. */
 const quiet: Brain = {
-  name: "quiet",
+  name: "quiet", async judge() { return { happened: "it passed", plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases: null, trust: [] }; },
   async decide(_p: Perception, _a: AgentState, _t: Tier): Promise<ActionProposal> { return { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async reflect() { return { summary: "a day", insights: [], opinions: [], intentions: [], letter_to_owner: null }; },
   async plan() { return { mood: "settled", goals: ["keep the house"], steps: [{ hour: 9, do: "stay home", place: null }] }; },

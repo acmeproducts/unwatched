@@ -4,7 +4,7 @@ import type { Brain } from "../src/index.ts";
 
 /** A brain that only writes: the paper and the book. Everything else is habit. */
 const scribe: Brain = {
-  name: "scribe",
+  name: "scribe", async judge() { return { happened: "it passed", plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases: null, trust: [] }; },
   async decide() { return { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async reflect() { throw new Error("no"); }, async plan() { throw new Error("no"); },
   async digest() { return { text: "", headline: "" }; }, async child() { throw new Error("no"); },

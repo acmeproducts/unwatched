@@ -1,5 +1,5 @@
-import type { LifeText, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext } from "@ferrytown/engine";
+import type { LifeText, Judgement, ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Persona, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@ferrytown/engine";
 import { Rng } from "@ferrytown/engine";
 
 /**
@@ -154,6 +154,11 @@ export class MockBrain implements Brain {
       briefs: evs.slice(1, 5).map((e) => ({ headline: headline(e.text), body: e.text.slice(0, 400) })),
       notices: [`Population ${ctx.population}. ${ctx.arrivals} arrived, ${ctx.departures} left.`, ...ctx.laws.slice(0, 2).map((l) => `Proposed at the council: ${l}`), `Weather: ${ctx.weather}.`].slice(0, 6),
     };
+  }
+  async judge(ctx: JudgeContext): Promise<Judgement> {
+    // the plain referee: it happened, it cost nothing, it made nothing; a meal-shaped deed eases hunger, a rest-shaped one rest, company eases company
+    const w = ctx.what.toLowerCase(); const eases = /eat|cook|soup|bread|fish/.test(w) ? "hunger" : /rest|nap|sit|lie/.test(w) ? "rest" : /talk|sing|play|dance|drink|join/.test(w) ? "social" : null;
+    return { happened: `${ctx.agent.persona.name} did, and it passed the minute.`, plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases, trust: [] };
   }
   async life(ctx: LifeContext): Promise<LifeText> {
     const days = ctx.day - ctx.arrivedDay; const p = ctx.persona;

@@ -102,6 +102,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "propose": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "proposals are made at the council hall" };
     case "vote": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "votes are cast at the council hall" };
     case "write": return { ok: true };
+    case "do": { if (a.doToday >= 6) return { ok: false, reason: "enough for one day; the town has heard you six times" }; if (action.with) { const b = v.agents.get(action.with) ?? [...v.agents.values()].find((x) => x.persona.name.toLowerCase() === action.with!.toLowerCase()); if (!b) return { ok: false, reason: "nobody by that name" }; if (b.location !== a.location) return { ok: false, reason: `${b.persona.name} is not here` }; } return { ok: true }; }
     case "search": {
       if (!here.beds && here.kind !== "home") return { ok: false, reason: "nobody keeps their things here" };
       const residents = v.residentsOf ? v.residentsOf(here).filter((r) => r.id !== a.id) : [];

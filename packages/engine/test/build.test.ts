@@ -17,7 +17,7 @@ const builder: Brain = {
   async digest() { return { text: "a day", headline: "A day" }; },
   async child() { throw new Error("no"); },
   async writePaper() { throw new Error("no"); },
-  async life() { throw new Error("no"); },
+  async life() { throw new Error("no"); }, async judge() { return { happened: "it passed", plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases: null, trust: [] }; },
 };
 
 describe("building", () => {

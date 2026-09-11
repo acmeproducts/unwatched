@@ -4,7 +4,7 @@ import type { Brain } from "../src/index.ts";
 
 /** A brain that only names children, so the nightly generations run and a couple can marry. */
 const quiet: Brain = {
-  name: "quiet", async decide() { return { action: { kind: "wait" }, remember: [] }; },
+  name: "quiet", async judge() { return { happened: "it passed", plausible: true, coins_spent: 0, item_gained: null, item_lost: null, eases: null, trust: [] }; }, async decide() { return { action: { kind: "wait" }, remember: [] }; },
   async converse() { throw new Error("no"); }, async reflect() { throw new Error("no"); }, async plan() { throw new Error("no"); },
   async digest() { return { text: "", headline: "" }; }, async child() { throw new Error("no children in this test"); }, async writePaper() { return { edition: 1, date: "d", weather: "clear", lead: { headline: "h", deck: "d", body: "b" }, briefs: [], notices: [] }; }, async life() { return { title: "t", text: "x", epitaph: "Loved the sea." }; },
 };

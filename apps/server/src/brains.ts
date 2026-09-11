@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import type { WebSocket } from "ws";
-import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Perception, Persona, Reflection } from "@ferrytown/protocol";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, LifeText, Judgement, Perception, Persona, Reflection } from "@ferrytown/protocol";
 import { ActionProposal as ActionProposalSchema, DayPlan as DayPlanSchema, Reflection as ReflectionSchema } from "@ferrytown/protocol";
-import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
+import type { AgentState, Brain, ChildContext, ConverseContext, DigestContext, PaperContext, LifeContext, JudgeContext, PlanContext, ReflectContext, Tier } from "@ferrytown/engine";
 import { MockBrain, OpenRouterBrain } from "@ferrytown/cognition";
 import type { BrainRow } from "@ferrytown/store";
 
@@ -33,6 +33,7 @@ export class OwnKeyBrain implements Brain {
   async child(ctx: ChildContext): Promise<Persona> { return this.inner.child(ctx); }
   async writePaper(ctx: PaperContext): Promise<Paper> { return this.inner.writePaper(ctx); }
   async life(ctx: LifeContext): Promise<LifeText> { return this.inner.life(ctx); }
+  async judge(ctx: JudgeContext): Promise<Judgement> { return this.inner.judge(ctx); }
   status() { return { spentToday: Math.round(this.spentToday * 100) / 100, calls: this.last.calls }; }
 }
 
@@ -96,6 +97,7 @@ export class OwnBrain implements Brain {
   async child(ctx: ChildContext): Promise<Persona> { return this.fallback.child(ctx); }
   async writePaper(ctx: PaperContext): Promise<Paper> { return this.fallback.writePaper(ctx); } // the paper is the town's, never one brain's
   async life(ctx: LifeContext): Promise<LifeText> { return this.fallback.life(ctx); }
+  async judge(ctx: JudgeContext): Promise<Judgement> { return this.fallback.judge(ctx); } // the referee is the town's, never one brain's
   status() {
     const sorted = [...this.latencies].sort((a, b) => a - b);
     return { connected: this.connected, lastHeartbeat: this.lastHeartbeat, answered: this.answered, missed: this.missed, medianMs: sorted.length ? sorted[Math.floor(sorted.length / 2)] : null, exchanges: this.exchanges.slice(-5) };
@@ -123,6 +125,7 @@ export class BrainRouter implements Brain {
   child(ctx: ChildContext) { return this.town.child(ctx); }
   writePaper(ctx: PaperContext) { return this.town.writePaper(ctx); }
   life(ctx: LifeContext) { return this.town.life(ctx); }
+  judge(ctx: JudgeContext) { return this.town.judge(ctx); }
 }
 
 export const newToken = () => `ft_agent_${randomBytes(18).toString("base64url")}`;

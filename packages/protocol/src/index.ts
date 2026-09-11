@@ -36,7 +36,7 @@ export const ActionKind = z.enum([
   "move", "say", "give", "take", "use", "work", "apply", "quit", "trade",
   "propose", "vote", "write", "build", "message_owner", "sleep", "wait",
   "hire", "lend", "lodge", "leave",
-  "fund", "accuse", "search",
+  "fund", "accuse", "search", "do",
 ]);
 export type ActionKind = z.infer<typeof ActionKind>;
 
@@ -58,6 +58,8 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("write"), title: z.string().max(80), text: z.string().max(2000), about: AgentRef.optional() }),
   /** Go through someone's things where they sleep, while they are out. You learn what nobody knows; anyone present sees you do it. */
   z.object({ kind: z.literal("search") }),
+  /** Anything not on the list, in your own words. The town decides what it comes to, within the rules: it takes your minute, it may cost you, it never makes coins. */
+  z.object({ kind: z.literal("do"), what: z.string().min(3).max(200), with: AgentRef.optional() }),
   /** Build on the plot you stand on. "what" is the kind of place (a house, a shop, a workshop); "look" is how it should look, in a sentence, and the island draws it that way. */
   z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId, name: z.string().max(60).optional(), look: z.string().max(200).optional() }),
   z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
@@ -133,6 +135,8 @@ export const Perception = z.object({
     /** Days without a proper meal, and whether the body has begun to fail. */
     days_hungry: z.number().int().optional(), weak: z.boolean().optional(),
     mayor: z.boolean().optional(), convictions: z.number().int().optional(),
+    /** What this person chose to keep an eye on. */
+    watching: z.array(z.string()).optional(),
     /** Secrets learned by going through someone's things, or read in an exposé. Heavy to carry; heavier to use. */
     knows: z.array(z.object({ who: z.string(), secret: z.string() })).optional(),
     owns: z.array(z.string()).optional(),
@@ -169,7 +173,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "town.gathering", "town.fire", "ferry.cargo", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
+  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "town.gathering", "town.fire", "ferry.cargo", "agent.do", "agent.became", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 
@@ -193,6 +197,10 @@ export const Reflection = z.object({
   opinions: z.array(z.object({ about: AgentRef, opinion: z.string().max(600), trust_delta: z.number().min(-0.3).max(0.3) })).max(5),
   intentions: z.array(z.string().max(240)).max(3),
   letter_to_owner: z.string().max(1200).nullable(),
+  /** If the day changed who you are, the parts of yourself you would now write differently. Most nights this is empty. */
+  self: z.object({ summary: z.string().max(400).optional(), want: z.string().max(240).optional(), fear: z.string().max(240).optional(), strangers: z.string().max(240).optional(), advice: z.string().max(240).optional() }).optional(),
+  /** What you mean to keep an eye on: a few names of people, places or things. Your attention goes where you put it. */
+  watch: z.array(z.string().max(60)).max(4).optional(),
 });
 export type Reflection = z.infer<typeof Reflection>;
 
@@ -230,4 +238,15 @@ export type Paper = z.infer<typeof Paper>;
 export const LifeText = z.object({ title: z.string().max(90), text: z.string().max(2800), epitaph: z.string().max(140) });
 export type LifeText = z.infer<typeof LifeText>;
 
-export const OPTIONS_DEFAULT: ActionKind[] = ["move", "say", "give", "take", "use", "work", "apply", "quit", "trade", "propose", "vote", "write", "message_owner", "sleep", "wait"];
+export const OPTIONS_DEFAULT: ActionKind[] = ["move", "say", "give", "take", "use", "work", "apply", "quit", "trade", "propose", "vote", "write", "message_owner", "sleep", "wait", "do"];
+/** What the town's own mind decides a free deed came to. Bounded: coins can only be spent, never made. */
+export const Judgement = z.object({
+  happened: z.string().max(240),
+  plausible: z.boolean(),
+  coins_spent: z.number().int().min(0).max(20).default(0),
+  item_gained: z.string().max(24).nullable().default(null),
+  item_lost: z.string().max(24).nullable().default(null),
+  eases: z.enum(["hunger", "rest", "social"]).nullable().default(null),
+  trust: z.array(z.object({ who: AgentRef, delta: z.number().min(-0.2).max(0.2) })).max(3).default([]),
+});
+export type Judgement = z.infer<typeof Judgement>;

@@ -1,10 +1,11 @@
 import type { Perception } from "@ferrytown/protocol";
-import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext, LifeContext } from "@ferrytown/engine";
+import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext, LifeContext, JudgeContext } from "@ferrytown/engine";
 
 /** One set of prompts for every brain, so a hosted agent and an own-key agent are the same person. */
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
 Rules of the island, which are physics, not advice:
 - Land can be bought and built on. A house or a shop takes coins and mornings of work. What you build is yours: you sleep free, rent and takings come to you, and you pay anyone you employ.
+- For anything not on the list, "do" it in your own words, alone or with someone here. The town decides what it comes to within the rules: it takes your minute, it may cost you, it never makes coins, and whoever is here sees it. Six a day.
 - To build, stand on a plot and "build" with what (a house, a shop, a workshop, a boathouse...) and a look: one sentence of how it should look. The island draws it that way, and it is yours.
 - To speak, "say" with text. To go and talk with someone properly, "say" with only their name: the town then lets the two of you talk, turn by turn.
 - Secrets have weight. Where someone sleeps, while they are out, you can search their things and learn what nobody knows; anyone present sees you do it, and tells. Write about someone whose secret you know and it is an exposé: the island reads it by evening, they know who wrote it, and the honest think less of you for it.
@@ -62,7 +63,7 @@ export const conversePrompt = {
 
 export function reflectPrompt(ctx: ReflectContext): string {
   const a = ctx.agent;
-  return `It is midnight after day ${ctx.day}. Reflect on the day as this person, in first person. What happened that mattered: ${ctx.dayMemories.join(" | ") || "nothing"}. What you keep coming back to: ${ctx.keyMemories.join(" | ") || "nothing"}. People you know, with your current trust in them: ${ctx.relationships.map((r) => `${r.name} (${r.id}) trust ${r.trust.toFixed(2)}${r.opinion ? `, "${r.opinion}"` : ""}`).join("; ") || "nobody yet"}. You have ${a.coins} coins, ${a.job ? "a job" : "no job"}, and ${a.home ? `${a.home.nightsPaid} nights paid` : "no roof"}.\nWrite a summary, up to three insights, opinion changes about people you actually dealt with today (with a trust delta), up to three intentions for tomorrow phrased as things you will actually do, and a letter to whoever sent you only if you genuinely have something to ask or say. Most nights the letter is null. Answer with JSON only.`;
+  return `It is midnight after day ${ctx.day}. Reflect on the day as this person, in first person. What happened that mattered: ${ctx.dayMemories.join(" | ") || "nothing"}. What you keep coming back to: ${ctx.keyMemories.join(" | ") || "nothing"}. People you know, with your current trust in them: ${ctx.relationships.map((r) => `${r.name} (${r.id}) trust ${r.trust.toFixed(2)}${r.opinion ? `, "${r.opinion}"` : ""}`).join("; ") || "nobody yet"}. You have ${a.coins} coins, ${a.job ? "a job" : "no job"}, and ${a.home ? `${a.home.nightsPaid} nights paid` : "no roof"}.\nWrite a summary, up to three insights, opinion changes about people you actually dealt with today (with a trust delta), up to three intentions for tomorrow phrased as things you will actually do, and a letter to whoever sent you only if you genuinely have something to ask or say. Most nights the letter is null. Then two things about who you are becoming: "watch", up to four names of people, places or things you mean to keep an eye on (your attention goes where you put it); and "self", only if the day changed who you are: the parts of yourself (summary, want, fear, strangers, advice) you would now write differently, in first person plain words. Most nights "self" is left out. Answer with JSON only.`;
 }
 
 export const paperSystem = `You are the editor of the Gazette, the newspaper of Ferry Town, a small island harbor town. You write from the record of the day, plainly, specifically, in the town's own voice: names, times, coins, streets. No exclamation marks. You may have opinions but you attribute them. Nothing is invented; every line comes from an event given to you. Answer with JSON only.`;
@@ -81,6 +82,14 @@ What happened, in order:
 ${ctx.events.map((e) => `- ${e}`).join("\n") || "- (a quiet life; nothing of note on the record)"}
 What they thought, in their own words:
 ${ctx.memories.map((m) => `- ${m}`).join("\n") || "- (they kept their thoughts to themselves)"}`;
+}
+
+export const judgeSystem = `You are the town of Ferry Town deciding what a citizen's free act came to. You are a referee, not a storyteller: plain, specific, in one or two sentences, in the past tense, third person. The rules: an act takes a minute; it may cost coins the person has (spent at the place) but never makes coins; it may gain one ordinary thing that could plausibly be found or made here from what is on hand, or lose one the person carries; it may ease hunger, rest or company a little; it may move how those present feel about the person by a little. Anything the rules or the place make impossible is not plausible: say so, and say what happened instead. Answer with JSON only.`;
+export function judgePrompt(ctx: JudgeContext): string {
+  const a = ctx.agent;
+  return `${a.persona.name} (${a.persona.age}, ${a.persona.origin}) at ${ctx.place} (${ctx.placeKind}) at ${ctx.hour}:00, ${ctx.weather}${ctx.withName ? `, with ${ctx.withName}` : ""}. Present: ${ctx.nearby.join(", ") || "nobody"}. Carrying: ${ctx.inventory.join(", ") || "nothing"}. Coins: ${ctx.coins}. On hand here: ${ctx.stock.join(", ") || "nothing in particular"}.
+They: ${ctx.what}
+What did it come to?`;
 }
 
 export const digestSystem = `You write the daily reading an owner gets about the person they sent to Ferry Town, a small island harbor town. You are not that person; you are the town telling the owner what happened. Three or four sentences, plain and specific: names, places, coins, hours. Lead with what mattered most. If a letter was written to the owner, say so and quote a few words. If nothing happened, say what the day was like instead of apologising. No exclamation marks, no advice, nothing invented: every fact comes from the record you are given. Also give a headline of at most eight words, no full stop. Answer with JSON only.`;

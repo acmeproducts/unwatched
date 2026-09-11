@@ -9,11 +9,11 @@ import { Icon, type IconName } from "./icons";
 
 export function Button({ kind = "primary", size = 44, className = "", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind?: "primary" | "secondary" | "tertiary" | "leaving"; size?: 36 | 44 | 52 }) {
   const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]", leaving: "bg-transparent text-coral border-2 border-coral hover:bg-[#FBEAE5]" }[kind];
-  return <button {...p} style={{ height: size, paddingInline: size * 0.45, borderRadius: size / 2 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold text-[15px] disabled:opacity-50 disabled:pointer-events-none transition-colors ${k} ${className}`} />;
+  return <button {...p} style={{ height: size, paddingInline: size * 0.45, borderRadius: 8 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold text-[15px] disabled:opacity-50 disabled:pointer-events-none transition-colors ${k} ${className}`} />;
 }
 export function LinkButton({ href, kind = "primary", size = 44, className = "", children }: { href: string; kind?: "primary" | "secondary" | "tertiary"; size?: 36 | 44 | 52; className?: string; children: React.ReactNode }) {
   const k = { primary: "bg-teal text-sand hover:bg-teal-deep", secondary: "bg-glass text-teal hover:bg-[#CFE3D8]", tertiary: "bg-sand text-kelp hover:bg-[#E7E3D6]" }[kind];
-  return <Link href={href} style={{ height: size, paddingInline: size * 0.45, borderRadius: size / 2 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold text-[15px] transition-colors ${k} ${className}`}>{children}</Link>;
+  return <Link href={href} style={{ height: size, paddingInline: size * 0.45, borderRadius: 8 }} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold text-[15px] transition-colors ${k} ${className}`}>{children}</Link>;
 }
 export function Card({ tone = "shell", className = "", children }: { tone?: "shell" | "glass" | "teal" | "sand"; className?: string; children: React.ReactNode }) {
   const t = { shell: "bg-shell", glass: "bg-glass", teal: "bg-teal text-sand", sand: "bg-sand" }[tone];
@@ -46,10 +46,10 @@ export function Chip({ active = false, onClick, children }: { active?: boolean; 
   return <button type="button" onClick={onClick} className={`h-9 px-3.5 rounded-full text-[13px] font-bold transition-colors ${active ? "bg-teal text-sand" : "bg-sand text-kelp hover:bg-[#E7E3D6]"}`}>{children}</button>;
 }
 export function Logo({ size = 30, dark = false }: { size?: number; dark?: boolean }) {
-  return <img src="/logo-unwatched.svg" width={size} height={size} alt="" style={{ display: "block", borderRadius: size * 0.2 }} data-dark={dark ? "true" : undefined} />;
+  return <img src="/logo-unwatched.svg" width={size} height={size} alt="" style={{ display: "block" }} data-dark={dark ? "true" : undefined} />;
 }
 export function Wordmark({ size = 21, dark = false }: { size?: number; dark?: boolean }) {
-  return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display" style={{ fontSize: size * 0.82, fontWeight: 800, letterSpacing: "-0.02em", textTransform: "uppercase", whiteSpace: "nowrap", color: dark ? "#F2EEE3" : "var(--color-kelp)" }}>Unwatched</span></Link>;
+  return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display" style={{ fontSize: size * 1.05, fontWeight: 600, letterSpacing: "-0.03em", whiteSpace: "nowrap", color: dark ? "#F7F6F3" : "var(--color-kelp)" }}>unwatched</span></Link>;
 }
 
 const TABS: [string, string, IconName][] = [["Digest", "/digest", "digest"], ["Letters", "/letters", "letter"], ["Town", "/town", "town"], ["Gazette", "/gazette", "gazette"], ["Library", "/library", "book"]];

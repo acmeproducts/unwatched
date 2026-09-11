@@ -2,37 +2,37 @@
 
 /* Tide. Sand and shell surfaces, sea glass for anything alive, teal for anything you can press, coral only for what changed. */
 @theme {
-  --color-sand: #EFEDE4;
-  --color-shell: #F7F5EE;
-  --color-glass: #DCEBE3;
-  --color-teal: #1F5F5B;
-  --color-teal-deep: #154542;
-  --color-coral: #E8735A;
-  --color-kelp: #1E2A2B;
-  --color-ink2: #3F4A4A;
-  --color-drift: #6F7A78;
-  --color-line: #E4E0D3;
-  --color-sage: #B9D9C6;
-  --color-mist: #B9CFC8;
-  --font-display: var(--font-unbounded), "Arial Black", "Segoe UI", sans-serif;
-  --font-body: var(--font-hanken), "Segoe UI", Helvetica, Arial, sans-serif;
-  --color-night: #0A111C;
-  --color-bone: #F2EEE3;
-  --color-lamp: #F2C14E;
-  --radius-card: 24px;
-  --radius-tile: 16px;
+  --color-sand: #F7F6F3;
+  --color-shell: #FFFFFF;
+  --color-glass: #EFEDE8;
+  --color-teal: #14161A;
+  --color-teal-deep: #2A2D33;
+  --color-coral: #E4572E;
+  --color-kelp: #14161A;
+  --color-ink2: #3A3D42;
+  --color-drift: #6B6E73;
+  --color-line: rgba(20,22,26,0.10);
+  --color-sage: #D9D6CE;
+  --color-mist: #8B8E94;
+  --font-display: var(--font-familjen), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: var(--font-familjen), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --color-night: #14161A;
+  --color-bone: #F7F6F3;
+  --color-lamp: #E4572E;
+  --radius-card: 12px;
+  --radius-tile: 8px;
 }
 
 html, body { background: var(--color-sand); color: var(--color-kelp); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
-/* Dark: the brand's night. Night ground, Tile surfaces, Bone type, the Lamp for anything pressable or alive, Sea for the rest. */
+/* Night: the same five colours turned over. Ink is the ground, Paper the type, the Signal stays exactly as it is. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --color-sand: #0A111C; --color-shell: #111B2B; --color-glass: #16263A; --color-teal: #F2C14E; --color-teal-deep: #E0B03F; --color-coral: #F08A72; --color-kelp: #F2EEE3; --color-ink2: #C9D0D8; --color-drift: #8E9AA8; --color-line: #1E2A3C; --color-sage: #1E5A63; --color-mist: #8E9AA8; }
-  :root:not([data-theme="light"]) .bg-teal { color: #0A111C; }
+  :root:not([data-theme="light"]) { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; }
+  :root:not([data-theme="light"]) .bg-teal { color: #14161A; }
 }
-:root[data-theme="dark"] { --color-sand: #0A111C; --color-shell: #111B2B; --color-glass: #16263A; --color-teal: #F2C14E; --color-teal-deep: #E0B03F; --color-coral: #F08A72; --color-kelp: #F2EEE3; --color-ink2: #C9D0D8; --color-drift: #8E9AA8; --color-line: #1E2A3C; --color-sage: #1E5A63; --color-mist: #8E9AA8; }
-:root[data-theme="dark"] .bg-teal { color: #0A111C; }
-h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em; line-height: 1.08; }
-.label { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--color-drift); }
+:root[data-theme="dark"] { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; }
+:root[data-theme="dark"] .bg-teal { color: #14161A; }
+h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.025em; line-height: 1.08; font-weight: 600; }
+.label { font-size: 13px; letter-spacing: 0.02em; font-weight: 500; color: var(--color-drift); }
 .tabular { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-shell), 0 0 0 6px var(--color-teal); }
 /* Motion. Five moments, and everything else stays still. Hovers, tabs, chips and modals are color and opacity only, 150 ms. */
@@ -55,8 +55,8 @@ h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em
 .crossfade { transition: opacity 250ms linear; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .rise { opacity: 1; transform: none; } .ring-once::after { display: none; } }
 /* The landing page keeps the night whatever the visitor's theme: the island is checked on in the evening. The same Tide relationships on a kelp ground. */
-.landing { --color-sand: #0A111C; --color-shell: #111B2B; --color-glass: #16263A; --color-teal: #F2C14E; --color-teal-deep: #E0B03F; --color-coral: #F08A72; --color-kelp: #F2EEE3; --color-ink2: #C9D0D8; --color-drift: #8E9AA8; --color-line: #1E2A3C; --color-sage: #1E5A63; --color-mist: #8E9AA8; background: var(--color-sand); color: var(--color-kelp); }
-.landing .bg-teal { color: #0A111C; }
+.landing { --color-sand: #14161A; --color-shell: #1C1F24; --color-glass: #262A30; --color-teal: #F7F6F3; --color-teal-deep: #D9D6CE; --color-coral: #E4572E; --color-kelp: #F7F6F3; --color-ink2: #C9CBCF; --color-drift: #8B8E94; --color-line: rgba(247,246,243,0.12); --color-sage: #3A3D42; --color-mist: #8B8E94; background: var(--color-sand); color: var(--color-kelp); }
+.landing .bg-teal { color: #14161A; }
 /* Landfall: the hero's one entrance. The headline, the line under it and the buttons arrive in turn; everything is visible without it. */
 .landfall { animation: landfall 720ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 110ms); }
 @keyframes landfall { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

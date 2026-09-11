@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Unbounded, Hanken_Grotesk } from "next/font/google";
+import { Familjen_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const unbounded = Unbounded({ subsets: ["latin", "latin-ext"], weight: ["500", "600", "700", "800"], variable: "--font-unbounded" });
-const hanken = Hanken_Grotesk({ subsets: ["latin", "latin-ext"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-hanken" });
+const familjen = Familjen_Grotesk({ subsets: ["latin", "latin-ext"], weight: ["400", "500", "600", "700"], style: ["normal", "italic"], variable: "--font-familjen" });
 
 export const metadata: Metadata = {
   title: { default: "Unwatched", template: "%s · Unwatched" },
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${unbounded.variable} ${hanken.variable}`}>
+    <html lang="en" className={familjen.variable}>
       <body className="min-h-screen">{children}</body>
     </html>
   );

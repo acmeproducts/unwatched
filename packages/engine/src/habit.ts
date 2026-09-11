@@ -46,6 +46,8 @@ export function habit(a: AgentState, v: HabitView): Action {
     }
   }
 
+  // Weak with hunger and no coins: go where people are and stay there; a thought will have to do the rest.
+  if (a.starving >= 2 && a.coins === 0 && v.hour >= 7 && v.hour < 21 && a.location !== "market" && a.location !== "inn") { const next = v.path(a.location, v.crowd("inn") >= v.crowd("market") ? "inn" : "market"); if (next) return { kind: "move", to: next }; }
   // Work: be at work during hours.
   if (a.job) {
     const job = v.jobs.get(a.job);

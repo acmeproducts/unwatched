@@ -92,6 +92,10 @@ export interface AgentState {
   hint: string | null;
   /** Coins owed to others, with the sim minute they are due. Repaying is giving. */
   debts: { to: AgentId; coins: number; due: number }[];
+  /** Whether hunger and cold can kill this person. House citizens: yes. Owned ones: the owner's choice. */
+  mortal: boolean;
+  /** Days in a row that ended hungry, and days in a row that ended without a roof. Two hungry days makes you weak; five can kill. */
+  starving: number; roofless: number;
 }
 
 /** A DayPlan once the engine has it: dated, with each step ticked off as its thought is spent. */
@@ -157,7 +161,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[];
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; mortal?: boolean; starving?: number; roofless?: number;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

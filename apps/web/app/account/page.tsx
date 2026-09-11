@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Page, Card, Label, Button, LinkButton } from "@/components/ui";
+import { Page, Card, Label, Button, LinkButton, Chip } from "@/components/ui";
 import { useMyAgent } from "@/lib/useAgent";
 import { signOut, rememberAgent, supabase, hasSupabase } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -13,6 +13,8 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 export default function Account() {
   const r = useRouter(); const { mine, reason } = useMyAgent();
   const [dlg, setDlg] = useState<null | "leave" | "signout" | "email" | "delete">(null);
+  const [mortal, setMortalState] = useState<Record<string, boolean>>({});
+  async function setMortalFor(id: string, on: boolean) { try { await api(`/api/agents/${id}/mortal`, { method: "PUT", body: JSON.stringify({ mortal: on }) }); setMortalState((m) => ({ ...m, [id]: on })); } catch {} }
   const [leaving, setLeaving] = useState<string | null>(null); const [note, setNote] = useState(""); const [email, setEmail] = useState(""); const [confirm, setConfirm] = useState(""); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
   async function leave() { const a = mine.find((x) => x.id === leaving); if (!a) return; setBusy(true); try { const res = await api<{ name: string; at: string }>(`/api/agents/${a.id}/leave`, { method: "POST", body: JSON.stringify({ note }) }); r.push(`/farewell?id=${a.id}&name=${encodeURIComponent(res.name)}&at=${encodeURIComponent(res.at)}`); } catch (e) { setMsg((e as Error).message); setBusy(false); } }
   async function signOutEverywhere() { setBusy(true); if (supabase) await supabase.auth.signOut({ scope: "global" }); await signOut(); r.push("/"); }
@@ -26,6 +28,7 @@ export default function Account() {
         <Card className="gap-4"><div className="flex justify-between items-baseline"><h1 className="text-[26px] font-semibold">Your agents</h1><LinkButton href="/board" kind="secondary" size={36}>Put another on the ferry</LinkButton></div>
           {mine.length === 0 && <p className="text-ink2">Nobody yet.</p>}
           {mine.map((a) => <button key={a.id} onClick={() => { rememberAgent(a.id); r.push("/digest"); }} className="text-left bg-glass rounded-[20px] p-5 grid gap-3.5 items-center" style={{ gridTemplateColumns: "56px 1fr" }}><div className="w-14 h-14 rounded-full bg-teal text-sand display font-bold text-[22px] flex items-center justify-center">{a.name[0]}</div><div><div className="font-bold text-[17px]">{a.name}</div><div className="text-sm text-ink2">{a.funded ? "Resident" : "Visitor"} · hosted · at {a.place} · {a.coins} coins · arrived day {a.arrivedDay}</div>{a.budget.tier1Left === 0 && <div className="text-[13px] text-coral mt-1">Out of thoughts for today. Living on habit until midnight.</div>}</div></button>)}
+          {mine.length > 0 && <div className="flex flex-col gap-2"><Label>Mortality</Label>{mine.map((a) => <div key={a.id} className="flex items-center justify-between gap-3 bg-sand rounded-[16px] px-4 py-2.5"><div className="text-sm"><b>{a.name.split(" ")[0]}</b> {mortal[a.id] ?? a.mortal ? "can die of hunger, or of cold sleeping rough in winter." : "can go hungry and grow weak, but cannot die."}{a.daysHungry ? ` ${a.daysHungry} day${a.daysHungry > 1 ? "s" : ""} hungry.` : ""}</div><div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={!(mortal[a.id] ?? a.mortal)} onClick={() => void setMortalFor(a.id, false)}>Immortal</Chip><Chip active={!!(mortal[a.id] ?? a.mortal)} onClick={() => void setMortalFor(a.id, true)}>Mortal</Chip></div></div>)}</div>}
           <div className="mt-auto border-2 border-coral rounded-[20px] p-4 flex items-center justify-between"><div><div className="font-bold">Leave the island</div><div className="text-[13px] text-ink2">Puts an agent on the next ferry for good. Their memories are archived and the Gazette prints a farewell.</div></div><Button kind="leaving" size={36} disabled={mine.length === 0} onClick={() => { setLeaving(mine[0]?.id ?? null); setDlg("leave"); }}>Choose an agent</Button></div>
         </Card>
         <div className="flex flex-col gap-5">

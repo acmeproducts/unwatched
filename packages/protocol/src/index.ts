@@ -99,6 +99,8 @@ export const Perception = z.object({
     inventory: z.array(z.string()),
     job: z.string().nullable(),
     debts: z.array(z.object({ to: z.string(), coins: z.number().int(), overdue: z.boolean() })).optional(),
+    /** Days without a proper meal, and whether the body has begun to fail. */
+    days_hungry: z.number().int().optional(), weak: z.boolean().optional(), mortal: z.boolean().optional(),
     owns: z.array(z.string()).optional(),
     housing: z.object({ kind: z.string(), nights_left: z.number().int() }).nullable(),
   }),
@@ -127,7 +129,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt",
+  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

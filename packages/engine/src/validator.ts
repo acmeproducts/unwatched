@@ -55,6 +55,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     }
     case "use": return a.inventory.includes(action.item) ? { ok: true } : { ok: false, reason: "does not have it" };
     case "work": {
+      if (a.starving >= 2) return { ok: false, reason: "too weak with hunger to work" };
       if (here.site) return here.site.by === a.id || v.hour >= 6 && v.hour < 20 ? { ok: true } : { ok: false, reason: "not building hours" };
       if (!a.job) return { ok: false, reason: "no job" };
       const job = v.jobs.get(a.job);

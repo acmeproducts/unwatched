@@ -34,7 +34,8 @@ describe("building", () => {
     expect(a.coins).toBe(25);
     // a morning of work a day, six days
     guard = 0;
-    while (plot.site && guard++ < 20000) { if (!a.asleep) a.location = "shore-1"; await town.tick(); }
+    // a builder who never eats would be too weak to work by the third morning, so this one is fed
+    while (plot.site && guard++ < 20000) { if (!a.asleep) a.location = "shore-1"; a.needs.hunger = 0.2; await town.tick(); }
     expect(plot.site).toBeNull();
     expect(plot.kind).toBe("home"); expect(plot.owner).toBe(a.id); expect(plot.name).toBe("Stone Cottage");
     expect(a.home?.place).toBe("shore-1");

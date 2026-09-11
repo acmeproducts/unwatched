@@ -46,7 +46,7 @@ function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c o
 const billing = new Billing(store, log); await billing.load();
 const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
 const saved = store ? await store.loadSnapshot() : null;
-if (saved) {
+if (saved && saved.agents.length > 0) {
   town.restore(saved);
   town.events.push(...(await store!.recentEvents(300)));
   for (const row of await store!.loadBrains()) { const a = town.agents.get(row.agent_id); if (!a) continue; brain.set(row.agent_id, row); a.brainKind = row.kind; a.thinkEvery = row.kind === "own_key" ? row.think_every : null; }

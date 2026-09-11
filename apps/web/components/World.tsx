@@ -81,18 +81,34 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const ripples: Graphics = new Graphics(); world.addChild(ripples);
       // the island: a soft blob with a sandy heart, big enough that every district has shore or hill behind it
       const ground = new Graphics();
-      const blob = (g: Graphics, inset: number, color: number) => {
-        const pts: [number, number][] = [];
-        const cx = W / 2, cy = H / 2 + 40, n = 28;
-        for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; const r = 1 + 0.14 * Math.sin(a * 3 + 0.7) + 0.08 * Math.cos(a * 5 + 2); pts.push([cx + Math.cos(a) * (W / 2 - 120 - inset) * r, cy + Math.sin(a) * (H / 2 - 100 - inset) * r]); }
-        g.moveTo(pts[0]![0], pts[0]![1]);
-        for (let i = 0; i < n; i++) { const p = pts[i]!, q = pts[(i + 1) % n]!; g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
-        g.closePath().fill(color);
-      };
-      blob(ground, 0, C.grass); blob(ground, 110, C.sand);
+      // the ground is isometric tiles: land inside the island's outline, sand at the shore and the harbor, wood around the pines,
+      // rock at the quarry, furrows at the fields, and roads laid tile by tile along the exits
       const gather = (p: PlaceView) => ({ x: p.x - 110, y: p.y + 40, w: 220 });
-      const roads = new Set<string>();
-      for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); ground.moveTo(A.x + A.w / 2, A.y).lineTo(B.x + B.w / 2, B.y).stroke({ width: 16, color: C.shell, cap: "round" }); }
+      const inside = (x: number, y: number): number => { // >1 is sea; ~1 is the shore
+        const cx = W / 2, cy = H / 2 + 40; const a = Math.atan2((y - cy) / (H / 2 - 100), (x - cx) / (W / 2 - 120)); const r = 1 + 0.14 * Math.sin(a * 3 + 0.7) + 0.08 * Math.cos(a * 5 + 2);
+        return Math.hypot((x - cx) / ((W / 2 - 120) * r), (y - cy) / ((H / 2 - 100) * r));
+      };
+      const near = (x: number, y: number, ids: string[], radius: number) => ids.some((id) => { const p = places.get(id); return !!p && Math.hypot(p.x - x, (p.y - 30 - y) * 1.6) < radius; });
+      const segs: { ax: number; ay: number; bx: number; by: number }[] = []; const roads = new Set<string>();
+      for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); segs.push({ ax: A.x + A.w / 2, ay: A.y, bx: B.x + B.w / 2, by: B.y }); }
+      const distToSeg = (x: number, y: number, s: { ax: number; ay: number; bx: number; by: number }) => { const dx = s.bx - s.ax, dy = s.by - s.ay; const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (y - s.ay) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(x - (s.ax + t * dx), y - (s.ay + t * dy)); };
+      const TW = 64, TH = 32; const FOREST = 0xb8cfbd, ROCK = 0xdcd9cf, FIELD = 0xcfe0c6, SHALLOW = 0xd3e6dc;
+      for (let j = -6; j < H / TH + 6; j++) for (let i = -6; i < W / TW + 6; i++) {
+        const x = i * TW + (j % 2 ? TW / 2 : 0), y = j * TH;
+        const d = inside(x, y); if (d > 1.06) continue;
+        let color = C.grass; const alt = (i + j) % 2 === 0;
+        if (d > 1) color = SHALLOW; else if (d > 0.9 || near(x, y, ["harbor", "cove", "coast", "boatshed"], 200)) color = C.sand;
+        else if (near(x, y, ["pinewood", "sawpit", "wood-1"], 300)) color = FOREST;
+        else if (near(x, y, ["quarry", "lighthouse"], 230)) color = ROCK;
+        else if (near(x, y, ["fields", "orchard"], 240)) color = FIELD;
+        else if (near(x, y, ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern"], 260)) color = C.sand;
+        const onRoad = segs.some((sg) => distToSeg(x, y, sg) < 22);
+        if (onRoad) color = C.shell;
+        const shade = alt ? 0 : -0x040404;
+        ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(Math.max(0, color + shade));
+        if (color === FIELD && alt) ground.moveTo(x - 20, y).lineTo(x + 20, y).stroke({ width: 1.5, color: 0xb9d9c6, alpha: 0.9 });
+        if (color === FOREST && (i * 7 + j * 3) % 5 === 0) ground.circle(x, y, 4).fill({ color: 0x9fbfa8, alpha: 0.8 });
+      }
       world.addChild(ground);
 
       // everything with a foot on the ground sorts by y

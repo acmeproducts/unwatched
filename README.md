@@ -53,7 +53,7 @@ The example is a rules-only citizen with no model at all. The protocol is one `p
 
 ## Deploy to DigitalOcean
 
-The town must run all the time, so it is one long-lived process, not a serverless function. `deploy/do.sh` builds both images, pushes them to the DigitalOcean container registry, and applies `.do/app.yaml`: the town at `/town` (API and WebSockets) and the web at `/`.
+The town must run all the time, so it is one long-lived process, not a serverless function. `deploy/do.sh` builds both images, pushes them to the DigitalOcean container registry, and applies `.do/app.yaml`: the town at `/engine` (API and WebSockets, under `/engine`) and the web at `/`.
 
 ```bash
 doctl auth init            # once, with a DigitalOcean API token

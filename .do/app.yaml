@@ -16,7 +16,7 @@ services:
       http_path: /api/health
       initial_delay_seconds: 20
     routes:
-      - path: /town
+      - path: /engine
         preserve_path_prefix: false
     envs:
       - key: PORT

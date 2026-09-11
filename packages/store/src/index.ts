@@ -95,14 +95,16 @@ export class TownStore {
 
   /** The town as it was at the last snapshot, or null when nothing has been saved yet. */
   async loadSnapshot(): Promise<TownSnapshot | null> {
-    const { data: town } = await this.sb.from("towns").select("sim_t, day, weather, flour_shortage, places, jobs, children, civic").eq("id", this.townId).maybeSingle();
+    const { data: town, error: townErr } = await this.sb.from("towns").select("sim_t, day, weather, flour_shortage, places, jobs, children, civic").eq("id", this.townId).maybeSingle();
+    // a read that fails is not an empty record: seeding a new island over a bad read would overwrite the one that exists
+    if (townErr) throw new Error(`the record could not be read: ${townErr.message}`);
     if (!town) return null;
     // Anything recorded after the last snapshot belongs to a timeline that is about to be re-lived. Drop it, or the record doubles.
     await this.sb.from("events").delete().eq("town_id", this.townId).gt("t", Number(town.sim_t));
     const { data: ids0 } = await this.sb.from("agents").select("id").eq("town_id", this.townId);
     if (ids0?.length) await this.sb.from("memories").delete().in("agent_id", ids0.map((r) => r.id as string)).gt("t", Number(town.sim_t));
     const { data: rows, error } = await this.sb.from("agents").select("id, owner_id, name, persona, appearance, funded, arrived_t, state").eq("town_id", this.townId).is("left_t", null).not("arrived_t", "is", null);
-    if (error) { console.error("agents read failed:", error.message); return null; }
+    if (error) throw new Error(`the citizens could not be read: ${error.message}`); // never seed over a record that is merely unreadable
     if (!rows || rows.length === 0) return null;
     const ids = rows.map((r) => r.id as string);
     const [{ data: rels }, { data: mems }, { data: papers }, { data: laws }] = await Promise.all([

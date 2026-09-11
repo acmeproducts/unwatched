@@ -135,6 +135,8 @@ export class Town {
   /** Let minutes pass without anyone thinking: the island catching up with the real clock after a slow stretch or a restart. */
   skip(minutes: number): void {
     for (let i = 0; i < minutes; i++) { for (const a of this.agents.values()) this.decayNeeds(a); const prev = this.hour; this.t += 1; if (this.hour !== prev) this.hourly(); }
+    // a skip across midnight is a night the island slept through: no paper, no hunger count, but the date moves
+    const d = Math.floor(this.t / MINUTES_PER_DAY) + 1; if (d !== this.day) { this.day = d; this.arrivalsToday = 0; this.departuresToday = 0; }
   }
   clock(t = this.t): string {
     const d = Math.floor(t / MINUTES_PER_DAY) + 1; const m = t % MINUTES_PER_DAY;
@@ -165,7 +167,7 @@ export class Town {
 
   /** Bring the town back from its record. Replaces whatever population exists. */
   restore(snap: TownSnapshot): void {
-    this.t = snap.t; this.day = snap.day; this.weather = snap.weather; this.flourShortage = snap.flourShortage;
+    this.t = snap.t; this.day = Math.floor(snap.t / MINUTES_PER_DAY) + 1; this.weather = snap.weather; this.flourShortage = snap.flourShortage; // the minute counter is the truth; the day follows it
     this.agents.clear();
     for (const j of this.jobs.values()) j.holders = [];
     // what people built, over the map the code lays out: the code owns positions and roads, the record owns everything else

@@ -69,7 +69,9 @@ function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c o
 
 const billing = new Billing(store, log); await billing.load();
 const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: ferryTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
-const saved = store ? await store.loadSnapshot() : null;
+let saved: Awaited<ReturnType<NonNullable<typeof store>["loadSnapshot"]>> = null;
+try { saved = store ? await store.loadSnapshot() : null; }
+catch (err) { log(`${(err as Error).message}; not starting, so the island on record is not seeded over. Apply the migrations, then start again.`); process.exit(1); }
 if (saved && saved.agents.length > 0) {
   town.restore(saved);
   town.events.push(...(await store!.recentEvents(300)));

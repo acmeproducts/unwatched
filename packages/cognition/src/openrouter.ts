@@ -66,7 +66,7 @@ export class OpenRouterBrain implements Brain {
       try {
         const parsed = schema.safeParse(JSON.parse(text.trim().replace(/^```json\s*|```$/g, "")));
         if (parsed.success) return parsed.data;
-        this.log(`schema mismatch from ${model}: ${parsed.error.issues[0]?.message ?? "?"}`);
+        this.log(`schema mismatch from ${model}: ${parsed.error.issues[0]?.message ?? "?"} at ${parsed.error.issues[0]?.path.join(".") || "root"}; got ${text.slice(0, 160)}`);
         if (attempt === 1) this.onFallback?.({ what: name, model, reason: `schema: ${parsed.error.issues[0]?.message ?? "?"}` });
       } catch { this.log(`not json from ${model}: ${text.slice(0, 80)}`); if (attempt === 1) this.onFallback?.({ what: name, model, reason: "not json" }); }
     }

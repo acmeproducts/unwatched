@@ -78,6 +78,7 @@ if (saved && saved.agents.length > 0) {
   town.events.push(...(await store!.recentEvents(300)));
   for (const row of await store!.loadBrains()) { const a = town.agents.get(row.agent_id); if (!a) continue; brain.set(row.agent_id, row); a.brainKind = row.kind; a.thinkEvery = row.kind === "own_key" ? row.think_every : null; }
   for (const a of town.agents.values()) billing.applyPlan(a);
+  billing.onPlan = (owner) => { for (const b of town.agents.values()) if (b.owner === owner) billing.applyPlan(b); }; // a plan bought or dropped on Stripe reaches the citizens at once
   log(`restored the island from its record: ${town.clock()}, ${town.agents.size} citizens, ${saved.papers.length} editions`);
 } else {
   for (const p of seedPersonas(new Rng(SEED), CITIZENS)) town.addAgent({ persona: p, owner: null });
@@ -388,6 +389,10 @@ app.post("/api/me/credits/checkout", async (c) => {
   const body = z.object({ pack: z.enum(["small", "medium", "large"]) }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such pack" }, 400);
   if (billing.testMode) { const w = await billing.grant(owner, PACKS[body.data.pack]!.credits, "grant", "test-mode"); return c.json({ ok: true, credits: w.credits, note: "Test mode: credits were granted, no card was charged." }); }
   const r = await billing.checkoutPack(owner, body.data.pack, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ error: r.error }, 400);
+});
+app.post("/api/me/portal", async (c) => {
+  const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
+  const r = await billing.portal(owner, c.req.header("origin") ?? "http://localhost:3000"); return "url" in r ? c.json(r) : c.json({ error: r.error }, 400);
 });
 app.post("/api/stripe/webhook", async (c) => { const r = await billing.webhook(await c.req.text(), c.req.header("stripe-signature")); return c.json(r, r.ok ? 200 : 400); });
 // ---- ops, behind a token ----

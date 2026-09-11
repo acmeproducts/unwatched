@@ -12,6 +12,9 @@ export const PACKS: Record<string, { credits: number; price: number }> = { small
 /** What a thought costs in credits when the allowance is spent. */
 export const COST: Record<Tier, number> = { 1: 1, 2: 4, 3: 10 };
 
+/** Stripe price lookup keys, made by scripts/stripe-setup.mjs; the ids are found at start, so nothing is copied by hand. */
+export const LOOKUP = { resident: "unwatched_resident_monthly", patron: "unwatched_patron_monthly", small: "unwatched_pack_small", medium: "unwatched_pack_medium", large: "unwatched_pack_large" } as const;
+
 /**
  * Wallets in memory, written through to the store. Stripe when keys exist; an honest test mode when they do not.
  * Credits never become coins. There is no path from here into the town's economy.
@@ -20,12 +23,25 @@ export class Billing {
   private wallets = new Map<string, Wallet>();
   readonly stripe: Stripe | null;
   readonly testMode: boolean;
+  private prices = new Map<string, string>(); // lookup key -> price id
+  private seen: string[] = []; // webhook event ids already applied, so a retry never grants twice
+  /** Called when a plan changes through Stripe, so the town can apply it to the owner's citizens. */
+  onPlan: ((ownerId: string, plan: Plan) => void) | null = null;
   constructor(private store: Store | null, private log: (l: string) => void) {
     const key = process.env.STRIPE_SECRET_KEY;
     this.stripe = key ? new Stripe(key) : null;
     this.testMode = !this.stripe;
   }
-  async load() { if (this.store) for (const w of await this.store.allWallets()) this.wallets.set(w.ownerId, w); }
+  async load() {
+    if (this.store) for (const w of await this.store.allWallets()) this.wallets.set(w.ownerId, w);
+    if (this.stripe) {
+      try { const list = await this.stripe.prices.list({ lookup_keys: Object.values(LOOKUP), active: true, limit: 20 }); for (const pr of list.data) if (pr.lookup_key) this.prices.set(pr.lookup_key, pr.id); }
+      catch (e) { this.log(`stripe: could not list prices: ${(e as Error).message}`); }
+      for (const plan of ["resident", "patron"] as const) { const env = process.env[`STRIPE_PRICE_${plan.toUpperCase()}`]; if (env) this.prices.set(LOOKUP[plan], env); }
+      const missing = (["resident", "patron"] as const).filter((p) => !this.prices.has(LOOKUP[p]));
+      this.log(missing.length ? `stripe: live, but no price for ${missing.join(", ")} (run scripts/stripe-setup.mjs)` : `stripe: live, ${this.prices.size} prices`);
+    }
+  }
   wallet(ownerId: string): Wallet { let w = this.wallets.get(ownerId); if (!w) { w = { ownerId, plan: "visitor", credits: 0, stripeCustomer: null }; this.wallets.set(ownerId, w); } return w; }
   allowance(ownerId: string) { const p = PLANS[this.wallet(ownerId).plan]; return { tier1Max: p.tier1, tier2Max: p.tier2 }; }
   applyPlan(a: AgentState) { if (!a.owner || a.brainKind !== "hosted") return; const al = this.allowance(a.owner); a.budget.tier1Max = al.tier1Max; a.budget.tier2Max = al.tier2Max; a.budget.tier1Left = Math.min(a.budget.tier1Left, al.tier1Max); a.budget.tier2Left = Math.min(a.budget.tier2Left, al.tier2Max); }
@@ -41,38 +57,70 @@ export class Billing {
   };
 
   async grant(ownerId: string, credits: number, reason: string, ref: string | null = null) { const w = this.wallet(ownerId); w.credits += credits; await this.store?.saveWallet(w); await this.store?.credit(ownerId, credits, reason, ref); return w; }
-  async setPlan(ownerId: string, plan: Plan) { const w = this.wallet(ownerId); w.plan = plan; await this.store?.saveWallet(w); return w; }
+  async setPlan(ownerId: string, plan: Plan) { const w = this.wallet(ownerId); if (w.plan !== plan) { w.plan = plan; await this.store?.saveWallet(w); this.onPlan?.(ownerId, plan); } return w; }
+  private async remember(ownerId: string, customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined) { const id = typeof customer === "string" ? customer : customer?.id; if (!id) return; const w = this.wallet(ownerId); if (w.stripeCustomer !== id) { w.stripeCustomer = id; await this.store?.saveWallet(w); } }
+  private ownerOfCustomer(customer: string | null | undefined): string | null { if (!customer) return null; for (const w of this.wallets.values()) if (w.stripeCustomer === customer) return w.ownerId; return null; }
 
   /** Stripe Checkout for a pack, returning the URL to send the owner to. */
   async checkoutPack(ownerId: string, pack: string, origin: string): Promise<{ url: string } | { error: string }> {
     const p = PACKS[pack]; if (!p) return { error: "no such pack" };
     if (!this.stripe) return { error: "test mode" };
+    const w = this.wallet(ownerId); const price = this.prices.get(LOOKUP[pack as keyof typeof LOOKUP]);
     const session = await this.stripe.checkout.sessions.create({
-      mode: "payment", success_url: `${origin}/account/credits?paid=1`, cancel_url: `${origin}/account/credits`,
-      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: p.price * 100, product_data: { name: `${p.credits} Unwatched credits`, description: "Credits pay for thinking. They never become coins." } } }],
+      mode: "payment", success_url: `${origin}/account/credits?paid=1`, cancel_url: `${origin}/account/credits`, client_reference_id: ownerId,
+      ...(w.stripeCustomer ? { customer: w.stripeCustomer } : { customer_creation: "always" }), allow_promotion_codes: true,
+      line_items: [price ? { price, quantity: 1 } : { quantity: 1, price_data: { currency: "usd", unit_amount: p.price * 100, product_data: { name: `${p.credits} Unwatched credits`, description: "Credits pay for thinking. They never become coins." } } }],
       metadata: { owner_id: ownerId, credits: String(p.credits), pack },
     });
     return session.url ? { url: session.url } : { error: "Stripe did not give a checkout link" };
   }
   async checkoutPlan(ownerId: string, plan: Plan, origin: string): Promise<{ url: string } | { error: string }> {
     if (!this.stripe) return { error: "test mode" };
-    const priceId = process.env[`STRIPE_PRICE_${plan.toUpperCase()}`]; if (!priceId) return { error: `no Stripe price configured for ${plan}` };
-    const session = await this.stripe.checkout.sessions.create({ mode: "subscription", success_url: `${origin}/account/credits?plan=${plan}`, cancel_url: `${origin}/account/credits`, line_items: [{ price: priceId, quantity: 1 }], metadata: { owner_id: ownerId, plan } });
+    if (plan === "visitor") return { error: "the visitor plan has no checkout" };
+    const priceId = this.prices.get(LOOKUP[plan]); if (!priceId) return { error: `no Stripe price configured for ${plan}` };
+    const w = this.wallet(ownerId);
+    const session = await this.stripe.checkout.sessions.create({
+      mode: "subscription", success_url: `${origin}/account/credits?plan=${plan}`, cancel_url: `${origin}/account/credits`, client_reference_id: ownerId, allow_promotion_codes: true,
+      ...(w.stripeCustomer ? { customer: w.stripeCustomer } : {}),
+      line_items: [{ price: priceId, quantity: 1 }], metadata: { owner_id: ownerId, plan }, subscription_data: { metadata: { owner_id: ownerId, plan } },
+    });
     return session.url ? { url: session.url } : { error: "Stripe did not give a checkout link" };
   }
-  /** Webhook: the only place a purchase becomes credits. */
+  /** Stripe's own page for changing a card, switching or ending a plan, and the invoices. */
+  async portal(ownerId: string, origin: string): Promise<{ url: string } | { error: string }> {
+    if (!this.stripe) return { error: "test mode" };
+    const w = this.wallet(ownerId); if (!w.stripeCustomer) return { error: "nothing bought yet" };
+    const s = await this.stripe.billingPortal.sessions.create({ customer: w.stripeCustomer, return_url: `${origin}/account/credits` });
+    return { url: s.url };
+  }
+  /** The plan a subscription stands for, read off its price; visitor once it is no longer paid. */
+  private planOf(sub: Stripe.Subscription): Plan {
+    if (!(sub.status === "active" || sub.status === "trialing" || sub.status === "past_due")) return "visitor";
+    for (const it of sub.items.data) { const k = it.price.lookup_key; if (k === LOOKUP.patron || it.price.id === this.prices.get(LOOKUP.patron)) return "patron"; if (k === LOOKUP.resident || it.price.id === this.prices.get(LOOKUP.resident)) return "resident"; }
+    return (sub.metadata?.plan as Plan) ?? "visitor";
+  }
+  /** Webhook: the only place a purchase becomes credits or a plan. */
   async webhook(rawBody: string, signature: string | undefined): Promise<{ ok: boolean; note?: string }> {
     if (!this.stripe) return { ok: false, note: "test mode" };
     const secret = process.env.STRIPE_WEBHOOK_SECRET; if (!secret || !signature) return { ok: false, note: "no webhook secret" };
     let ev: Stripe.Event;
     try { ev = this.stripe.webhooks.constructEvent(rawBody, signature, secret); } catch (e) { return { ok: false, note: (e as Error).message }; }
+    if (this.seen.includes(ev.id)) return { ok: true, note: "seen" }; this.seen.push(ev.id); if (this.seen.length > 2000) this.seen.shift();
     if (ev.type === "checkout.session.completed") {
-      const s = ev.data.object as Stripe.Checkout.Session; const owner = s.metadata?.owner_id; if (!owner) return { ok: true, note: "no owner" };
-      if (s.mode === "payment") await this.grant(owner, Number(s.metadata?.credits ?? 0), "purchase", s.id);
+      const s = ev.data.object; const owner = s.metadata?.owner_id ?? s.client_reference_id; if (!owner) return { ok: true, note: "no owner" };
+      await this.remember(owner, s.customer);
+      if (s.mode === "payment" && s.payment_status === "paid") await this.grant(owner, Number(s.metadata?.credits ?? 0), "purchase", s.id);
       if (s.mode === "subscription" && s.metadata?.plan) await this.setPlan(owner, s.metadata.plan as Plan);
       this.log(`stripe: ${s.mode} for ${owner}`);
     }
-    if (ev.type === "customer.subscription.deleted") { /* plan lapses at renewal: handled by the next lookup */ }
+    if (ev.type === "customer.subscription.updated" || ev.type === "customer.subscription.deleted") {
+      const sub = ev.data.object; const owner = sub.metadata?.owner_id ?? this.ownerOfCustomer(typeof sub.customer === "string" ? sub.customer : sub.customer.id);
+      if (!owner) return { ok: true, note: "no owner for subscription" };
+      await this.remember(owner, sub.customer);
+      const plan = ev.type === "customer.subscription.deleted" ? "visitor" : this.planOf(sub);
+      await this.setPlan(owner, plan); this.log(`stripe: ${owner} is a ${plan} (${sub.status})`);
+    }
+    if (ev.type === "invoice.payment_failed") { const inv = ev.data.object; const owner = this.ownerOfCustomer(typeof inv.customer === "string" ? inv.customer : inv.customer?.id); this.log(`stripe: payment failed for ${owner ?? "unknown"}`); }
     return { ok: true };
   }
 }

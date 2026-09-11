@@ -23,4 +23,6 @@ COPY apps/server ./apps/server
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:4000/api/health || exit 1
 # tsx runs the TypeScript directly; the workspace packages are source-only.
-CMD ["pnpm", "--filter", "@ferrytown/server", "start"]
+WORKDIR /app/apps/server
+# node runs directly so the platform's SIGTERM reaches the town and it writes its record before it stops
+CMD ["node", "--import", "tsx", "src/main.ts"]

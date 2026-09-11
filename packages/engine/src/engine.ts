@@ -340,7 +340,8 @@ export class Town {
       nearby,
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
         owner: here.owner ? (this.agents.get(here.owner)?.persona.name ?? here.owner) : null,
-        ...(a.job && this.jobs.get(a.job)?.place === here.id && Object.keys(here.stock).length ? { stock: { ...here.stock }, broken: !!(here.brokenUntil && here.brokenUntil > this.day) } : {}),
+        ...(a.job && this.jobs.get(a.job)?.place === here.id && Object.keys(here.stock).length ? { stock: { ...here.stock } } : {}),
+        ...(here.brokenUntil && here.brokenUntil > this.day ? { broken: true } : {}),
         ...(here.kind === "civic" ? { council: { mayor: this.mayor ? (this.agents.get(this.mayor)?.persona.name ?? null) : null, treasury: here.treasury, works: [...this.works], can_fund: this.mayor === a.id ? Object.entries(WORKS).filter(([w]) => !this.works.includes(w)).map(([what, w]) => ({ what, coins: w.coins })) : [], open_laws: this.laws.filter((l) => l.open).map((l) => l.text) } } : {}),
         ...(here.kind === "plot" && !here.site ? { plot: { free: true, house: { coins: BUILDS.house.coins, mornings: BUILDS.house.labor }, shop: { coins: BUILDS.shop.coins, mornings: BUILDS.shop.labor } } } : {}),
         ...(here.site ? { site: { what: here.site.what, name: here.site.name, by: this.agents.get(here.site.by)?.persona.name ?? here.site.by, done: here.site.labor, of: here.site.laborNeeded } } : {}),
@@ -671,7 +672,7 @@ export class Town {
     if (this.economyFrozen) return;
     if (h === 6) { this.cart(); this.prosper(); }
     if (h === 9 && (this.dayOfMonth === 1 || (!this.mayor && this.day >= 2)) && !this.gatherings.some((g) => g.kind === "election" && g.day === this.day)) this.gather("election", "council", this.day, 10, [], this.mayor ? "the council chooses its mayor for the month" : "the council chooses the island's first mayor");
-    this.summon(h); this.holdGatherings(h);
+    this.summon(h); this.holdGatherings(h); this.sparks(h);
     if (this.weekday === 0) return; // Sunday: no shifts, no wages
     for (const job of this.jobs.values()) {
       if (h === job.hours[1]) for (const id of job.holders) {
@@ -1017,7 +1018,8 @@ export class Town {
     a.needs.social = Math.min(1, a.needs.social + 0.0008 * m * (0.5 + a.persona.traits.warmth));
     if (a.needs.hunger > 0.95 && this.rng.chance(0.002 * m)) this.remember(a, "I am very hungry and have nothing to eat.", 0.5);
   }
-  private maybeWake(a: AgentState): void {
+  private maybeWake(a: AgentState, alarm = false): void {
+    if (alarm && a.asleep) { a.asleep = false; this.emit("agent.wake", [a.id], a.location, `${a.persona.name} was woken by the bell.`, 0.05); return; }
     const wake = 6 + Math.round(a.persona.traits.caution * 1.5);
     if (this.hour >= wake && a.needs.rest < 0.4) { a.asleep = false; this.emit("agent.wake", [a.id], a.location, `${a.persona.name} woke up.`, 0.01); }
     else if (this.hour >= 10 && this.hour < 20) { a.asleep = false; }
@@ -1055,6 +1057,25 @@ export class Town {
     const when = g.day === this.day ? `today at ${g.hour}:00` : g.day === this.day + 1 ? `tomorrow at ${g.hour}:00` : `on day ${g.day} at ${g.hour}:00`;
     return `${this.describeGathering(g)}, ${when}, at ${this.places.get(g.place)?.name ?? g.place}; the whole town goes`;
   }
+  /** Fire. A storm at night, a forge or an oven worked hard, a lamp in winter: one hour in a few hundred, something catches. The town runs with buckets; the more who come, the less burns. */
+  private sparks(h: number): void {
+    if (this.gatherings.some((g) => g.kind === "fire" && !g.held)) return;
+    const night = h < 6 || h >= 21;
+    const candidates = [...this.places.values()].filter((p) => (p.kind === "home" || p.kind === "shop" || p.kind === "workplace" || p.kind === "inn") && !(p.brokenUntil && p.brokenUntil > this.day));
+    if (!candidates.length) return;
+    let chance = 0.0004; if (this.weather === "storm" && night) chance = 0.01; else if (night && this.season === "winter") chance = 0.004;
+    const hot = candidates.filter((p) => (p.id === "smithy" || p.id === "bakery") && this.crowd(p.id) > 0 && !night); if (hot.length && this.rng.chance(0.002)) { this.fire(this.rng.pick(hot), "the fire in the forge got away"); return; }
+    if (!this.rng.chance(chance)) return;
+    const p = this.rng.pick(candidates); this.fire(p, this.weather === "storm" ? "lightning in the storm" : night ? "a lamp left burning" : "a spark nobody saw");
+  }
+  fire(place: Place, cause: string): void {
+    const g: Gathering = { id: this.nextGatheringId++, kind: "fire", place: place.id, day: this.hour === 23 ? this.day + 1 : this.day, hour: (this.hour + 1) % 24, actors: place.owner ? [place.owner] : [], note: cause, held: false }; this.gatherings.push(g);
+    this.emit("town.fire", g.actors, place.id, `Fire at ${place.name}: ${cause}. The bell rings; the town runs with buckets.`, 1, { stage: "alarm", cause });
+    for (const a of this.agents.values()) { if (a.location === place.id) { a.heading = null; continue; } this.maybeWake(a, true); if (a.asleep) continue; const far = this.hops(a.location, place.id); if (far !== null && far <= 4) { a.heading = place.id; a.hint = `Fire at ${place.name}! Everyone is running with buckets. Go, or explain why not.`; } }
+    for (const a of this.agents.values()) this.remember(a, `Fire at ${place.name}: ${cause}.`, 0.9, "rumor");
+  }
+  /** How many roads between two places. */
+  hops(from: string, to: string): number | null { if (from === to) return 0; const dist = new Map<string, number>([[from, 0]]); const q = [from]; while (q.length) { const cur = q.shift()!; for (const nx of this.places.get(cur)?.exits ?? []) if (!dist.has(nx)) { dist.set(nx, dist.get(cur)! + 1); q.push(nx); } } return dist.get(to) ?? null; }
   /** Put something on the town's calendar. */
   gather(kind: Gathering["kind"], place: PlaceId, day: number, hour: number, actors: AgentId[], note: string): Gathering {
     const g: Gathering = { id: this.nextGatheringId++, kind, place, day, hour, actors, note, held: false }; this.gatherings.push(g);
@@ -1070,6 +1091,7 @@ export class Town {
       case "hearing": return `The hearing of ${names[1] ?? "someone"}, accused by ${names[0] ?? "someone"}`;
       case "election": return `The council sits`;
       case "feast": return `The feast: ${g.note}`;
+      case "fire": return `The fire at ${this.places.get(g.place)?.name ?? g.place}`;
     }
   }
   /** An hour before, everyone awake is called; they walk, and habit takes them there. */
@@ -1107,6 +1129,15 @@ export class Town {
       } else if (g.kind === "election") {
         this.council(); const m = this.mayor ? this.agents.get(this.mayor) : null;
         this.emit("town.gathering", m ? [m.id] : [], g.place, `The council sat at ${place.name} in front of ${who}${m ? `; ${m.persona.name} is mayor` : ""}.`, 0.9, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });
+      } else if (g.kind === "fire") {
+        // an hour of buckets: the more who came, the less burned; what burned is gone, and the place stands dark for days
+        const days = Math.max(2, 12 - who); const lost = Object.keys(place.stock).length ? Object.entries(place.stock).map(([k, v]) => `${v} ${k}`).join(", ") : "";
+        place.brokenUntil = this.day + days; place.stock = Object.fromEntries(Object.keys(place.stock).map((k) => [k, 0]));
+        const owner = place.owner ? this.agents.get(place.owner) : null;
+        for (const c of crowd) { this.remember(c, `We fought the fire at ${place.name}; ${who} of us. It will be ${days} days before it stands again.`, 0.8); for (const d of crowd) if (d !== c) this.nudge(c, d.id, 0.03, 0.02); }
+        if (owner) { this.remember(owner, `${place.name} burned: ${g.note}. ${who} came with buckets. ${days} days before I can use it again${lost ? `; lost ${lost}` : ""}.`, 1); }
+        for (const r of this.residentsOf(place)) if (!crowd.includes(r)) this.remember(r, `${place.name}, where I sleep, burned. I have no roof for ${days} days.`, 1);
+        this.emit("town.gathering", g.actors, g.place, `The fire at ${place.name} is out. ${who} came with buckets; ${days} days before it stands again${lost ? `, and ${lost} lost to the flames` : ""}.`, 1, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true, days, cause: g.note });
       } else if (g.kind === "feast") {
         for (const c of crowd) { c.needs.hunger = 0; c.needs.social = 0; this.remember(c, `${g.note}: the whole town at ${place.name}, and enough for everyone.`, 0.7); for (const d of crowd) if (d !== c) this.nudge(c, d.id, 0.02, 0.02); }
         this.emit("town.gathering", [], g.place, `${g.note}: ${who} came to ${place.name}, and everyone ate.`, 0.95, { kind: g.kind, crowd: crowd.map((c) => c.id), held: true });

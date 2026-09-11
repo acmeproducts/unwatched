@@ -169,7 +169,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "town.gathering", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
+  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "town.gathering", "town.fire", "agent.search", "town.expose", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

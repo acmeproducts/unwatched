@@ -195,7 +195,7 @@ export interface AgentSnapshot {
   memory: Memory[];
 }
 /** Something the whole town comes to: a wedding, a funeral, a hearing, an election, a feast. Summoned an hour before, held on the hour, in front of everyone who came. */
-export interface Gathering { id: number; kind: "wedding" | "funeral" | "hearing" | "election" | "feast"; place: PlaceId; day: number; hour: number; actors: AgentId[]; note: string; held: boolean }
+export interface Gathering { id: number; kind: "wedding" | "funeral" | "hearing" | "election" | "feast" | "fire"; place: PlaceId; day: number; hour: number; actors: AgentId[]; note: string; held: boolean }
 export interface TownSnapshot {
   t: number; day: number; weather: string; flourShortage: boolean;
   /** Places whose state can change: plots, sites, what people built, beds and owners. Positions come from the code. */

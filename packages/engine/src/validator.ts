@@ -158,6 +158,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "sleep": {
       const beds = here.beds;
       if (!beds) return { ok: false, reason: "no bed here" };
+      if (here.brokenUntil && here.brokenUntil > (v.day ?? 0)) return { ok: false, reason: `${here.name} is burnt out; nobody sleeps here yet` };
       const isHome = a.home?.place === here.id && a.home.nightsPaid > 0;
       if (beds.price === 0) return { ok: true };
       if (isHome || here.owner === a.id) return { ok: true };

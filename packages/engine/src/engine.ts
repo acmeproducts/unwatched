@@ -97,7 +97,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null, debts: [],
+      plan: null, debts: [], hint: null,
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -131,7 +131,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [],
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -221,7 +221,7 @@ export class Town {
     }
     perceived.forEach(({ th }, i) => {
       const proposal = proposals[i]!;
-      th.a.lastThought = this.t;
+      th.a.lastThought = this.t; th.a.hint = null;
       for (const l of th.a.letters) if (!l.read) { l.read = true; this.remember(th.a, `A letter from whoever sent me: "${l.text}"`, 0.6, "letter"); }
       for (const r of proposal.remember) this.remember(th.a, r, 0.4);
       th.a.heard = [];
@@ -257,6 +257,7 @@ export class Town {
       heard: a.heard.map((h) => ({ from: h.from, name: h.name, text: h.text })),
       recent: retrieve(a.memory, q, this.t, 8).map((m) => m.text),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
+      ...(a.hint ? { hint: a.hint } : {}),
       today: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
       options: [...OPTIONS_DEFAULT, ...(here.kind === "plot" && !here.site ? ["build" as const] : []), ...(here.owner === a.id ? ["hire" as const] : []), ...([...this.places.values()].some((p) => p.owner === a.id && p.beds) && nearby.length ? ["lodge" as const] : []), ...(nearby.length && a.coins > 0 ? ["lend" as const] : []), ...(here.kind === "harbor" && !this.ferryHeld ? ["leave" as const] : [])],
       deadline_ms: 8000,
@@ -475,6 +476,14 @@ export class Town {
         const a = g[i]!, b = g[i + 1]!;
         if (a.brainKind === "own_brain" || b.brainKind === "own_brain") continue;
         if (!wantsConversation(a, b, this.t) && !wantsConversation(b, a, this.t)) continue;
+        // when something is at stake between them, the town does not write the talk for them: each takes a turn, minute by minute
+        const stake = this.stakeBetween(a, b);
+        if (stake) {
+          const opener = this.rng.chance(0.5) ? a : b, other = opener === a ? b : a;
+          opener.hint = `${other.persona.name} is right here. ${stake} This is the minute to say what you actually want, in your own words, or to walk away.`;
+          a.lastConversation = this.t; b.lastConversation = this.t;
+          continue;
+        }
         if (!(this.spend(a, 1) || this.spend(b, 1))) continue;
         const place = this.places.get(placeId)!;
         let d;
@@ -596,6 +605,16 @@ export class Town {
     for (const w of this.agents.values()) if (w.id !== site.by && (w.location === here.id || this.rng.chance(0.4))) this.remember(w, `${bname} built ${here.name} on the ${here.district}.`, 0.5, "rumor");
   }
   private workedOnSite = new Set<string>();
+
+  /** What makes a meeting matter: low trust, or coins owed either way. */
+  private stakeBetween(a: AgentState, b: AgentState): string | null {
+    const owedByA = a.debts.find((d) => d.to === b.id), owedByB = b.debts.find((d) => d.to === a.id);
+    if (owedByA) return `You owe them ${owedByA.coins} coins${this.t >= owedByA.due ? ", and it is overdue" : ""}.`;
+    if (owedByB) return `They owe you ${owedByB.coins} coins${this.t >= owedByB.due ? ", and it is overdue" : ""}.`;
+    const ta = a.relationships.get(b.id)?.trust ?? 0.3, tb = b.relationships.get(a.id)?.trust ?? 0.3;
+    if (ta < 0.2 || tb < 0.2) return "There is bad blood between you.";
+    return null;
+  }
 
   /** The plan step whose hour has come and which has not had its thought yet. */
   dueStep(a: AgentState) { return a.plan?.day === this.day ? a.plan.steps.find((st) => !st.done && st.hour <= this.hour) ?? null : null; }

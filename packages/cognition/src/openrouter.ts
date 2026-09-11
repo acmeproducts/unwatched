@@ -35,6 +35,9 @@ export class OpenRouterBrain implements Brain {
   }
 
   usage() { return { ...this.spent }; }
+  private cached = 0;
+  /** Prompt tokens served from the cache so far. */
+  cachedTokens() { return this.cached; }
   /** Called whenever an answer could not be used and the plain fallback stood in. The ops room listens. */
   onFallback: ((f: { what: string; model: string; reason: string }) => void) | null = null;
 
@@ -45,7 +48,8 @@ export class OpenRouterBrain implements Brain {
     const body = {
       model,
       max_tokens: maxTokens,
-      messages: [{ role: "system", content: `${system}\n\nAnswer with a single JSON object matching this JSON schema exactly, no prose:\n${JSON.stringify(jsonSchema)}` }, { role: "user", content: user }],
+      // the rules and the persona repeat on every call; mark them cacheable so Anthropic bills the repeat at a tenth of the price
+      messages: [{ role: "system", content: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }, { type: "text", text: `Answer with a single JSON object matching this JSON schema exactly, no prose:\n${JSON.stringify(jsonSchema)}` }] }, { role: "user", content: user }],
       response_format: { type: "json_schema", json_schema: { name, strict: true, schema: jsonSchema } },
     };
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -56,8 +60,8 @@ export class OpenRouterBrain implements Brain {
       });
       if (res.status === 429 || res.status >= 500) { this.log(`openrouter ${res.status}; ${attempt === 0 ? "retrying" : "falling back"}`); if (attempt === 1) this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); await new Promise((r) => setTimeout(r, 1500)); continue; }
       if (!res.ok) { const msg = (await res.text()).slice(0, 200); this.log(`openrouter ${res.status}: ${msg}`); this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); return null; }
-      const data = await res.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
-      this.spent.calls++; this.spent.prompt += data.usage?.prompt_tokens ?? 0; this.spent.completion += data.usage?.completion_tokens ?? 0;
+      const data = await res.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
+      this.spent.calls++; this.spent.prompt += data.usage?.prompt_tokens ?? 0; this.spent.completion += data.usage?.completion_tokens ?? 0; this.cached += data.usage?.prompt_tokens_details?.cached_tokens ?? 0;
       const text = data.choices?.[0]?.message?.content ?? "";
       try {
         const parsed = schema.safeParse(JSON.parse(text.trim().replace(/^```json\s*|```$/g, "")));

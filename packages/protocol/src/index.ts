@@ -113,6 +113,7 @@ export const Perception = z.object({
   heard: z.array(z.object({ from: AgentId, name: z.string(), text: z.string() })),
   recent: z.array(z.string()),
   owner_letters: z.array(z.object({ id: z.number().int(), text: z.string() })),
+  hint: z.string().optional(),
   today: z.object({ mood: z.string(), goals: z.array(z.string()), steps: z.array(z.object({ hour: z.number().int(), do: z.string(), place: PlaceId.nullable(), done: z.boolean() })) }).nullable(),
   options: z.array(ActionKind),
   deadline_ms: z.number().int(),

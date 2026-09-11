@@ -13,6 +13,7 @@ export function salience(a: AgentState, v: SalienceView): { tier: Tier; why: str
   if (a.asleep) return null;
   if (a.thinkEvery !== null && v.t - a.lastThought >= a.thinkEvery) return { tier: 1, why: "cadence" };
   if (a.brainKind === "own_brain" && v.t - a.lastThought >= 1) return { tier: 1, why: "own brain, every minute" };
+  if (a.hint && v.t - a.lastThought >= 1) return { tier: 2, why: "something at stake with someone here" };
   if (a.letters.some((l) => !l.read) && v.hour >= 6 && v.hour < 9) return { tier: 1, why: "letter" };
   const step = a.plan ? dueStep(a, v.hour, a.plan.day) : null;
   if (step && (step.place === null || step.place === a.location) && v.t - a.lastThought >= 3) return { tier: 1, why: `plan: ${step.do}` };

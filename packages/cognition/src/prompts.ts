@@ -26,7 +26,7 @@ Temperament (0 to 1): warmth ${p.traits.warmth.toFixed(2)}, pride ${p.traits.pri
 }
 
 export function decidePrompt(p: Perception): string {
-  return `It is ${p.time.sim}, ${p.time.weather}. Here is what you perceive, as JSON. Choose exactly one action for this minute, in character. Prefer talking to people who are here over waiting. If a letter from whoever sent you is unread, decide how you feel about it.${p.today ? " Your own plan for today is under \"today\": follow it, or change your mind, as this person would." : ""} Answer with JSON only.\n\n${JSON.stringify(p)}`;
+  return `It is ${p.time.sim}, ${p.time.weather}. Here is what you perceive, as JSON. Choose exactly one action for this minute, in character. Prefer talking to people who are here over waiting. If a letter from whoever sent you is unread, decide how you feel about it.${p.today ? " Your own plan for today is under \"today\": follow it, or change your mind, as this person would." : ""}${p.hint ? ` ${p.hint}` : ""} Answer with JSON only.\n\n${JSON.stringify(p)}`;
 }
 
 export function planPrompt(ctx: PlanContext): string {

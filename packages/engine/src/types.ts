@@ -88,6 +88,8 @@ export interface AgentState {
   thinkEvery: number | null;
   /** Today's plan, made on waking. Null before the first morning, or for a person who cannot afford to plan. */
   plan: ActivePlan | null;
+  /** A word from the world for the next thought only: someone is here and something is at stake. Never persisted. */
+  hint: string | null;
   /** Coins owed to others, with the sim minute they are due. Repaying is giving. */
   debts: { to: AgentId; coins: number; due: number }[];
 }

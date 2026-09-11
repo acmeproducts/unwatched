@@ -76,7 +76,7 @@ export class TownStore {
     const agents = [...town.agents.values()].map((a) => this.agentRow(a));
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
       this.sb.from("agents").upsert(agents, { onConflict: "id" }),
-      this.sb.from("towns").update({ sim_t: town.t, day: town.day, weather: town.weather, flour_shortage: town.flourShortage, places: snap.places ?? [], jobs: snap.jobs ?? [], children: snap.children ?? [] }).eq("id", this.townId),
+      this.sb.from("towns").update({ sim_t: town.t, day: town.day, weather: town.weather, flour_shortage: town.flourShortage, places: snap.places ?? [], jobs: snap.jobs ?? [], children: snap.children ?? [], civic: snap.civic ?? { mayor: null, elected: 0, works: [] } }).eq("id", this.townId),
     ]);
     if (e1) console.error("agents upsert failed:", e1.message);
     if (e2) console.error("town update failed:", e2.message);
@@ -95,7 +95,7 @@ export class TownStore {
 
   /** The town as it was at the last snapshot, or null when nothing has been saved yet. */
   async loadSnapshot(): Promise<TownSnapshot | null> {
-    const { data: town } = await this.sb.from("towns").select("sim_t, day, weather, flour_shortage, places, jobs, children").eq("id", this.townId).maybeSingle();
+    const { data: town } = await this.sb.from("towns").select("sim_t, day, weather, flour_shortage, places, jobs, children, civic").eq("id", this.townId).maybeSingle();
     if (!town) return null;
     // Anything recorded after the last snapshot belongs to a timeline that is about to be re-lived. Drop it, or the record doubles.
     await this.sb.from("events").delete().eq("town_id", this.townId).gt("t", Number(town.sim_t));
@@ -124,7 +124,7 @@ export class TownStore {
     });
     return {
       t: Number(town.sim_t), day: town.day, weather: town.weather, flourShortage: town.flour_shortage,
-      places: (town.places ?? []) as NonNullable<TownSnapshot["places"]>, jobs: (town.jobs ?? []) as NonNullable<TownSnapshot["jobs"]>, children: (town.children ?? []) as NonNullable<TownSnapshot["children"]>,
+      places: (town.places ?? []) as NonNullable<TownSnapshot["places"]>, jobs: (town.jobs ?? []) as NonNullable<TownSnapshot["jobs"]>, children: (town.children ?? []) as NonNullable<TownSnapshot["children"]>, ...(town.civic ? { civic: town.civic as NonNullable<TownSnapshot["civic"]> } : {}),
       agents, papers: (papers ?? []).map((p) => p.paper as Paper).reverse(),
       laws: (laws ?? []).map((l) => ({ text: l.text, by: l.proposed_by ?? "", yes: l.yes, no: l.no, open: l.open })),
     };

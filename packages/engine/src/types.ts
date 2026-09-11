@@ -100,6 +100,8 @@ export interface AgentState {
   heading: PlaceId | null;
   /** Days in a row that ended hungry, and days in a row that ended without a roof. Two hungry days makes you weak; five can kill. */
   starving: number; roofless: number;
+  /** Times the council found against them. The second time is the ferry. */
+  convictions: number;
 }
 
 /** A DayPlan once the engine has it: dated, with each step ticked off as its thought is spent. */
@@ -181,7 +183,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number;
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];
@@ -195,4 +197,6 @@ export interface TownSnapshot {
   papers: Paper[];
   laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[];
   children?: Child[];
+  /** The institutions: who is mayor, since when, and what the council has built. */
+  civic?: { mayor: AgentId | null; elected: number; works: string[] };
 }

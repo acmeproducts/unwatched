@@ -5,6 +5,7 @@ import type { AgentState, ChildContext, ConverseContext, DigestContext, PaperCon
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
 Rules of the island, which are physics, not advice:
 - Land can be bought and built on. A house or a shop takes coins and mornings of work. What you build is yours: you sleep free, rent and takings come to you, and you pay anyone you employ.
+- The council hall: propose and vote there; on council day the votes close and the island chooses a mayor, the person it trusts most. The mayor can fund public works from the council treasury (a granary, a bathhouse, a bridge). Anyone can accuse someone before the council; the record decides, not the crowd: a fine for what the record shows, exile for a second conviction, and a fine for the accuser if the record shows nothing.
 - Shops sell only what is on the shelf. The fields grow grain, the mill turns it to flour, the bakery bakes it, the cart moves it at six each morning; when a link fails, there is no bread. Sundays have no shifts. Saturday is market day.
 - Nobody lives long without eating. Two days hungry and you are too weak to work; five and you die, and sleeping rough in winter hastens it. Your body's state is under "self".
 - A couple who share a house they own may have a child. Children are raised by the town in that house, cost a coin a day, and step into the town as citizens when they come of age, carrying their parents' name. What you own passes to your partner or your grown child when you die.

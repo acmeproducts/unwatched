@@ -264,7 +264,12 @@ app.get("/api/moments/:id", (c) => {
   const around = town.events.filter((x) => x.place === e.place && Math.abs(x.t - e.t) <= 15 && x.kind !== "agent.move").slice(0, 20);
   return c.json({ moment: e, around, place: town.places.get(e.place ?? "")?.name ?? null, people: e.actors.map((id2) => ({ id: id2, name: town.agents.get(id2)?.persona.name ?? id2 })) });
 });
-app.get("/api/hall", (c) => c.json({ laws: town.laws, council: { mayor: null, members: [], nextSession: "when the first proposal is made" }, population: town.agents.size, day: town.day }));
+app.get("/api/hall", (c) => {
+  const mayor = town.mayor ? town.agents.get(town.mayor) : null;
+  const daysToCouncil = town.dayOfMonth === 1 ? 0 : 31 - town.dayOfMonth; // the first of the month, by the island's calendar
+  const cases = town.events.filter((e) => e.kind === "town.verdict" || e.kind === "town.works" || e.kind === "town.mayor" || e.kind === "law.passed" || e.kind === "law.failed").slice(-30).reverse().map((e) => ({ id: e.id, day: e.day, t: e.t, kind: e.kind, text: e.text }));
+  return c.json({ laws: town.laws.map((l) => ({ ...l, by: town.agents.get(l.by)?.persona.name ?? l.by })), council: { mayor: mayor ? { id: mayor.id, name: mayor.persona.name, since: town.electedDay } : null, treasury: town.places.get("council")?.treasury ?? 0, works: town.works, nextSession: daysToCouncil === 0 ? "today at ten" : `council day, in ${daysToCouncil} day${daysToCouncil === 1 ? "" : "s"}` }, cases, population: town.agents.size, day: town.day });
+});
 app.post("/api/me/delete", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
   for (const a of [...town.agents.values()]) if (a.owner === owner) { town.removeAgent(a.id, "left", "Their owner closed the account."); if (store) await store.markLeft(a.id, town.t); }

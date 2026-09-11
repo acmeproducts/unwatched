@@ -2,7 +2,7 @@ import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind,
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
 import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext, LifeContext } from "./types.ts";
-import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, buildKind, siteName, ISLAND, type WorldPack } from "./world.ts";
+import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, WORKS, buildKind, siteName, ISLAND, type WorldPack } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
 import { habit } from "./habit.ts";
@@ -50,6 +50,8 @@ export class Town {
   readonly agents = new Map<AgentId, AgentState>();
   readonly events: TownEvent[] = [];
   readonly laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[] = [];
+  /** The institutions. The mayor is whoever the island trusts most, chosen on council day; the works are what the council has paid for. */
+  mayor: AgentId | null = null; electedDay = 0; works: string[] = [];
   t = 0;
   day: number;
   weather: string = "clear";
@@ -149,7 +151,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null, debts: [], hint: null, heading: null, starving: 0, roofless: 0,
+      plan: null, debts: [], hint: null, heading: null, starving: 0, roofless: 0, convictions: 0,
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -183,7 +185,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0,
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0, convictions: sa.state.convictions ?? 0,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -194,6 +196,7 @@ export class Town {
     this.papers = [...snap.papers];
     this.laws.splice(0, this.laws.length, ...snap.laws);
     this.children.splice(0, this.children.length, ...(snap.children ?? []));
+    if (snap.civic) { this.mayor = snap.civic.mayor && this.agents.has(snap.civic.mayor) ? snap.civic.mayor : null; this.electedDay = snap.civic.elected; this.works = [...snap.civic.works]; }
     this.nextLetterId = 1 + Math.max(0, ...[...this.agents.values()].flatMap((a) => a.letters.map((l) => l.id)));
   }
 
@@ -204,11 +207,11 @@ export class Town {
       jobs: [...this.jobs.values()].filter((j) => this.places.get(j.place)?.owner).map(({ holders: _h, ...j }) => j),
       agents: [...this.agents.values()].map((a): AgentSnapshot => ({
         id: a.id, persona: a.persona, owner: a.owner, funded: a.funded, appearance: a.appearance, arrivedAt: a.arrivedAt,
-        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan, debts: a.debts, starving: a.starving, roofless: a.roofless },
+        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan, debts: a.debts, starving: a.starving, roofless: a.roofless, convictions: a.convictions },
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
-      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })),
+      papers: this.papers.slice(-14), laws: this.laws, children: this.children.map((c) => ({ ...c })), civic: { mayor: this.mayor, elected: this.electedDay, works: [...this.works] },
     };
   }
 
@@ -218,6 +221,7 @@ export class Town {
     if (a.job) { const j = this.jobs.get(a.job); if (j) j.holders = j.holders.filter((h) => h !== a.id); }
     if (a.asleep) { const p = this.places.get(a.location); if (p?.beds) p.freeBeds = Math.min(p.beds.capacity, (p.freeBeds ?? 0) + 1); }
     this.agents.delete(agentId);
+    if (this.mayor === agentId) { this.mayor = null; this.emit("town.mayor", [], "council", `${a.persona.name} is gone; the island has no mayor until the council sits again.`, 0.6); }
     if (reason === "died") this.inherit(a);
     for (const c of this.children) if (c.parents.includes(agentId) && !c.parents.some((pid) => this.agents.has(pid))) c.orphan = true;
     for (const b of this.agents.values()) { const r = b.relationships.get(agentId); if (r) this.remember(b, `${a.persona.name} ${reason === "left" ? "left on the ferry" : reason === "died" ? "died" : "was sent away"}. ${r.trust > 0.5 ? "I will miss them." : ""}`.trim(), 0.6 + r.trust * 0.3); }
@@ -322,10 +326,12 @@ export class Town {
       type: "perceive", agent_id: a.id,
       time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather, weekday: this.weekdayName, ...(this.occasion ? { occasion: this.occasion } : {}), ...(this.temperatureC !== null ? { temperature_c: this.temperatureC } : {}) },
       self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, family: { partner: this.partnerOf(a)?.persona.name ?? null, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => `${c.name}, ${this.day - c.bornDay} days old`) }, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
+        ...(this.mayor === a.id ? { mayor: true } : {}), ...(a.convictions ? { convictions: a.convictions } : {}),
       nearby,
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
         owner: here.owner ? (this.agents.get(here.owner)?.persona.name ?? here.owner) : null,
         ...(a.job && this.jobs.get(a.job)?.place === here.id && Object.keys(here.stock).length ? { stock: { ...here.stock }, broken: !!(here.brokenUntil && here.brokenUntil > this.day) } : {}),
+        ...(here.kind === "civic" ? { council: { mayor: this.mayor ? (this.agents.get(this.mayor)?.persona.name ?? null) : null, treasury: here.treasury, works: [...this.works], can_fund: this.mayor === a.id ? Object.entries(WORKS).filter(([w]) => !this.works.includes(w)).map(([what, w]) => ({ what, coins: w.coins })) : [], open_laws: this.laws.filter((l) => l.open).map((l) => l.text) } } : {}),
         ...(here.kind === "plot" && !here.site ? { plot: { free: true, house: { coins: BUILDS.house.coins, mornings: BUILDS.house.labor }, shop: { coins: BUILDS.shop.coins, mornings: BUILDS.shop.labor } } } : {}),
         ...(here.site ? { site: { what: here.site.what, name: here.site.name, by: this.agents.get(here.site.by)?.persona.name ?? here.site.by, done: here.site.labor, of: here.site.laborNeeded } } : {}),
         ...(here.kind === "harbor" && this.harbors.length ? { ferries_to: this.harbors.map((h) => ({ id: h.id, name: h.name })) } : {}) },
@@ -364,6 +370,7 @@ export class Town {
       case "build": return { ...action, at: this.resolvePlace(action.at) };
       case "say": return action.to ? { ...action, to: this.resolveRef(action.to, near) } : action;
       case "give": return { ...action, to: this.resolveRef(action.to, near) };
+      case "accuse": return { ...action, who: this.resolveRef(action.who, [...this.agents.values()]) };
       case "take": return action.from ? { ...action, from: this.resolveRef(action.from, near) } : action;
       case "trade": return { ...action, with: this.resolveRef(action.with, near) };
       default: return action;
@@ -373,7 +380,7 @@ export class Town {
   apply(a: AgentState, rawAction: Action, source: string): boolean {
     const action = this.resolveAction(a, rawAction);
     const here = this.places.get(a.location)!;
-    const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, weekday: this.weekday, day: this.day, price: (p, i) => this.price(p, i), path: (f, t) => this.path(f, t) });
+    const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, weekday: this.weekday, day: this.day, mayor: this.mayor, works: this.works, price: (p, i) => this.price(p, i), path: (f, t) => this.path(f, t) });
     if (!verdict.ok) {
       if (source !== "habit") this.emit("action.rejected", [a.id], here.id, `${a.persona.name} tried to ${action.kind} but ${verdict.reason}.`, 0.05, { action, source });
       return false;
@@ -532,6 +539,43 @@ export class Town {
         this.nudge(b, a.id, +0.2, +0.15);
         break;
       }
+      case "fund": {
+        const what = action.what.toLowerCase().trim(); const spec = WORKS[what]!; const council = this.places.get("council")!;
+        council.treasury -= spec.coins; this.burned += spec.coins; this.works.push(what);
+        let did = "";
+        if (what === "granary") { const mill = this.places.get("mill"); if (mill) { mill.stock.grain = (mill.stock.grain ?? 0) + 60; did = "Sixty grain went into the mill's new store."; } }
+        if (what === "bathhouse") did = "The island sleeps better for it.";
+        if (what === "bridge") { const [x, y] = this.farthestPair(); if (x && y) { x.exits.push(y.id); y.exits.push(x.id); did = `It joins ${x.name} and ${y.name}.`; } }
+        this.emit("town.works", [a.id], here.id, `Mayor ${name} paid ${spec.coins} coins from the council treasury for ${spec.describe.split(":")[0]}. ${did}`.trim(), 0.8, { what, coins: spec.coins });
+        for (const w of this.agents.values()) this.remember(w, `The council built ${what}. ${did}`.trim(), 0.5, "rumor");
+        break;
+      }
+      case "accuse": {
+        const b = this.agents.get(action.who) ?? [...this.agents.values()].find((x) => x.persona.name.toLowerCase() === action.who.toLowerCase()); if (!b) break;
+        const since = this.t - 10 * MINUTES_PER_DAY; const council = this.places.get("council")!;
+        const guilt = this.events.filter((e) => e.t >= since && e.actors[0] === b.id && (e.kind === "agent.take" || (e.kind === "agent.debt" && / still owes /.test(e.text)))).length;
+        this.emit("town.verdict", [a.id, b.id], here.id, `${name} accused ${b.persona.name} before the council: “${action.of}”`, 0.6, { stage: "charge" });
+        if (guilt === 0) {
+          const fine = Math.min(a.coins, 3); a.coins -= fine; council.treasury += fine;
+          this.emit("town.verdict", [a.id, b.id], here.id, `The record shows nothing against ${b.persona.name}. ${name} pays ${fine} coins for a false accusation.`, 0.7, { verdict: "dismissed", fine });
+          this.remember(a, `I accused ${b.persona.name} and the record cleared them. It cost me ${fine} coins and some standing.`, 0.8);
+          this.remember(b, `${name} accused me before the council and the record cleared me.`, 0.9);
+          const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.3);
+        } else if (b.convictions >= 1 || guilt >= 3) {
+          this.emit("town.verdict", [a.id, b.id], here.id, `The record shows ${guilt} offence${guilt === 1 ? "" : "s"} against ${b.persona.name}${b.convictions ? ", and a conviction already" : ""}. The council sends them off the island on the next ferry.`, 1, { verdict: "exile", guilt });
+          this.remember(a, `The council found against ${b.persona.name} on my word, and sent them away.`, 0.9);
+          for (const w of this.nearby(a)) this.remember(w, `The council exiled ${b.persona.name} for ${guilt} offence${guilt === 1 ? "" : "s"}.`, 0.8, "rumor");
+          this.removeAgent(b.id, "exiled", `Found against by the council, accused by ${name}.`);
+        } else {
+          const fine = Math.min(b.coins, 4 * guilt); b.coins -= fine; council.treasury += fine; b.convictions++;
+          this.emit("town.verdict", [a.id, b.id], here.id, `The record shows ${guilt} offence${guilt === 1 ? "" : "s"} against ${b.persona.name}. Fined ${fine} coins to the council. A second conviction means the ferry.`, 0.8, { verdict: "fine", fine, guilt });
+          this.remember(b, `The council fined me ${fine} coins on ${name}'s word. One more and they will put me on the ferry.`, 0.95);
+          this.remember(a, `The council fined ${b.persona.name} ${fine} coins on my word.`, 0.7);
+          const r = b.relationships.get(a.id); if (r) r.trust = Math.max(0, r.trust - 0.4);
+          for (const w of this.nearby(a)) this.remember(w, `The council fined ${b.persona.name} ${fine} coins.`, 0.6, "rumor");
+        }
+        break;
+      }
       case "leave": {
         const harbor = action.to ? this.harbors.find((h) => h.id === action.to || h.name.toLowerCase() === action.to!.toLowerCase() || h.name.toLowerCase().includes(action.to!.toLowerCase())) : null;
         if (harbor && this.onDepart) { this.sailing.push({ a, to: harbor.id, why: action.why ?? null }); return true; } // the crossing happens at the end of the minute
@@ -603,6 +647,7 @@ export class Town {
     }
     if (this.economyFrozen) return;
     if (h === 6) this.cart();
+    if (h === 10 && (this.dayOfMonth === 1 || (!this.mayor && this.day >= 2))) this.council();
     if (this.weekday === 0) return; // Sunday: no shifts, no wages
     for (const job of this.jobs.values()) {
       if (h === job.hours[1]) for (const id of job.holders) {
@@ -913,7 +958,7 @@ export class Town {
   // ---------- helpers ----------
   private decayNeeds(a: AgentState): void {
     const m = this.minutesPerTick;
-    if (a.asleep) { a.needs.rest = Math.max(0, a.needs.rest - 0.0025 * m); a.needs.hunger = Math.min(1, a.needs.hunger + 0.0004 * m); return; }
+    if (a.asleep) { a.needs.rest = Math.max(0, a.needs.rest - 0.0025 * m * (this.works.includes("bathhouse") ? 1.3 : 1)); a.needs.hunger = Math.min(1, a.needs.hunger + 0.0004 * m); return; }
     a.needs.hunger = Math.min(1, a.needs.hunger + 0.0012 * m);
     a.needs.rest = Math.min(1, a.needs.rest + 0.0009 * m);
     a.needs.social = Math.min(1, a.needs.social + 0.0008 * m * (0.5 + a.persona.traits.warmth));
@@ -943,6 +988,24 @@ export class Town {
     return p;
   }
   crowd(placeId: string): number { let n = 0; for (const b of this.agents.values()) if (b.location === placeId && !b.asleep) n++; return n; }
+  /** The council sits: open laws close on their votes, and the island chooses a mayor by the trust it holds in each person. */
+  private council(): void {
+    for (const law of this.laws) { if (!law.open) continue; law.open = false; const by = this.agents.get(law.by)?.persona.name ?? "someone"; if (law.yes > law.no) this.emit("law.passed", [law.by], "council", `The council passed ${by}'s proposal, ${law.yes} to ${law.no}: “${law.text}”`, 0.7); else this.emit("law.failed", [law.by], "council", `The council let ${by}'s proposal fall, ${law.yes} to ${law.no}: “${law.text}”`, 0.5); }
+    if (this.agents.size < 2) return;
+    const score = new Map<AgentId, number>(); for (const a of this.agents.values()) for (const [other, r] of a.relationships) if (this.agents.has(other)) score.set(other, (score.get(other) ?? 0) + (r.trust - 0.3));
+    let best: AgentId | null = null, bestScore = -Infinity; for (const a of this.agents.values()) { const sc = (score.get(a.id) ?? 0) + a.persona.traits.warmth * 0.01; if (sc > bestScore) { best = a.id; bestScore = sc; } }
+    if (!best) return; const m = this.agents.get(best)!; const was = this.mayor;
+    this.mayor = best; this.electedDay = this.day;
+    this.emit("town.mayor", [best], "council", was === best ? `The council kept ${m.persona.name} as mayor.` : `The council chose ${m.persona.name} as mayor: the person the island trusts most.${was && this.agents.has(was) ? ` ${this.agents.get(was)!.persona.name} steps down.` : ""}`, 0.8);
+    this.remember(m, was === best ? "The council kept me as mayor for another month." : "The council made me mayor. The treasury is mine to spend on the island, and the island is watching.", 1);
+    for (const a of this.agents.values()) if (a.id !== best) this.remember(a, `${m.persona.name} is mayor now.`, 0.5, "rumor");
+  }
+  /** The two places farthest apart by the roads, for the bridge. */
+  private farthestPair(): [Place | null, Place | null] {
+    const ids = [...this.places.values()].filter((p) => p.kind !== "wild" && p.kind !== "plot"); let best: [Place | null, Place | null] = [null, null], bestD = -1;
+    for (const a of ids) { const dist = new Map<string, number>([[a.id, 0]]); const q = [a.id]; while (q.length) { const cur = q.shift()!; for (const nx of this.places.get(cur)?.exits ?? []) if (!dist.has(nx)) { dist.set(nx, dist.get(cur)! + 1); q.push(nx); } } for (const b of ids) { const d = dist.get(b.id) ?? -1; if (d > bestD && !a.exits.includes(b.id)) { bestD = d; best = [a, b]; } } }
+    return best;
+  }
   path(from: string, to: string): string | null {
     if (from === to) return null;
     const prev = new Map<string, string | null>([[from, null]]); const q = [from];

@@ -1,5 +1,5 @@
 import type { Action } from "@ferrytown/protocol";
-import { BUILDS, buildKind } from "./world.ts";
+import { BUILDS, WORKS, buildKind } from "./world.ts";
 import type { AgentState, Place, Job } from "./types.ts";
 
 export type Verdict = { ok: true } | { ok: false; reason: string };
@@ -8,7 +8,7 @@ export interface ValidatorView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   agents: Map<string, AgentState>;
-  hour: number; weekday?: number; day?: number;
+  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[];
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
 }
@@ -125,6 +125,23 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       if (!other || other.location !== a.location) return { ok: false, reason: "not here" };
       const home = [...v.places.values()].find((p) => p.owner === a.id && p.beds);
       if (!home) return { ok: false, reason: "no house of your own" };
+      return { ok: true };
+    }
+    case "fund": {
+      if (here.kind !== "civic") return { ok: false, reason: "public works are funded at the council hall" };
+      if (v.mayor !== a.id) return { ok: false, reason: "only the mayor spends the council treasury" };
+      const what = action.what.toLowerCase().trim(); const spec = WORKS[what]; if (!spec) return { ok: false, reason: `the council can fund: ${Object.keys(WORKS).join(", ")}` };
+      if (v.works?.includes(what)) return { ok: false, reason: `the island already has a ${what}` };
+      if (here.treasury < spec.coins) return { ok: false, reason: `a ${what} costs ${spec.coins} coins; the treasury holds ${here.treasury}` };
+      return { ok: true };
+    }
+    case "accuse": {
+      if (here.kind !== "civic") return { ok: false, reason: "accusations are made before the council" };
+      if (v.hour < 9 || v.hour >= 17) return { ok: false, reason: "the council hears cases from nine to five" };
+      if (v.weekday === 0) return { ok: false, reason: "the council does not sit on Sunday" };
+      const b = v.agents.get(action.who) ?? [...v.agents.values()].find((x) => x.persona.name.toLowerCase() === action.who.toLowerCase());
+      if (!b) return { ok: false, reason: "nobody by that name on the island" };
+      if (b.id === a.id) return { ok: false, reason: "cannot accuse oneself" };
       return { ok: true };
     }
     case "leave": return here.kind === "harbor" ? (v.hour >= 6 && v.hour <= 20 ? { ok: true } : { ok: false, reason: "no ferry at this hour" }) : { ok: false, reason: "the ferry leaves from the harbor" };

@@ -17,6 +17,12 @@ export function makeJobs(pack: WorldPack = ISLAND): Map<string, Job> {
 }
 
 /** What can be built on a plot: the price of the land and materials, paid to the council, and the mornings of work it takes. */
+/** Public works the mayor can fund from the council treasury, and what each one does to the island. */
+export const WORKS: Record<string, { coins: number; describe: string }> = {
+  granary: { coins: 50, describe: "a granary: sixty grain laid in at the mill, so a bad month does not mean no bread" },
+  bathhouse: { coins: 60, describe: "a bathhouse: everyone sleeps better and wakes rested sooner" },
+  bridge: { coins: 40, describe: "a bridge between the two places farthest apart, so the walk is short" },
+};
 export const BUILDS: Record<"house" | "shop", { coins: number; labor: number; planks: number; describe: string }> = {
   house: { coins: 15, labor: 6, planks: 6, describe: "a house with two beds; the builder sleeps free and can let the other bed; takes six planks from the sawpit" },
   shop: { coins: 30, labor: 10, planks: 10, describe: "a shop that sells bread, soup and drink, keeps what it earns, and can take on one helper; takes ten planks from the sawpit" },

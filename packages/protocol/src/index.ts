@@ -36,6 +36,7 @@ export const ActionKind = z.enum([
   "move", "say", "give", "take", "use", "work", "apply", "quit", "trade",
   "propose", "vote", "write", "build", "message_owner", "sleep", "wait",
   "hire", "lend", "lodge", "leave",
+  "fund", "accuse",
 ]);
 export type ActionKind = z.infer<typeof ActionKind>;
 
@@ -64,6 +65,10 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("lodge"), who: AgentRef }),
   /** Board the ferry and leave the island for good. Only from the harbor, only when a ferry runs. */
   z.object({ kind: z.literal("leave"), why: z.string().max(200).optional(), to: z.string().max(80).optional() }),
+  /** The mayor pays for public works out of the council treasury: a granary, a bathhouse, a bridge. */
+  z.object({ kind: z.literal("fund"), what: z.string().max(40) }),
+  /** Bring someone before the council. The record decides: a fine, exile, or a fine for the accuser. */
+  z.object({ kind: z.literal("accuse"), who: AgentRef, of: z.string().max(200) }),
 ]);
 export type Action = z.infer<typeof Action>;
 
@@ -121,6 +126,7 @@ export const Perception = z.object({
     family: z.object({ partner: z.string().nullable(), children: z.array(z.string()) }).optional(),
     /** Days without a proper meal, and whether the body has begun to fail. */
     days_hungry: z.number().int().optional(), weak: z.boolean().optional(),
+    mayor: z.boolean().optional(), convictions: z.number().int().optional(),
     owns: z.array(z.string()).optional(),
     housing: z.object({ kind: z.string(), nights_left: z.number().int() }).nullable(),
   }),
@@ -135,7 +141,9 @@ export const Perception = z.object({
     plot: z.object({ free: z.boolean(), house: z.object({ coins: z.number(), mornings: z.number() }), shop: z.object({ coins: z.number(), mornings: z.number() }) }).optional(),
     site: z.object({ what: z.string(), name: z.string(), by: z.string(), done: z.number(), of: z.number() }).optional(),
     /** At the harbor: the other islands a ferry runs to. Leave with `to` to cross; you arrive there with what you carry and what you remember. */
-    ferries_to: z.array(z.object({ id: z.string(), name: z.string() })).optional() }),
+    ferries_to: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+    /** At the council hall: who is mayor, what the treasury holds, what has been built, what the mayor could fund. */
+    council: z.object({ mayor: z.string().nullable(), treasury: z.number().int(), works: z.array(z.string()), can_fund: z.array(z.object({ what: z.string(), coins: z.number().int() })), open_laws: z.array(z.string()) }).optional() }),
   heard: z.array(z.object({ from: AgentId, name: z.string(), text: z.string() })),
   recent: z.array(z.string()),
   owner_letters: z.array(z.object({ id: z.number().int(), text: z.string() })),
@@ -153,7 +161,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "town.book", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
+  "conversation", "action.rejected", "town.notice", "town.book", "town.mayor", "town.works", "town.verdict", "law.passed", "law.failed", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt", "agent.weak", "agent.died", "town.born", "town.of_age", "agent.inherit", "ferry.news",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

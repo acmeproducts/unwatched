@@ -7,7 +7,7 @@ import type { AgentId } from "@ferrytown/protocol";
  * Positions are where things stand on the map the client draws; the client never decides where anything is.
  */
 const P = (id: string, name: string, kind: Place["kind"], district: string, sprite: string, x: number, y: number, exits: string[], extra: Partial<Place> = {}): Place =>
-  ({ id, name, kind, district, sprite, x, y, exits, sells: [], owner: null, site: null, ...extra });
+  ({ id, name, kind, district, sprite, x, y, exits, sells: [], owner: null, site: null, treasury: 0, ...extra });
 
 export function makePlaces(): Map<string, Place> {
   const list: Place[] = [
@@ -47,6 +47,8 @@ export function makePlaces(): Map<string, Place> {
     P("lighthouse", "the lighthouse", "public", "pinewood", "lighthouse", 2660, 420, ["quarry", "cove"]),
     P("point-1", "the plot on the point", "plot", "pinewood", "plot", 2560, 700, ["quarry", "lighthouse"]),
   ];
+  const FLOAT: Record<string, number> = { inn: 60, bakery: 40, fields: 40, mill: 40, harbor: 40, chandlery: 30, tavern: 30, fishhouse: 30, smithy: 30, orchard: 30, pinewood: 30, sawpit: 30, quarry: 30 };
+  for (const p of list) if (FLOAT[p.id]) p.treasury = FLOAT[p.id]!;
   for (const p of list) for (const e of p.exits) { const q = list.find((x) => x.id === e); if (q && !q.exits.includes(p.id)) q.exits.push(p.id); } // roads run both ways
   return new Map(list.map((p) => [p.id, p]));
 }

@@ -103,6 +103,25 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       return { ok: true };
     }
     case "message_owner": return a.owner ? { ok: true } : { ok: false, reason: "nobody to write to" };
+    case "hire": {
+      if (here.owner !== a.id) return { ok: false, reason: "not your place" };
+      if ([...v.jobs.values()].filter((j) => j.place === here.id).length >= 3) return { ok: false, reason: "no room for more help here" };
+      return { ok: true };
+    }
+    case "lend": {
+      const other = v.agents.get(action.to);
+      if (!other || other.location !== a.location) return { ok: false, reason: "not here" };
+      if (action.coins > a.coins) return { ok: false, reason: "not enough coins" };
+      return { ok: true };
+    }
+    case "lodge": {
+      const other = v.agents.get(action.who);
+      if (!other || other.location !== a.location) return { ok: false, reason: "not here" };
+      const home = [...v.places.values()].find((p) => p.owner === a.id && p.beds);
+      if (!home) return { ok: false, reason: "no house of your own" };
+      return { ok: true };
+    }
+    case "leave": return here.kind === "harbor" ? (v.hour >= 6 && v.hour <= 20 ? { ok: true } : { ok: false, reason: "no ferry at this hour" }) : { ok: false, reason: "the ferry leaves from the harbor" };
     case "sleep": {
       const beds = here.beds;
       if (!beds) return { ok: false, reason: "no bed here" };

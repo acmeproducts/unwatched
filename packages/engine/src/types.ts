@@ -15,6 +15,8 @@ export interface Place {
   x: number; y: number; district: string; sprite: string;
   /** Who owns it. Rent and takings go to them; they sleep free; they pay the wages of anyone they employ. */
   owner: AgentId | null;
+  /** Coins the business holds when nobody owns it. Wages come out of here; takings and the mainland's payment for produce go in. */
+  treasury: number;
   /** An unfinished building on a plot. Work adds labor; at laborNeeded it becomes a place. */
   site: { what: "house" | "shop"; name: string; by: AgentId; labor: number; laborNeeded: number; startedDay: number } | null;
 }
@@ -86,6 +88,8 @@ export interface AgentState {
   thinkEvery: number | null;
   /** Today's plan, made on waking. Null before the first morning, or for a person who cannot afford to plan. */
   plan: ActivePlan | null;
+  /** Coins owed to others, with the sim minute they are due. Repaying is giving. */
+  debts: { to: AgentId; coins: number; due: number }[];
 }
 
 /** A DayPlan once the engine has it: dated, with each step ticked off as its thought is spent. */
@@ -151,7 +155,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[];
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

@@ -47,6 +47,8 @@ export class Town {
   papers: Paper[] = [];
   /** Ops switches. Each flip is an act of God and gets printed. */
   paused = false; economyFrozen = false; ferryHeld = false;
+  /** Coins that entered the island (arrivals, the mainland paying for produce) and left it (departures), so the books can be checked. */
+  minted = 0; burned = 0;
   private nextId = 1;
   private idPrefix = "";
   private nextEventId = 1;
@@ -91,7 +93,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null,
+      plan: null, debts: [],
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -99,7 +101,7 @@ export class Town {
     this.agents.set(id, a);
     this.remember(a, `Stepped off the ferry with a suitcase and ${a.coins} coins. Three nights paid at the harbor inn.`, 0.7);
     this.emit("agent.arrive", [id], "harbor", `${a.persona.name} arrived on the ferry.`, 0.5);
-    this.arrivalsToday++;
+    this.arrivalsToday++; this.minted += a.coins;
     return a;
   }
 
@@ -111,7 +113,7 @@ export class Town {
     // what people built, over the map the code lays out: the code owns positions and roads, the record owns everything else
     for (const sp of snap.places ?? []) {
       const p = this.places.get(sp.id);
-      if (p) { p.name = sp.name; p.kind = sp.kind; p.sells = sp.sells; p.owner = sp.owner ?? null; p.site = sp.site ?? null; if (sp.beds) p.beds = sp.beds; else delete p.beds; if (sp.sprite) p.sprite = sp.sprite; }
+      if (p) { p.name = sp.name; p.kind = sp.kind; p.sells = sp.sells; p.owner = sp.owner ?? null; p.site = sp.site ?? null; p.treasury = sp.treasury ?? p.treasury; if (sp.beds) p.beds = sp.beds; else delete p.beds; if (sp.sprite) p.sprite = sp.sprite; }
     }
     for (const sj of snap.jobs ?? []) if (!this.jobs.has(sj.id) && this.places.has(sj.place)) this.jobs.set(sj.id, { ...sj, holders: [] });
     for (const p of this.places.values()) if (p.beds) p.freeBeds = p.beds.capacity;
@@ -125,7 +127,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null,
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [],
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -141,11 +143,11 @@ export class Town {
   snapshot(): TownSnapshot {
     return {
       t: this.t, day: this.day, weather: this.weather, flourShortage: this.flourShortage,
-      places: [...this.places.values()].filter((p) => p.owner || p.site || p.kind === "plot" || p.kind === "home" || p.kind === "shop").map((p) => ({ ...p })),
+      places: [...this.places.values()].map((p) => ({ ...p })),
       jobs: [...this.jobs.values()].filter((j) => this.places.get(j.place)?.owner).map(({ holders: _h, ...j }) => j),
       agents: [...this.agents.values()].map((a): AgentSnapshot => ({
         id: a.id, persona: a.persona, owner: a.owner, funded: a.funded, appearance: a.appearance, arrivedAt: a.arrivedAt,
-        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan },
+        state: { needs: a.needs, location: a.location, coins: a.coins, inventory: a.inventory, job: a.job, home: a.home, asleep: a.asleep, budget: a.budget, intentions: a.intentions, rumors: a.rumors.slice(-5), letters: a.letters.filter((l) => !l.read), lastConversation: a.lastConversation, lastThought: a.lastThought, instructions: a.instructions, brainKind: a.brainKind, thinkEvery: a.thinkEvery, plan: a.plan, debts: a.debts },
         relationships: [...a.relationships.entries()].map(([other, r]) => ({ other, ...r })),
         memory: a.memory,
       })),
@@ -162,7 +164,7 @@ export class Town {
     for (const b of this.agents.values()) { const r = b.relationships.get(agentId); if (r) this.remember(b, `${a.persona.name} ${reason === "left" ? "left on the ferry" : reason === "died" ? "died" : "was sent away"}. ${r.trust > 0.5 ? "I will miss them." : ""}`.trim(), 0.6 + r.trust * 0.3); }
     const text = reason === "left" ? `${a.persona.name} left on the ferry.${note ? ` ${note}` : ""}` : reason === "died" ? `${a.persona.name} died.${note ? ` ${note}` : ""}` : `${a.persona.name} was sent away from the island.${note ? ` ${note}` : ""}`;
     this.emit("agent.leave", [agentId], "harbor", text, 0.9, { reason, note });
-    this.departuresToday++;
+    this.departuresToday++; this.burned += a.coins;
     return a;
   }
 
@@ -242,7 +244,7 @@ export class Town {
     return {
       type: "perceive", agent_id: a.id,
       time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather },
-      self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
+      self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
       nearby,
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
         owner: here.owner ? (this.agents.get(here.owner)?.persona.name ?? here.owner) : null,
@@ -252,7 +254,7 @@ export class Town {
       recent: retrieve(a.memory, q, this.t, 8).map((m) => m.text),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
       today: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
-      options: here.kind === "plot" && !here.site ? [...OPTIONS_DEFAULT, "build"] : OPTIONS_DEFAULT,
+      options: [...OPTIONS_DEFAULT, ...(here.kind === "plot" && !here.site ? ["build" as const] : []), ...(here.owner === a.id ? ["hire" as const] : []), ...([...this.places.values()].some((p) => p.owner === a.id && p.beds) && nearby.length ? ["lodge" as const] : []), ...(nearby.length && a.coins > 0 ? ["lend" as const] : []), ...(here.kind === "harbor" && !this.ferryHeld ? ["leave" as const] : [])],
       deadline_ms: 8000,
     };
   }
@@ -317,6 +319,7 @@ export class Town {
         if (action.coins) { a.coins -= action.coins; b.coins += action.coins; }
         if (action.item) { a.inventory.splice(a.inventory.indexOf(action.item), 1); b.inventory.push(action.item); }
         const what = action.coins ? `${action.coins} coins` : action.item!;
+        if (action.coins) { const d = a.debts.find((x) => x.to === b.id); if (d) { d.coins -= action.coins; if (d.coins <= 0) { a.debts = a.debts.filter((x) => x !== d); this.emit("agent.debt", [a.id, b.id], here.id, `${name} paid ${b.persona.name} back in full.`, 0.5); this.remember(a, `I paid ${b.persona.name} back.`, 0.6); this.remember(b, `${name} paid me back in full.`, 0.7); this.nudge(b, a.id, +0.15, +0.05); } } }
         this.emit("agent.give", [a.id, b.id], here.id, `${name} gave ${b.persona.name} ${what}.`, 0.45);
         this.remember(a, `I gave ${b.persona.name} ${what}.`, 0.5); this.remember(b, `${name} gave me ${what}.`, 0.6);
         this.nudge(b, a.id, +0.08, +0.05);
@@ -353,7 +356,7 @@ export class Town {
       }
       case "build": {
         const kind = buildKind(action.what)!; const spec = BUILDS[kind];
-        a.coins -= spec.coins;
+        a.coins -= spec.coins; const council = this.places.get("council"); if (council) council.treasury += spec.coins;
         here.site = { what: kind, name: siteName(kind, name, action.name), by: a.id, labor: 0, laborNeeded: spec.labor, startedDay: this.day };
         this.emit("agent.build", [a.id], here.id, `${name} paid ${spec.coins} coins for ${here.name} and marked out ${kind === "house" ? "a house" : "a shop"}: ${here.site.name}.`, 0.7, { what: kind, site: here.id });
         this.remember(a, `I bought ${here.name} and started building ${here.site.name}. It needs ${spec.labor} mornings of work.`, 0.8);
@@ -380,8 +383,8 @@ export class Town {
           if (action.sell) { a.inventory.splice(a.inventory.indexOf(action.sell), 1); b.inventory.push(action.sell); }
           this.emit("agent.trade", [a.id, b.id], here.id, `${name} traded with ${b.persona.name}.`, 0.3);
         } else {
-          if (action.buy) { const p = this.price(here, action.buy)!; a.coins -= p; a.inventory.push(action.buy); const o = here.owner ? this.agents.get(here.owner) : null; if (o && o.id !== a.id) o.coins += p; this.emit("agent.trade", [a.id], here.id, `${name} bought ${action.buy} for ${p}${o && o.id !== a.id ? ` at ${here.name}` : ""}.`, 0.02); }
-          if (action.sell) { a.inventory.splice(a.inventory.indexOf(action.sell), 1); a.coins += 1; }
+          if (action.buy) { const p = this.price(here, action.buy)!; a.coins -= p; a.inventory.push(action.buy); const o = here.owner ? this.agents.get(here.owner) : null; if (o && o.id !== a.id) o.coins += p; else if (!o) here.treasury += p; this.emit("agent.trade", [a.id], here.id, `${name} bought ${action.buy} for ${p}${o && o.id !== a.id ? ` at ${here.name}` : ""}.`, 0.02); }
+          if (action.sell) { a.inventory.splice(a.inventory.indexOf(action.sell), 1); if (here.treasury >= 1) { a.coins += 1; here.treasury -= 1; } }
         }
         break;
       }
@@ -411,11 +414,45 @@ export class Town {
           const isHome = a.home?.place === here.id && a.home.nightsPaid > 0;
           if (isHome) a.home!.nightsPaid--;
           else if (here.owner === a.id) { here.freeBeds = (here.freeBeds ?? 1) - 1; }
-          else if (beds.price > 0) { a.coins -= beds.price; here.freeBeds = (here.freeBeds ?? 1) - 1; const o = here.owner ? this.agents.get(here.owner) : null; if (o) o.coins += beds.price; this.emit("agent.rent", [a.id], here.id, `${name} paid ${beds.price} for a bed at ${here.name}${o ? `, to ${o.persona.name}` : ""}.`, o ? 0.2 : 0.05); }
+          else if (beds.price > 0) { a.coins -= beds.price; here.freeBeds = (here.freeBeds ?? 1) - 1; const o = here.owner ? this.agents.get(here.owner) : null; if (o) o.coins += beds.price; else here.treasury += beds.price; this.emit("agent.rent", [a.id], here.id, `${name} paid ${beds.price} for a bed at ${here.name}${o ? `, to ${o.persona.name}` : ""}.`, o ? 0.2 : 0.05); }
           a.asleep = true;
           this.emit("agent.sleep", [a.id], here.id, `${name} went to sleep at ${here.name}.`, 0.01);
         }
         break;
+      }
+      case "hire": {
+        const slug = action.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "help";
+        const jid = `${here.id}.${slug}`; if (this.jobs.has(jid)) break;
+        this.jobs.set(jid, { id: jid, title: `${action.title} at ${here.name}`, place: here.id, wage: action.wage, hours: [9, 17], slots: 1, holders: [] });
+        this.emit("agent.hire", [a.id], here.id, `${name} is taking on ${lower(action.title)} at ${here.name}, ${action.wage} coins a shift.`, 0.5, { job: jid });
+        this.remember(a, `I put out word for ${lower(action.title)} at ${here.name}, ${action.wage} coins a shift.`, 0.6);
+        for (const w of this.nearby(a)) this.remember(w, `${name} is hiring at ${here.name}: ${lower(action.title)}, ${action.wage} coins.`, 0.55, "rumor");
+        break;
+      }
+      case "lend": {
+        const b = this.agents.get(action.to)!;
+        a.coins -= action.coins; b.coins += action.coins;
+        const due = this.t + action.days * MINUTES_PER_DAY;
+        const d = b.debts.find((x) => x.to === a.id); if (d) { d.coins += action.coins; d.due = due; } else b.debts.push({ to: a.id, coins: action.coins, due });
+        this.emit("agent.lend", [a.id, b.id], here.id, `${name} lent ${b.persona.name} ${action.coins} coins, due in ${action.days} day${action.days > 1 ? "s" : ""}.`, 0.55);
+        this.remember(a, `I lent ${b.persona.name} ${action.coins} coins. Due in ${action.days} days.`, 0.75); this.remember(b, `${name} lent me ${action.coins} coins. I owe it back in ${action.days} days.`, 0.8);
+        this.nudge(b, a.id, +0.1, +0.05);
+        break;
+      }
+      case "lodge": {
+        const b = this.agents.get(action.who)!;
+        const home = [...this.places.values()].find((p) => p.owner === a.id && p.beds)!;
+        b.home = { place: home.id, nightsPaid: 30 };
+        this.emit("agent.lodge", [a.id, b.id], here.id, `${name} took ${b.persona.name} in at ${home.name}.`, 0.65);
+        this.remember(a, `I took ${b.persona.name} in at ${home.name}.`, 0.7); this.remember(b, `${name} took me in at ${home.name}. A roof, for now.`, 0.85);
+        this.nudge(b, a.id, +0.2, +0.15);
+        break;
+      }
+      case "leave": {
+        this.emit("agent.leave", [a.id], "harbor", `${name} boarded the ferry and left the island${action.why ? `: “${action.why}”` : "."}`, 0.9, { why: action.why ?? null });
+        for (const w of this.nearby(a)) this.remember(w, `${name} left on the ferry${action.why ? `, saying "${action.why}"` : ""}.`, 0.7, "rumor");
+        this.removeAgent(a.id, "left", action.why ?? "");
+        return true;
       }
       case "wait": case "build": break;
     }
@@ -473,9 +510,16 @@ export class Town {
     for (const job of this.jobs.values()) {
       if (h === job.hours[1]) for (const id of job.holders) {
         const a = this.agents.get(id); if (!a) continue;
-        const owner = this.places.get(job.place)?.owner ? this.agents.get(this.places.get(job.place)!.owner!) : null;
-        if (a.workedToday && owner && owner.id !== id && owner.coins < job.wage) { a.workedToday = false; this.emit("agent.unpaid", [id, owner.id], job.place, `${owner.persona.name} could not pay ${a.persona.name} the ${job.wage} coins owed for a shift as ${job.title}.`, 0.6); this.remember(a, `${owner.persona.name} did not pay me for my shift.`, 0.8); this.remember(owner, `I could not pay ${a.persona.name} for the shift.`, 0.7); const r = this.rel(a, owner.id); r.trust = clamp(r.trust - 0.15); }
-        else if (a.workedToday) { a.coins += job.wage; if (owner && owner.id !== id) owner.coins -= job.wage; a.workedToday = false; this.emit("agent.work", [id], job.place, `${a.persona.name} was paid ${job.wage} for a shift as ${job.title}.`, 0.03); }
+        const place = this.places.get(job.place)!; const owner = place.owner ? this.agents.get(place.owner) : null;
+        // produce goes out on the evening ferry: the mainland pays the workplace a little more than the shift cost
+        if (a.workedToday && !owner && (place.kind === "workplace" || place.kind === "wild" || place.kind === "harbor")) { const paid = Math.round(job.wage * 1.25); place.treasury += paid; this.minted += paid; }
+        const purse = owner && owner.id !== id ? owner.coins : owner ? Infinity : place.treasury;
+        if (a.workedToday && purse < job.wage) {
+          a.workedToday = false;
+          if (owner) { this.emit("agent.unpaid", [id, owner.id], job.place, `${owner.persona.name} could not pay ${a.persona.name} the ${job.wage} coins owed for a shift as ${job.title}.`, 0.6); this.remember(a, `${owner.persona.name} did not pay me for my shift.`, 0.8); this.remember(owner, `I could not pay ${a.persona.name} for the shift.`, 0.7); const r = this.rel(a, owner.id); r.trust = clamp(r.trust - 0.15); }
+          else { this.emit("agent.unpaid", [id], job.place, `${place.name} could not pay ${a.persona.name} for a shift as ${job.title}; the till is empty.`, 0.55); this.remember(a, `${place.name} did not pay me. The till was empty.`, 0.8); }
+        }
+        else if (a.workedToday) { a.coins += job.wage; if (owner && owner.id !== id) owner.coins -= job.wage; else if (!owner) place.treasury -= job.wage; a.workedToday = false; this.emit("agent.work", [id], job.place, `${a.persona.name} was paid ${job.wage} for a shift as ${job.title}.`, 0.03); }
         else if (this.rng.chance(0.5)) { job.holders = job.holders.filter((x) => x !== id); a.job = null; this.emit("agent.fired", [id], job.place, `${a.persona.name} did not turn up and lost the job as ${job.title}.`, 0.6); this.remember(a, `I lost the job as ${job.title} for not turning up.`, 0.8); }
       }
     }
@@ -506,6 +550,13 @@ export class Town {
       a.budget.tier1Left = a.budget.tier1Max; a.budget.tier2Left = a.budget.tier2Max;
     }
     this.workedOnSite.clear();
+    // debts come due
+    for (const a of this.agents.values()) for (const d of a.debts) if (this.t >= d.due && !(d as { nagged?: boolean }).nagged) {
+      const lender = this.agents.get(d.to); (d as { nagged?: boolean }).nagged = true; if (!lender) continue;
+      this.emit("agent.debt", [a.id, lender.id], a.location, `${a.persona.name} still owes ${lender.persona.name} ${d.coins} coins, and the day has come.`, 0.6);
+      this.remember(lender, `${a.persona.name} has not paid back the ${d.coins} coins. It was due today.`, 0.85); this.remember(a, `I owe ${lender.persona.name} ${d.coins} coins and it is overdue.`, 0.8);
+      const r = this.rel(lender, a.id); r.trust = clamp(r.trust - 0.2);
+    }
     // relationships drift toward indifference when people do not meet
     for (const a of this.agents.values()) for (const r of a.relationships.values()) if (this.t - r.lastSeen > MINUTES_PER_DAY * 2) r.trust += (0.3 - r.trust) * 0.05;
     // the paper

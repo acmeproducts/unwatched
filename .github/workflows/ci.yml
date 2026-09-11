@@ -1,0 +1,17 @@
+name: town
+on: [push, pull_request]
+jobs:
+  physics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      # ten days of the island with the mock brain, no keys: the town must run and people must build
+      - run: pnpm --filter @ferrytown/headless soak -- --days 10 --agents 20 --brain mock --seed 7 --tick 1
+      - run: grep -q "finished" apps/headless/out/gazette-day*.md

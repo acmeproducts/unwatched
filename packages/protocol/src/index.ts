@@ -35,6 +35,7 @@ export type Persona = z.infer<typeof Persona>;
 export const ActionKind = z.enum([
   "move", "say", "give", "take", "use", "work", "apply", "quit", "trade",
   "propose", "vote", "write", "build", "message_owner", "sleep", "wait",
+  "hire", "lend", "lodge", "leave",
 ]);
 export type ActionKind = z.infer<typeof ActionKind>;
 
@@ -55,6 +56,14 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
   z.object({ kind: z.literal("sleep") }),
   z.object({ kind: z.literal("wait") }),
+  /** At a place you own: create a job for one helper. The wage comes out of your own coins each shift. */
+  z.object({ kind: z.literal("hire"), title: z.string().max(60), wage: z.number().int().min(1).max(6) }),
+  /** Coins now, remembered by both, due in so many days. Repay with give. */
+  z.object({ kind: z.literal("lend"), to: AgentRef, coins: z.number().int().positive(), days: z.number().int().min(1).max(30) }),
+  /** Take someone into a house you own. They sleep free until you say otherwise. */
+  z.object({ kind: z.literal("lodge"), who: AgentRef }),
+  /** Board the ferry and leave the island for good. Only from the harbor, only when a ferry runs. */
+  z.object({ kind: z.literal("leave"), why: z.string().max(200).optional() }),
 ]);
 export type Action = z.infer<typeof Action>;
 
@@ -89,6 +98,8 @@ export const Perception = z.object({
     coins: z.number().int(),
     inventory: z.array(z.string()),
     job: z.string().nullable(),
+    debts: z.array(z.object({ to: z.string(), coins: z.number().int(), overdue: z.boolean() })).optional(),
+    owns: z.array(z.string()).optional(),
     housing: z.object({ kind: z.string(), nights_left: z.number().int() }).nullable(),
   }),
   nearby: z.array(z.object({
@@ -115,7 +126,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid",
+  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid", "agent.hire", "agent.lend", "agent.lodge", "agent.debt",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

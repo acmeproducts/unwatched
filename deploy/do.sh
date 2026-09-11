@@ -51,7 +51,8 @@ if [[ -z "$ID" ]]; then
   doctl apps create --spec /tmp/ft-town-only.yaml --wait >/dev/null; rm -f /tmp/ft-town-only.yaml
   ID=$(app_id)
 fi
-URL=$(app_url)
+set -a; [[ -f .env ]] && source .env; set +a
+URL=${UW_PUBLIC_URL:-$(app_url)}   # the island's own address when it has one, else the platform hostname
 echo "app is at $URL"
 
 echo "building the web against $URL/engine"

@@ -8,7 +8,7 @@ export interface ValidatorView {
   places: Map<string, Place>;
   jobs: Map<string, Job>;
   agents: Map<string, AgentState>;
-  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; residentsOf?: (p: Place) => AgentState[];
+  hour: number; weekday?: number; day?: number; mayor?: string | null; works?: string[]; residentsOf?: (p: Place) => AgentState[]; bedPrice?: (p: Place) => number;
   price(place: Place, item: string): number | null;
   path(from: string, to: string): string | null;
 }
@@ -159,7 +159,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       if (beds.price === 0) return { ok: true };
       if (isHome || here.owner === a.id) return { ok: true };
       if ((here.freeBeds ?? 0) <= 0) return { ok: false, reason: "no beds free" };
-      if (a.coins < beds.price) return { ok: false, reason: "cannot pay for a bed" };
+      if (a.coins < (v.bedPrice ? v.bedPrice(here) : beds.price)) return { ok: false, reason: "cannot pay for a bed" };
       return { ok: true };
     }
     case "wait": return { ok: true };

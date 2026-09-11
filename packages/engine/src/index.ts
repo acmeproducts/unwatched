@@ -8,4 +8,4 @@ export { retrieve, compress } from "./memory.ts";
 export { MINUTES_PER_DAY } from "./world.ts";
 export { embed, cosine } from "./embed.ts";
 export { ISLAND, BUILDS, WORKS } from "./world.ts";
-export type { WorldPack, PlaceSpec, JobSpec, ProduceSpec, SupplySpec } from "./world.ts";
+export type { WorldPack, PlaceSpec, JobSpec, ProduceSpec, SupplySpec, ExportSpec } from "./world.ts";

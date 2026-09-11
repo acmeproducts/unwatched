@@ -3,7 +3,7 @@ import type { AgentId } from "@ferrytown/protocol";
 import { ISLAND, type WorldPack } from "./packs/island.ts";
 
 export { ISLAND } from "./packs/island.ts";
-export type { WorldPack, PlaceSpec, JobSpec, ProduceSpec, SupplySpec } from "./packs/island.ts";
+export type { WorldPack, PlaceSpec, JobSpec, ProduceSpec, SupplySpec, ExportSpec } from "./packs/island.ts";
 
 /** The island, from a world pack. Roads run both ways; unowned businesses start with their float in the till. */
 export function makePlaces(pack: WorldPack = ISLAND): Map<string, Place> {

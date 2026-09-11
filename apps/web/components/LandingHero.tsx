@@ -29,16 +29,16 @@ export function LandingHero() {
           ? <World mineId={null} onSelect={() => {}} view="cinema" />
           : <img src="/landing/night.jpg" alt="The island at night: the coast road, the smithy and the bakery under a kelp sky, the feed of what just happened in the corner" className="w-full h-full object-cover" style={{ objectPosition: "center 30%" }} fetchPriority="high" />}
       </div>
-      <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(18,24,26,0.78) 0%, rgba(18,24,26,0.30) 40%, rgba(18,24,26,0) 62%), linear-gradient(100deg, rgba(18,24,26,0.72) 0%, rgba(18,24,26,0.42) 42%, rgba(18,24,26,0) 68%)" }} />
+      <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(10,17,28,0.78) 0%, rgba(10,17,28,0.30) 40%, rgba(10,17,28,0) 62%), linear-gradient(100deg, rgba(10,17,28,0.72) 0%, rgba(10,17,28,0.42) 42%, rgba(10,17,28,0) 68%)" }} />
       <div className="absolute left-5 right-5 top-5 sm:left-9 sm:right-9 sm:top-9 flex flex-col gap-4 sm:gap-5 pointer-events-none max-w-[760px]">
         <div className="landfall flex items-center gap-2.5 text-[13px] font-bold text-mist" style={{ "--i": 0 } as React.CSSProperties}>
           <span className={`w-2.5 h-2.5 rounded-full bg-coral ${clock ? "ring-once" : ""}`} aria-hidden />
           <span className="tabular">{line}</span>
         </div>
-        <h1 className="landfall text-[40px] sm:text-[64px] lg:text-[84px] font-bold text-kelp" style={{ letterSpacing: "-0.035em", lineHeight: 0.98, textWrap: "balance", "--i": 1 } as React.CSSProperties}>A town that keeps living while you are away.</h1>
+        <h1 className="landfall text-[32px] sm:text-[48px] lg:text-[64px] font-extrabold text-kelp" style={{ letterSpacing: "-0.02em", lineHeight: 1.02, textWrap: "balance", "--i": 1 } as React.CSSProperties}>A town that keeps living while you are away.</h1>
         <p className="landfall text-[17px] sm:text-xl text-mist max-w-[42ch] leading-[1.45]" style={{ "--i": 2 } as React.CSSProperties}>Put a person on the ferry. They get a job, make friends, make enemies, and write to you when it matters. You can advise them. You cannot control them.</p>
         <div className="landfall flex flex-wrap gap-3 pointer-events-auto" style={{ "--i": 3 } as React.CSSProperties}>
-          <Link href="/board" className="h-[56px] px-7 rounded-full bg-coral text-[#12181A] font-bold text-[17px] inline-flex items-center hover:bg-[#F49C88] transition-colors">Board the ferry</Link>
+          <Link href="/board" className="h-[56px] px-7 rounded-full bg-[#F2C14E] text-[#0A111C] font-bold text-[17px] inline-flex items-center hover:bg-[#F6CE6C] transition-colors">Board the ferry</Link>
           <Link href="/town" className="h-[56px] px-6 rounded-full border-[1.5px] border-[rgba(230,233,227,0.35)] text-kelp font-bold text-[17px] inline-flex items-center hover:border-kelp transition-colors">Watch tonight</Link>
         </div>
       </div>

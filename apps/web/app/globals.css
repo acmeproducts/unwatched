@@ -14,21 +14,24 @@
   --color-line: #E4E0D3;
   --color-sage: #B9D9C6;
   --color-mist: #B9CFC8;
-  --font-display: var(--font-sora), "Segoe UI", Helvetica, sans-serif;
-  --font-body: var(--font-nunito), "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-unbounded), "Arial Black", "Segoe UI", sans-serif;
+  --font-body: var(--font-hanken), "Segoe UI", Helvetica, Arial, sans-serif;
+  --color-night: #0A111C;
+  --color-bone: #F2EEE3;
+  --color-lamp: #F2C14E;
   --radius-card: 24px;
   --radius-tile: 16px;
 }
 
 html, body { background: var(--color-sand); color: var(--color-kelp); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
-/* Dark: the same relationships on a kelp ground. Sea glass becomes the pressable color, coral warms up a step. */
+/* Dark: the brand's night. Night ground, Tile surfaces, Bone type, the Lamp for anything pressable or alive, Sea for the rest. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --color-sand: #12181A; --color-shell: #1E2A2B; --color-glass: #243A38; --color-teal: #DCEBE3; --color-teal-deep: #C2DACD; --color-coral: #F08A72; --color-kelp: #E6E9E3; --color-ink2: #B9C4BF; --color-drift: #8E9A95; --color-line: #2C3A3B; --color-sage: #3E5F55; --color-mist: #8E9A95; }
-  :root:not([data-theme="light"]) .bg-teal { color: #12403D; }
-  :root:not([data-theme="light"]) img[src="/logo-ferry-teal.svg"] { content: url("/logo-ferry-sand.svg"); }
+  :root:not([data-theme="light"]) { --color-sand: #0A111C; --color-shell: #111B2B; --color-glass: #16263A; --color-teal: #F2C14E; --color-teal-deep: #E0B03F; --color-coral: #F08A72; --color-kelp: #F2EEE3; --color-ink2: #C9D0D8; --color-drift: #8E9AA8; --color-line: #1E2A3C; --color-sage: #1E5A63; --color-mist: #8E9AA8; }
+  :root:not([data-theme="light"]) .bg-teal { color: #0A111C; }
 }
-:root[data-theme="dark"] { --color-sand: #12181A; --color-shell: #1E2A2B; --color-glass: #243A38; --color-teal: #DCEBE3; --color-teal-deep: #C2DACD; --color-coral: #F08A72; --color-kelp: #E6E9E3; --color-ink2: #B9C4BF; --color-drift: #8E9A95; --color-line: #2C3A3B; --color-sage: #3E5F55; --color-mist: #8E9A95; }
-h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.03em; line-height: 1.05; }
+:root[data-theme="dark"] { --color-sand: #0A111C; --color-shell: #111B2B; --color-glass: #16263A; --color-teal: #F2C14E; --color-teal-deep: #E0B03F; --color-coral: #F08A72; --color-kelp: #F2EEE3; --color-ink2: #C9D0D8; --color-drift: #8E9AA8; --color-line: #1E2A3C; --color-sage: #1E5A63; --color-mist: #8E9AA8; }
+:root[data-theme="dark"] .bg-teal { color: #0A111C; }
+h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.02em; line-height: 1.08; }
 .label { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--color-drift); }
 .tabular { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-shell), 0 0 0 6px var(--color-teal); }
@@ -52,9 +55,8 @@ h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: -0.03em
 .crossfade { transition: opacity 250ms linear; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .rise { opacity: 1; transform: none; } .ring-once::after { display: none; } }
 /* The landing page keeps the night whatever the visitor's theme: the island is checked on in the evening. The same Tide relationships on a kelp ground. */
-.landing { --color-sand: #12181A; --color-shell: #1E2A2B; --color-glass: #243A38; --color-teal: #DCEBE3; --color-teal-deep: #C2DACD; --color-coral: #F08A72; --color-kelp: #E6E9E3; --color-ink2: #C6CFCA; --color-drift: #97A39E; --color-line: #2C3A3B; --color-sage: #3E5F55; --color-mist: #B9CFC8; background: var(--color-sand); color: var(--color-kelp); }
-.landing .bg-teal { color: #12403D; }
-.landing img[src="/logo-ferry-teal.svg"] { content: url("/logo-ferry-sand.svg"); }
+.landing { --color-sand: #0A111C; --color-shell: #111B2B; --color-glass: #16263A; --color-teal: #F2C14E; --color-teal-deep: #E0B03F; --color-coral: #F08A72; --color-kelp: #F2EEE3; --color-ink2: #C9D0D8; --color-drift: #8E9AA8; --color-line: #1E2A3C; --color-sage: #1E5A63; --color-mist: #8E9AA8; background: var(--color-sand); color: var(--color-kelp); }
+.landing .bg-teal { color: #0A111C; }
 /* Landfall: the hero's one entrance. The headline, the line under it and the buttons arrive in turn; everything is visible without it. */
 .landfall { animation: landfall 720ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 110ms); }
 @keyframes landfall { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

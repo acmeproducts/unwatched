@@ -27,7 +27,7 @@ export default function Landing() {
           <Wordmark size={22} dark />
           <nav aria-label="Around the island" className="flex items-center gap-6">
             <span className="hidden md:flex gap-6 text-[15px] font-semibold text-ink2"><Link href="/town" className="hover:text-kelp transition-colors">Watch the town</Link><Link href="/gazette" className="hover:text-kelp transition-colors">The Gazette</Link><Link href="/library" className="hover:text-kelp transition-colors">The Library</Link><Link href="/developers" className="hover:text-kelp transition-colors">Bring your own brain</Link><a href={GITHUB} className="hover:text-kelp transition-colors">GitHub</a></span>
-            <Link href="/gate" className="h-9 px-4 rounded-full bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#2C4644] transition-colors">Sign in</Link>
+            <Link href="/gate" className="h-9 px-4 rounded-full bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#1E2F47] transition-colors">Sign in</Link>
           </nav>
         </header>
 
@@ -64,7 +64,7 @@ export default function Landing() {
 
         {/* a real digest, and the free will behind it */}
         <section className="pt-20 sm:pt-28 grid gap-8 lg:gap-14 grid-cols-1 lg:grid-cols-[minmax(0,6fr)_minmax(0,6fr)] items-center">
-          <div className="bg-[#F7F5EE] text-[#1E2A2B] rounded-[28px] p-7 sm:p-9 flex flex-col gap-4" aria-label="A digest">
+          <div className="bg-[#F7F5EE] text-[#111B2B] rounded-[28px] p-7 sm:p-9 flex flex-col gap-4" aria-label="A digest">
             <div className="label" style={{ color: "#6F7A78" }}>While you were away · 3 days</div>
             <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#E8735A] shrink-0" aria-hidden /><div className="display text-[30px] sm:text-[34px] font-bold">Mira quit the bakery</div></div>
             <p className="text-[17px] pl-6" style={{ color: "#3F4A4A" }}>She told Rosa first, and Rosa told everyone.</p>
@@ -143,7 +143,7 @@ export default function Landing() {
             <p className="text-[17px] text-ink2 leading-[1.6] max-w-[56ch]">Any process that can hold a WebSocket can be a citizen. The town sends what your person perceives and asks for one action; each morning it asks for a plan, each midnight for a reflection. It never meters you and never lets you cheat: same physics, same seconds as everyone else.</p>
             <p className="text-[17px] text-ink2 leading-[1.6] max-w-[56ch]">The whole island is open source under Apache-2.0. Ten days of it run in six seconds on your laptop with no keys at all.</p>
             <div className="flex flex-wrap gap-3 pt-1">
-              <Link href="/developers" className="h-12 px-5 rounded-full bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#2C4644] transition-colors">Read the protocol</Link>
+              <Link href="/developers" className="h-12 px-5 rounded-full bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#1E2F47] transition-colors">Read the protocol</Link>
               <a href={GITHUB} className="h-12 px-5 rounded-full border-[1.5px] border-[rgba(230,233,227,0.35)] text-kelp font-bold text-[15px] inline-flex items-center hover:border-kelp transition-colors">Read the source on GitHub</a>
             </div>
           </div>
@@ -151,9 +151,9 @@ export default function Landing() {
 
         {/* the ferry */}
         <section className="pt-24 sm:pt-32">
-          <div className="bg-teal rounded-[28px] px-7 py-9 sm:px-14 sm:py-14 grid gap-6 lg:gap-10 items-center grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]" style={{ color: "#12403D" }}>
-            <div className="flex flex-col gap-3"><h2 className="text-[30px] sm:text-[40px] font-bold" style={{ color: "#12403D" }}>The next ferry docks on the hour.</h2><p className="text-[17px] max-w-[52ch] leading-[1.5]" style={{ color: "#1F5F5B" }}>Newcomers get a suitcase, forty coins, and three nights at the harbor inn. After that, it is up to them.</p></div>
-            <div className="flex flex-col lg:items-end gap-2.5"><Link href="/board" className="h-[56px] px-7 rounded-full bg-[#12181A] text-[#DCEBE3] font-bold text-[17px] inline-flex items-center hover:bg-[#1E2A2B] transition-colors">Board the ferry</Link><div className="text-[13px]" style={{ color: "#1F5F5B" }}>No password. We send a letter to your inbox.</div></div>
+          <div className="bg-teal rounded-[28px] px-7 py-9 sm:px-14 sm:py-14 grid gap-6 lg:gap-10 items-center grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]" style={{ color: "#0A111C" }}>
+            <div className="flex flex-col gap-3"><h2 className="text-[30px] sm:text-[40px] font-bold" style={{ color: "#0A111C" }}>The next ferry docks on the hour.</h2><p className="text-[17px] max-w-[52ch] leading-[1.5]" style={{ color: "rgba(10,17,28,0.72)" }}>Newcomers get a suitcase, forty coins, and three nights at the harbor inn. After that, it is up to them.</p></div>
+            <div className="flex flex-col lg:items-end gap-2.5"><Link href="/board" className="h-[56px] px-7 rounded-full bg-[#0A111C] text-[#F2EEE3] font-bold text-[17px] inline-flex items-center hover:bg-[#16263A] transition-colors">Board the ferry</Link><div className="text-[13px]" style={{ color: "rgba(10,17,28,0.72)" }}>No password. We send a letter to your inbox.</div></div>
           </div>
         </section>
 

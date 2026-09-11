@@ -46,10 +46,10 @@ export function Chip({ active = false, onClick, children }: { active?: boolean; 
   return <button type="button" onClick={onClick} className={`h-9 px-3.5 rounded-full text-[13px] font-bold transition-colors ${active ? "bg-teal text-sand" : "bg-sand text-kelp hover:bg-[#E7E3D6]"}`}>{children}</button>;
 }
 export function Logo({ size = 30, dark = false }: { size?: number; dark?: boolean }) {
-  return <img src={dark ? "/logo-ferry-sand.svg" : "/logo-ferry-teal.svg"} width={size} height={size} alt="" style={{ display: "block" }} />;
+  return <img src="/logo-small-hours.svg" width={size} height={size} alt="" style={{ display: "block", borderRadius: size * 0.2 }} data-dark={dark ? "true" : undefined} />;
 }
 export function Wordmark({ size = 21, dark = false }: { size?: number; dark?: boolean }) {
-  return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display font-bold" style={{ fontSize: size, letterSpacing: "-0.035em", color: dark ? "#DCEBE3" : "#1F5F5B" }}>Small Hours</span></Link>;
+  return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display" style={{ fontSize: size * 0.82, fontWeight: 800, letterSpacing: "-0.02em", textTransform: "uppercase", whiteSpace: "nowrap", color: dark ? "#F2EEE3" : "var(--color-kelp)" }}>Small Hours</span></Link>;
 }
 
 const TABS: [string, string, IconName][] = [["Digest", "/digest", "digest"], ["Letters", "/letters", "letter"], ["Town", "/town", "town"], ["Gazette", "/gazette", "gazette"], ["Library", "/library", "book"]];

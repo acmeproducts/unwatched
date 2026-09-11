@@ -1,4 +1,5 @@
 "use client";
+import { uiFont } from "@/lib/fonts";
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import { Citizen, lookFor } from "@/components/world/citizen";
@@ -52,7 +53,7 @@ export function Painting({ scene, edition }: { scene: PaperScene; edition: numbe
       if (night) { const shade = new Graphics(); shade.rect(0, 0, W, H).fill({ color: 0x0e2a30, alpha: 0.38 }); stage.addChild(shade); }
       // the frame and the caption, like a plate in a paper
       const frame = new Graphics(); frame.rect(0, 0, W, H).stroke({ width: 10, color: SAND }); frame.rect(5, 5, W - 10, H - 10).stroke({ width: 1.5, color: KELP, alpha: 0.5 }); stage.addChild(frame);
-      const cap = new Text({ text: `${scene.placeName}, ${String(scene.hour).padStart(2, "0")}:00 · ${scene.weather} · plate ${edition}`, style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: KELP } });
+      const cap = new Text({ text: `${scene.placeName}, ${String(scene.hour).padStart(2, "0")}:00 · ${scene.weather} · plate ${edition}`, style: { fontFamily: uiFont(), fontSize: 12, fontWeight: "700", fill: KELP } });
       const capBg = new Graphics(); capBg.roundRect(14, H - 34, cap.width + 20, 24, 12).fill({ color: SAND, alpha: 0.92 }); stage.addChild(capBg); cap.position.set(24, H - 29); stage.addChild(cap);
       app.ticker.add(() => { const t = performance.now() / 1000; for (const r of rigs) r.update(t); });
     })();

@@ -1,4 +1,5 @@
 "use client";
+import { uiFont } from "@/lib/fonts";
 import { useEffect, useRef, useState } from "react";
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
@@ -168,8 +169,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (!/^(lamp|fence|field|pier|tree-small|tree-large|bush)$/.test(name)) shadowUnder(x, y, w ?? d.w);
         return c;
       };
-      const nameStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
-      const smallStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: C.teal });
+      const nameStyle = new TextStyle({ fontFamily: uiFont(), fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
+      const smallStyle = new TextStyle({ fontFamily: uiFont(), fontSize: 11, fontWeight: "700", fill: C.teal });
       // each place owns its drawn things so it can be redrawn when someone builds on it
       const drawn = new Map<string, Container>();
       const drawPlace = (p: PlaceView) => {

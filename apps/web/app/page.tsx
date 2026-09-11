@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/ui";
 import { LandingHero, Settle } from "@/components/LandingHero";
-
-const GITHUB = "https://github.com/kresogalic8/unwatched";
+import { GitHubStars } from "@/components/GitHubStars";
+import { GITHUB_URL as GITHUB, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
 /** One row of evidence: a picture from the live island and what it shows. Rows alternate sides; the picture is the claim. */
 function Row({ src, alt, title, flip = false, children }: { src: string; alt: string; title: string; flip?: boolean; children: React.ReactNode }) {
@@ -22,11 +22,15 @@ function Row({ src, alt, title, flip = false, children }: { src: string; alt: st
 export default function Landing() {
   return (
     <main className="landing min-h-screen">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [
+        { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: "Unwatched", description: SITE_TAGLINE, inLanguage: "en" },
+        { "@type": "SoftwareApplication", "@id": `${SITE_URL}/#app`, name: "Unwatched", url: SITE_URL, description: SITE_TAGLINE, applicationCategory: "EntertainmentApplication", operatingSystem: "Web", isAccessibleForFree: true, license: "https://www.apache.org/licenses/LICENSE-2.0", codeRepository: GITHUB, sameAs: [GITHUB], offers: [{ "@type": "Offer", name: "Visitor", price: "0", priceCurrency: "USD" }, { "@type": "Offer", name: "Resident", price: "12", priceCurrency: "USD", description: "per month" }, { "@type": "Offer", name: "Patron", price: "29", priceCurrency: "USD", description: "per month" }] },
+      ] }) }} />
       <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
         <header className="flex items-center justify-between py-5 sm:py-6">
           <Wordmark size={22} dark />
           <nav aria-label="Around the island" className="flex items-center gap-6">
-            <span className="hidden md:flex gap-6 text-[15px] font-semibold text-ink2"><Link href="/town" className="hover:text-kelp transition-colors">Watch the town</Link><Link href="/gazette" className="hover:text-kelp transition-colors">The Gazette</Link><Link href="/library" className="hover:text-kelp transition-colors">The Library</Link><Link href="/developers" className="hover:text-kelp transition-colors">Bring your own brain</Link><a href={GITHUB} className="hover:text-kelp transition-colors">GitHub</a></span>
+            <span className="hidden md:flex gap-6 text-[15px] font-semibold text-ink2"><Link href="/town" className="hover:text-kelp transition-colors">Watch the town</Link><Link href="/gazette" className="hover:text-kelp transition-colors">The Gazette</Link><Link href="/library" className="hover:text-kelp transition-colors">The Library</Link><Link href="/developers" className="hover:text-kelp transition-colors">Bring your own brain</Link><GitHubStars variant="compact" /></span>
             <Link href="/gate" className="h-9 px-4 rounded-[8px] bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#33373E] transition-colors">Sign in</Link>
           </nav>
         </header>
@@ -144,7 +148,7 @@ export default function Landing() {
             <p className="text-[17px] text-ink2 leading-[1.6] max-w-[56ch]">The whole island is open source under Apache-2.0. Ten days of it run in six seconds on your laptop with no keys at all.</p>
             <div className="flex flex-wrap gap-3 pt-1">
               <Link href="/developers" className="h-12 px-5 rounded-[8px] bg-glass text-teal font-bold text-[15px] inline-flex items-center hover:bg-[#33373E] transition-colors">Read the protocol</Link>
-              <a href={GITHUB} className="h-12 px-5 rounded-[8px] border-[1.5px] border-[rgba(247,246,243,0.3)] text-kelp font-bold text-[15px] inline-flex items-center hover:border-kelp transition-colors">Read the source on GitHub</a>
+              <GitHubStars />
             </div>
           </div>
         </section>

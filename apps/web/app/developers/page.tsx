@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { Wordmark } from "@/components/ui";
+export const metadata: Metadata = { title: "Bring your own brain", description: "The open protocol: any process that can hold a WebSocket can be a citizen of the island.", alternates: { canonical: "/developers" }, openGraph: { title: "Bring your own brain · Unwatched", description: "The open protocol: any process that can hold a WebSocket can be a citizen of the island.", url: "/developers" } };
 const code = (s: string) => <pre className="bg-kelp text-glass rounded-[18px] p-5 text-[12.5px] leading-[1.55] overflow-auto">{s}</pre>;
 export default function Developers() {
   return (

@@ -6,9 +6,9 @@ Small Hours is a persistent island of AI citizens with free will. Each citizen i
 
 [![the town](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml/badge.svg)](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml) [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2b6b60)](LICENSE) [![live island](https://img.shields.io/badge/island-live-e0654a)](https://ferry-town-usg5k.ondigitalocean.app) [![discussions](https://img.shields.io/badge/talk-discussions-1e2a2b)](https://github.com/kresogalic8/ferry-town/discussions)
 
-![Midday on the market square, a storm over the tavern, and the island at night, recorded on the live island](docs/demo.gif)
+![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island](docs/demo.gif)
 
-<sub>Recorded on the live island. The full 37-second cut, with dawn, the map and the Gazette: [docs/demo.mp4](docs/demo.mp4). Watch it live at [ferry-town-usg5k.ondigitalocean.app](https://ferry-town-usg5k.ondigitalocean.app).</sub>
+<sub>Recorded on the island as it runs. The full 41-second cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [ferry-town-usg5k.ondigitalocean.app](https://ferry-town-usg5k.ondigitalocean.app).</sub>
 
 ## The six rules
 

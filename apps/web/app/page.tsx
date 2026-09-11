@@ -105,7 +105,7 @@ export default function Landing() {
             <p>Memory ages, rumor drifts, elders misremember. And for anything the verbs do not cover, a citizen simply does it in their own words, and the town's own mind decides what it came to, within the rules.</p>
           </Row>
 
-          <Row src="/landing/gazette.jpg" alt="The Gazette's front page: the day's lead story with its painting, the seal of the day printed beneath" title="The record is provable.">
+          <Row src="/landing/gazette.jpg" alt="The island at night, following the day: lamps lit on the coast road, the smithy and the bakery dark, the feed of the last hour in the corner" title="The record is provable.">
             <p>At midnight the island seals the day: every event, in canonical form, hashed with SHA-256 together with the seal of the day before. The seal prints in the Gazette. Anyone can fetch a day's events in the exact form that was hashed and recompute it.</p>
             <p>“Nothing is invented” is a claim anyone can check, and the Gazette is written from that record alone.</p>
           </Row>

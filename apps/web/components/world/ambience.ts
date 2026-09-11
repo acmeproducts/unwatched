@@ -63,7 +63,26 @@ export class Ambience {
     const lfo = (target: AudioParam, hz: number, depth: number, type: OscillatorType = "sine") => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = hz; const g = ctx.createGain(); g.gain.value = depth; o.connect(g); g.connect(target); o.start(); };
     const make = (name: LayerName, synth: (dest: AudioNode) => void) => { const L = new Layer(ctx, out); if (!this.loopFile(name, L.gain)) synth(L.gain); this.layers.set(name, L); };
     make("sea", (d) => { const f = looped(d, (n) => { n.type = "lowpass"; n.frequency.value = 380; }); lfo(f.frequency, 1 / 8, 200); const g = ctx.createGain(); g.gain.value = 0.6; lfo(g.gain, 1 / 8, 0.35); });
-    make("rain", (d) => { looped(d, (n) => { n.type = "highpass"; n.frequency.value = 2200; n.Q.value = 0.5; }); const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 1100; n.Q.value = 0.8; }); lfo(f.frequency, 11, 400, "square"); });
+    // rain is thousands of small impacts, not a hiss: a soft bed, then drops scheduled one by one, with the odd heavy drip off the eaves
+    make("rain", (d) => {
+      const bed = ctx.createGain(); bed.gain.value = 0.25; bed.connect(d); looped(bed, (n) => { n.type = "bandpass"; n.frequency.value = 3200; n.Q.value = 0.4; });
+      const drop = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.03), ctx.sampleRate); const dd = drop.getChannelData(0);
+      for (let i = 0; i < dd.length; i++) { const env = Math.exp(-i / (dd.length * 0.18)); dd[i] = (Math.random() * 2 - 1) * env; }
+      const rainDrops = () => {
+        if (!this.ctx) return; const level = this.layers.get("rain")?.gain.gain.value ?? 0;
+        if (level > 0.01) {
+          const n = Math.round(6 + level * 28); const t0 = ctx.currentTime;
+          for (let i = 0; i < n; i++) {
+            const src = ctx.createBufferSource(); src.buffer = drop; const f = ctx.createBiquadFilter(); const heavy = Math.random() < 0.06;
+            f.type = "bandpass"; f.frequency.value = heavy ? 700 + Math.random() * 500 : 2500 + Math.random() * 4500; f.Q.value = heavy ? 2 : 1.2;
+            const g = ctx.createGain(); g.gain.value = heavy ? 0.5 : 0.12 + Math.random() * 0.18; src.playbackRate.value = heavy ? 0.5 : 0.8 + Math.random() * 0.8;
+            src.connect(f); f.connect(g); g.connect(d); src.start(t0 + Math.random() * 0.25);
+          }
+        }
+        setTimeout(rainDrops, 250);
+      };
+      rainDrops();
+    });
     make("wind", (d) => { const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 480; n.Q.value = 3; }); lfo(f.frequency, 0.07, 320); });
     make("murmur", (d) => { const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 320; n.Q.value = 1.4; }); lfo(f.frequency, 2.1, 140); });
     make("market", (d) => { const f = looped(d, (n) => { n.type = "bandpass"; n.frequency.value = 600; n.Q.value = 1.1; }); lfo(f.frequency, 3.3, 220); });

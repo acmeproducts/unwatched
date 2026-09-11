@@ -133,7 +133,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const scene = new Container(); scene.sortableChildren = true; world.addChild(scene);
       // everything standing on the ground is drawn in code, in one projection, at its natural size; props may be scaled
       const shadows = new Graphics(); shadows.zIndex = 0.5; scene.addChild(shadows);
-      const shadowUnder = (x: number, y: number, w: number) => { if (w < 30) return; shadows.ellipse(x + w * 0.12, y + 4, w * 0.5, Math.max(6, w * 0.16)).fill({ color: C.kelp, alpha: 0.09 }); };
+      const shadowSpecs: { x: number; y: number; w: number }[] = [];
+      // shadows sit under things at noon and stretch away from a low sun: west in the morning, east in the evening, and warmer
+      const redrawShadows = (stretch: number, dir: number) => { shadows.clear(); for (const sp of shadowSpecs) shadows.ellipse(sp.x + sp.w * 0.12 + dir * stretch * sp.w * 0.35, sp.y + 4, sp.w * 0.5 * (1 + stretch * 0.9), Math.max(6, sp.w * 0.16)).fill({ color: stretch > 0.05 ? 0x5a3f2e : C.kelp, alpha: 0.09 + stretch * 0.05 }); };
+      const shadowUnder = (x: number, y: number, w: number) => { if (w < 30) return; shadowSpecs.push({ x, y, w }); shadows.ellipse(x + w * 0.12, y + 4, w * 0.5, Math.max(6, w * 0.16)).fill({ color: C.kelp, alpha: 0.09 }); };
       const put = (name: string, x: number, y: number, w?: number, flip = false) => {
         const d = drawThing(name); if (!d) return null;
         const c = d.c; if (w) c.scale.set(w / d.w); if (flip) c.scale.x *= -1; c.position.set(x, y); c.zIndex = y; scene.addChild(c);
@@ -213,6 +216,11 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(C.kelp); night.alpha = 0; world.addChild(night);
       const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(0xe8735a); dusk.alpha = 0; world.addChild(dusk);
       const lamps = new Graphics(); lamps.zIndex = 150000; scene.addChild(lamps);
+      const moths = new Graphics(); moths.zIndex = 150001; scene.addChild(moths);
+      const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
+      const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
+      const moonPhase = () => { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000; return (days / 29.530588) % 1; }; // 0 new, 0.5 full
+      const forcedHour = typeof location !== "undefined" ? Number(new URLSearchParams(location.search).get("hour")) : NaN; // ?hour=23 previews the light without waiting for it
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
       const ambience = new Ambience(); ambienceRef.current = ambience;
 
@@ -317,21 +325,37 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (tick % 3 === 0) { fog.clear(); if (weather === "fog") for (let i = 0; i < 18; i++) { const xx = ((i * 431 + tick * 0.6) % (W + 800)) - 400, yy = ((i * 277) % (H + 200)) - 100; fog.ellipse(xx, yy, 340 + (i % 3) * 120, 110 + (i % 2) * 50).fill({ color: C.shell, alpha: 0.16 }); } }
         if (weather === "storm") { if (tick > nextBolt) { flash.alpha = 0.55; nextBolt = tick + 300 + Math.random() * 900; } flash.alpha *= 0.82; } else flash.alpha = 0;
         // light: a warm dawn, a coral dusk, kelp at night
-        const hour = c ? c.hour + (c.minute % 60) / 60 : 12;
+        const hour = Number.isFinite(forcedHour) ? forcedHour : c ? c.hour + (c.minute % 60) / 60 : 12;
         // dawn and dusk follow the real sunrise and sunset when the island keeps our time
         const hm = (t?: string | null) => t ? Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60 : null;
         const rise = hm(c?.sunrise) ?? 6.5, set = hm(c?.sunset) ?? 19.5;
         const nightAmt = (hour < rise - 1 ? 0.42 : hour < rise + 0.5 ? 0.42 * (rise + 0.5 - hour) / 1.5 : hour < set - 0.5 ? 0 : hour < set + 1 ? 0.42 * (hour - (set - 0.5)) / 1.5 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
         const duskAmt = Math.abs(hour - rise) < 1 ? 0.16 * (1 - Math.abs(hour - rise)) : Math.abs(hour - set) < 1 ? 0.2 * (1 - Math.abs(hour - set)) : 0;
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
+        // long shadows near sunrise and sunset
+        const lowSun = Math.max(0, 1 - Math.min(Math.abs(hour - rise), Math.abs(hour - set)) / 1.5) * (night.alpha < 0.3 ? 1 : 0);
+        if (tick % 10 === 0) redrawShadows(lowSun, hour < 12 ? -1 : 1);
+        // the sky over the water: stars come out with the dark, the moon keeps the calendar's phase, both lie on the sea
+        sky.alpha = Math.max(0, (night.alpha - 0.12) / 0.3);
+        if (tick % 4 === 0 && sky.alpha > 0.02) {
+          sky.clear();
+          for (const st of STARS) { if (inside(st.x, st.y) < 1.1) continue; const tw = 0.5 + 0.5 * Math.sin(tick / 20 + st.tw); sky.circle(st.x, st.y, st.r).fill({ color: 0xfff6d5, alpha: 0.35 + 0.5 * tw }); }
+          const ph = moonPhase(); const mx = W - 140, my = -140; const full = (1 - Math.cos(ph * Math.PI * 2)) / 2; // 0 new, 1 full
+          sky.circle(mx, my, 28).fill(0xfff2c2); if (full < 0.98) sky.circle(mx + (ph < 0.5 ? -1 : 1) * 58 * full, my, 29).fill({ color: 0x1b2a30, alpha: 0.94 }); // the earth's shadow slides off as the moon fills
+          for (let i = 0; i < 9; i++) { const yy = my + 60 + i * 34; sky.moveTo(mx - 14 - (i % 3) * 8 + Math.sin(tick / 30 + i) * 6, yy).lineTo(mx + 14 + (i % 2) * 10 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: 0xfff2c2, alpha: 0.35 - i * 0.03, cap: "round" }); }
+          // the quay's lamps on the water
+          for (const d of decor) if (d.sprite === "lamp" && inside(d.x, d.y + 120) > 0.96) for (let i = 0; i < 4; i++) { const yy = d.y + 70 + i * 22; sky.moveTo(d.x - 8 + Math.sin(tick / 25 + i) * 4, yy).lineTo(d.x + 8 + Math.sin(tick / 25 + i) * 4, yy).stroke({ width: 2, color: 0xfff2c2, alpha: 0.35 - i * 0.07, cap: "round" }); }
+        } else if (sky.alpha <= 0.02 && tick % 60 === 0) sky.clear();
         if (tick % 10 === 0) {
           lamps.clear(); windows.clear();
           if (night.alpha > 0.05) {
-            for (const d of decor) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.42) });
+            const k = night.alpha / 0.42;
+            for (const d of decor) if (d.sprite === "lamp") { lamps.circle(d.x, d.y - 24, 40).fill({ color: 0xfff2c2, alpha: 0.16 * k }); lamps.circle(d.x, d.y - 24, 22).fill({ color: 0xfff2c2, alpha: 0.28 * k }); lamps.ellipse(d.x, d.y + 2, 34, 12).fill({ color: 0xfff2c2, alpha: 0.22 * k }); }
             // a lit window where someone is inside
             for (const p of places.values()) if (p.crowd > 0 && p.kind !== "plot" && p.kind !== "wild" && p.kind !== "public" && p.kind !== "harbor" && p.kind !== "market") windows.roundRect(p.x - 30, p.y - 34, 16, 12, 3).fill({ color: 0xffe3a3, alpha: 0.5 * (night.alpha / 0.42) });
           }
         }
+        if (tick % 2 === 0) { moths.clear(); if (night.alpha > 0.15) for (const d of decor) { if (d.sprite !== "lamp") continue; for (let i = 0; i < 3; i++) { const t = tick / (9 + i * 3) + i * 2; moths.circle(d.x + Math.cos(t) * (10 + i * 4) + Math.sin(t * 2.3) * 3, d.y - 26 + Math.sin(t * 1.7) * (7 + i * 2), 1.3).fill({ color: 0xfff6d5, alpha: 0.8 }); } } }
         // smoke from a chimney where someone works
         if (tick % 2 === 0) { smoke.clear(); for (const [id, [ox, oy]] of Object.entries(CHIMNEYS)) { const p = places.get(id); if (!p || p.crowd === 0 || hour < 6 || hour > 20) continue; for (let i = 0; i < 6; i++) { const age = ((tick / 3 + i * 17) % 60) / 60; smoke.circle(p.x + ox + Math.sin(age * 6 + i) * 6 + age * wind * 30, p.y + oy - age * 70, 4 + age * 10).fill({ color: C.shell, alpha: 0.5 * (1 - age) }); } } }
         // sound follows the camera

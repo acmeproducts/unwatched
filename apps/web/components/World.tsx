@@ -12,7 +12,7 @@ import { Interior, type InteriorPerson } from "./Interior";
  * The server owns the map: every place arrives with its position, district and sprite, so a house someone builds
  * this morning stands on the canvas by the time the paper prints it. Labels and bubbles are HTML over the canvas.
  */
-const C = { water: 0xdcebe3, waterDeep: 0xcfe3d8, sand: 0xefede4, shell: 0xf7f5ee, grass: 0xd5e6da, sage: 0xb9d9c6, teal: 0x1f5f5b, kelp: 0x1e2a2b, coral: 0xe8735a, drift: 0x6f7a78 };
+const C = { water: 0xc3dcd6, waterDeep: 0xb0cec7, shallow: 0xd2e5de, foam: 0xf7f5ee, sand: 0xe9e0c8, wetSand: 0xdccfb0, shell: 0xf7f5ee, grass: 0xcadcc2, sage: 0xb9d9c6, earth: 0xe0d4b8, earthEdge: 0xcfc1a3, cobble: 0xe1dbcb, teal: 0x1f5f5b, kelp: 0x1e2a2b, coral: 0xe8735a, drift: 0x6f7a78 };
 
 type PlaceView = { id: string; name: string; kind: string; exits: string[]; x: number; y: number; district: string; sprite: string; owner: string | null; site: { what: string; name: string; by: string; done: number; of: number } | null; crowd: number };
 type TownView = Clock & { size: { w: number; h: number }; places: PlaceView[] };
@@ -75,45 +75,62 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       // sea, with slow ripples
       const sea = new Graphics(); world.addChild(sea);
       const ripples: Graphics = new Graphics(); world.addChild(ripples);
-      // the island: a soft blob with a sandy heart, big enough that every district has shore or hill behind it
+      // the island: a soft blob, big enough that every district has shore or hill behind it. Its outline is one smooth curve;
+      // the shallows and the foam follow it, the wet sand sits inside it, and the tiles stop just short of it.
+      const cx = W / 2, cy = H / 2 + 40, Rx = W / 2 - 120, Ry = H / 2 - 100;
+      const wobble = (a: number) => 1 + 0.14 * Math.sin(a * 3 + 0.7) + 0.08 * Math.cos(a * 5 + 2);
+      const inside = (x: number, y: number): number => { const a = Math.atan2((y - cy) / Ry, (x - cx) / Rx); return Math.hypot((x - cx) / (Rx * wobble(a)), (y - cy) / (Ry * wobble(a))); }; // 1 is the shore
+      const outline = (t: number): [number, number][] => { const pts: [number, number][] = []; for (let k = 0; k < 240; k++) { const a = (k / 240) * Math.PI * 2; const r = wobble(a) * t; pts.push([cx + Rx * r * Math.cos(a), cy + Ry * r * Math.sin(a)]); } return pts; };
+      const poly = (g: Graphics, pts: [number, number][]) => { g.moveTo(pts[0]![0], pts[0]![1]); for (const [x, y] of pts.slice(1)) g.lineTo(x, y); g.closePath(); return g; };
       const ground = new Graphics();
-      // the ground is isometric tiles: land inside the island's outline, sand at the shore and the harbor, wood around the pines,
-      // rock at the quarry, furrows at the fields, and roads laid tile by tile along the exits
+      poly(ground, outline(1.09)).fill(C.shallow);
+      poly(ground, outline(1.0)).fill(C.wetSand);
+      poly(ground, outline(0.975)).fill(C.sand);
       const gather = (p: PlaceView) => ({ x: p.x - 110, y: p.y + 40, w: 220 });
-      const inside = (x: number, y: number): number => { // >1 is sea; ~1 is the shore
-        const cx = W / 2, cy = H / 2 + 40; const a = Math.atan2((y - cy) / (H / 2 - 100), (x - cx) / (W / 2 - 120)); const r = 1 + 0.14 * Math.sin(a * 3 + 0.7) + 0.08 * Math.cos(a * 5 + 2);
-        return Math.hypot((x - cx) / ((W / 2 - 120) * r), (y - cy) / ((H / 2 - 100) * r));
-      };
       const near = (x: number, y: number, ids: string[], radius: number) => ids.some((id) => { const p = places.get(id); return !!p && Math.hypot(p.x - x, (p.y - 30 - y) * 1.6) < radius; });
-      const segs: { ax: number; ay: number; bx: number; by: number }[] = []; const roads = new Set<string>();
-      for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); segs.push({ ax: A.x + A.w / 2, ay: A.y, bx: B.x + B.w / 2, by: B.y }); }
-      const distToSeg = (x: number, y: number, s: { ax: number; ay: number; bx: number; by: number }) => { const dx = s.bx - s.ax, dy = s.by - s.ay; const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (y - s.ay) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(x - (s.ax + t * dx), y - (s.ay + t * dy)); };
-      const TW = 64, TH = 32; const FOREST = 0xb8cfbd, ROCK = 0xdcd9cf, FIELD = 0xcfe0c6, SHALLOW = 0xd3e6dc;
-      // rows step by half a tile so the diamonds interlock with no gaps; odd rows shift by half a tile width
+      const OLD_TOWN = ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern", "chandlery"];
+      const segs: { ax: number; ay: number; bx: number; by: number; cobbled: boolean }[] = []; const roads = new Set<string>();
+      for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); segs.push({ ax: A.x + A.w / 2, ay: A.y, bx: B.x + B.w / 2, by: B.y, cobbled: OLD_TOWN.includes(p.id) && OLD_TOWN.includes(q.id) }); }
+      const TW = 64, TH = 32; const FOREST = 0xb5cdb6, ROCK = 0xd7d3c6, FIELD = 0xc9d9b8;
+      const shade = (color: number, k: number) => { const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255; const f = 1 + k; return (Math.min(255, Math.round(r * f)) << 16) | (Math.min(255, Math.round(g * f)) << 8) | Math.min(255, Math.round(b * f)); };
+      const hash = (i: number, j: number) => ((i * 73856093) ^ (j * 19349663)) >>> 0;
+      // the ground is isometric tiles with no grid lines: three lightnesses of each ground, so it reads as texture, not as a grid
       for (let j = -12; j < (H / TH) * 2 + 12; j++) for (let i = -6; i < W / TW + 6; i++) {
         const x = i * TW + (j % 2 ? TW / 2 : 0), y = j * (TH / 2);
-        const d = inside(x, y); if (d > 1.06) continue;
-        let color = C.grass; const alt = (i + j) % 2 === 0;
-        void alt;
-        if (d > 1) color = SHALLOW; else if (d > 0.9 || near(x, y, ["harbor", "cove", "coast", "boatshed"], 200)) color = C.sand;
-        else if (near(x, y, ["pinewood", "sawpit", "wood-1"], 300)) color = FOREST;
-        else if (near(x, y, ["quarry", "lighthouse"], 230)) color = ROCK;
-        else if (near(x, y, ["fields", "orchard"], 240)) color = FIELD;
-        else if (near(x, y, ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern"], 260)) color = C.sand;
-        const onRoad = segs.some((sg) => distToSeg(x, y, sg) < 22);
-        if (onRoad) color = C.shell;
-        ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(color).stroke({ width: 1, color: C.kelp, alpha: onRoad ? 0.03 : 0.045 });
-        if (color === FIELD && alt) ground.moveTo(x - 20, y).lineTo(x + 20, y).stroke({ width: 1.5, color: 0xb9d9c6, alpha: 0.9 });
-        if (color === FOREST && (i * 7 + j * 3) % 5 === 0) ground.circle(x, y, 4).fill({ color: 0x9fbfa8, alpha: 0.8 });
+        const d = inside(x, y); if (d > 0.965) continue;
+        let color = C.grass; let kind = "grass";
+        if (d > 0.9 || near(x, y, ["harbor", "cove", "coast", "boatshed"], 200)) { color = C.sand; kind = "sand"; }
+        else if (near(x, y, ["pinewood", "sawpit", "wood-1"], 300)) { color = FOREST; kind = "forest"; }
+        else if (near(x, y, ["quarry", "lighthouse"], 230)) { color = ROCK; kind = "rock"; }
+        else if (near(x, y, ["fields", "orchard"], 240)) { color = FIELD; kind = "field"; }
+        else if (near(x, y, OLD_TOWN, 260)) { color = C.cobble; kind = "cobble"; }
+        const h = hash(i, j); const patch = hash(i >> 1, j >> 2); const tone = shade(color, ((patch % 3) - 1) * 0.014);
+        ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(tone);
+        if (kind === "field" && (i + j) % 2 === 0) ground.moveTo(x - 22, y - 2).lineTo(x + 22, y - 2).stroke({ width: 1.5, color: 0xb2c6a3, alpha: 0.9 });
+        if (kind === "forest" && h % 5 === 0) ground.circle(x + (h % 11) - 5, y + (h % 7) - 3, 4).fill({ color: 0x9fbfa8, alpha: 0.8 });
+        if (kind === "cobble") for (let k = 0; k < 3; k++) { const hh = hash(i + k * 17, j + k * 31); ground.ellipse(x - 18 + (hh % 36), y - 8 + ((hh >> 8) % 16), 3.2, 2).fill({ color: C.kelp, alpha: 0.07 }); }
+        if (kind === "grass" && h % 9 === 0) { const gx = x - 10 + (h % 20), gy = y - 4 + ((h >> 6) % 8); ground.moveTo(gx, gy).lineTo(gx + 2, gy - 6).moveTo(gx + 4, gy).lineTo(gx + 5, gy - 5).stroke({ width: 1.2, color: 0xa9c4a4, alpha: 0.9 }); }
+        if (kind === "rock" && h % 7 === 0) ground.ellipse(x - 8 + (h % 16), y, 6, 3).fill({ color: C.drift, alpha: 0.18 });
       }
+      // roads: packed earth between places, cobbles in the old town, drawn as one ribbon each with a darker edge
+      for (const sg of segs) { ground.moveTo(sg.ax, sg.ay).lineTo(sg.bx, sg.by).stroke({ width: 32, color: sg.cobbled ? 0xd3cbb8 : C.earthEdge, cap: "round", join: "round" }); }
+      for (const sg of segs) { ground.moveTo(sg.ax, sg.ay).lineTo(sg.bx, sg.by).stroke({ width: 26, color: sg.cobbled ? C.cobble : C.earth, cap: "round", join: "round" }); }
+      for (const sg of segs) { if (sg.cobbled) continue; const dx = sg.bx - sg.ax, dy = sg.by - sg.ay, L = Math.hypot(dx, dy) || 1; const nx = -dy / L * 5, ny = dx / L * 5; for (const sgn of [-1, 1]) ground.moveTo(sg.ax + nx * sgn, sg.ay + ny * sgn).lineTo(sg.bx + nx * sgn, sg.by + ny * sgn).stroke({ width: 1.5, color: C.earthEdge, alpha: 0.5 }); }
+      // foam along the shore, as broken lines that the ripples pass under
+      const shorePts = outline(1.012); for (let k = 0; k < shorePts.length; k += 2) { if (k % 6 === 4) continue; const a = shorePts[k]!, b = shorePts[(k + 1) % shorePts.length]!; ground.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 3, color: C.foam, alpha: 0.9, cap: "round" }); }
+      const foam2 = outline(1.05); for (let k = 0; k < foam2.length; k += 3) { if (k % 9 !== 0) continue; const a = foam2[k]!, b = foam2[(k + 1) % foam2.length]!; ground.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 2, color: C.foam, alpha: 0.5, cap: "round" }); }
       world.addChild(ground);
 
       // everything with a foot on the ground sorts by y
       const scene = new Container(); scene.sortableChildren = true; world.addChild(scene);
       // everything standing on the ground is drawn in code, in one projection, at its natural size; props may be scaled
+      const shadows = new Graphics(); shadows.zIndex = 0.5; scene.addChild(shadows);
+      const shadowUnder = (x: number, y: number, w: number) => { if (w < 30) return; shadows.ellipse(x + w * 0.12, y + 4, w * 0.5, Math.max(6, w * 0.16)).fill({ color: C.kelp, alpha: 0.09 }); };
       const put = (name: string, x: number, y: number, w?: number, flip = false) => {
         const d = drawThing(name); if (!d) return null;
-        const c = d.c; if (w) c.scale.set(w / d.w); if (flip) c.scale.x *= -1; c.position.set(x, y); c.zIndex = y; scene.addChild(c); return c;
+        const c = d.c; if (w) c.scale.set(w / d.w); if (flip) c.scale.x *= -1; c.position.set(x, y); c.zIndex = y; scene.addChild(c);
+        if (!/^(lamp|fence|field|pier)$/.test(name)) shadowUnder(x, y, w ?? d.w);
+        return c;
       };
       const nameStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
       const smallStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: C.teal });
@@ -122,7 +139,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       const drawPlace = (p: PlaceView) => {
         drawn.get(p.id)?.destroy({ children: true });
         const g = new Container(); g.sortableChildren = true; g.zIndex = p.y; scene.addChild(g); drawn.set(p.id, g);
-        const local = (name: string, w?: number) => { const s = put(name, 0, 0, w); if (s) { scene.removeChild(s); s.zIndex = 0; g.addChild(s); } return s; };
+        const local = (name: string, w?: number) => { const d = drawThing(name); const s = d ? put(name, p.x, p.y, w) : null; if (s) { scene.removeChild(s); s.position.set(0, 0); s.zIndex = 0; g.addChild(s); } return s; };
         if (p.kind === "plot" && !p.site) {
           // pegged-out land: a dashed rectangle and four stakes
           const r = new Graphics(); for (let i = 0; i < 4; i++) { const x0 = -80 + (i % 2) * 160, y0 = -60 + Math.floor(i / 2) * 70; r.rect(x0 - 3, y0 - 14, 6, 14).fill(C.drift); }
@@ -176,8 +193,9 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         let f = figs.current.get(a.id);
         if (!f) {
           const g = new Container();
-          const rig = new Citizen(lookFor(a.name, a.appearance as Partial<Look> | null)); g.addChild(rig);
-          g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -20 && x < 20 && y > -80 && y < 0 } as never;
+          const sh = new Graphics(); sh.ellipse(0, 1, 13, 5).fill({ color: C.kelp, alpha: 0.12 }); g.addChild(sh);
+          const rig = new Citizen(lookFor(a.name, a.appearance as Partial<Look> | null)); rig.scale.set(0.82); g.addChild(rig);
+          g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -18 && x < 18 && y > -66 && y < 0 } as never;
           g.on("pointertap", () => onSelect(agents.current.get(a.id) ?? null));
           scene.addChild(g);
           const seat = seatOf.current.get(a.location) ?? 0; seatOf.current.set(a.location, (seat + 1) % 10);
@@ -282,7 +300,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
           f.rig.face(f.facing); f.rig.setPose(f.asleep ? "sleep" : moving ? "walk" : b ? "talk" : f.pose); f.rig.update(secs);
           f.g.zIndex = f.y;
-          next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 78) * cam.zoom + cam.y, mine: f.mine, ...(b ? { bubble: b.text } : {}) });
+          next.push({ id: f.id, name: f.name, x: f.x * cam.zoom + cam.x, y: (f.y - 66) * cam.zoom + cam.y, mine: f.mine, ...(b ? { bubble: b.text } : {}) });
         }
         if (tick % 2 === 0) setLabels(next);
         if (tick % 20 === 0) setMini({ w: W, h: H, places: [...places.values()].map((p) => ({ id: p.id, x: p.x, y: p.y, kind: p.kind, crowd: p.crowd })), view: { x: -cam.x / cam.zoom, y: -cam.y / cam.zoom, w: Wd / cam.zoom, h: Hd / cam.zoom }, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, mine: f.mine })) });

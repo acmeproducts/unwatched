@@ -39,7 +39,7 @@ export interface AddAgentOptions {
   coins?: number;
 }
 
-const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "fog", "storm"] as const;
+const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "fog", "storm"] as const; // "snow" only ever comes from the real sky
 
 export class Town {
   readonly rng: Rng;
@@ -55,6 +55,14 @@ export class Town {
   weather: string = "clear";
   flourShortage = false;
   papers: Paper[] = [];
+  /** Where the weather comes from: the island's own dice, or a real sky that the server sets. */
+  weatherSource: "roll" | "real" = "roll";
+  /** The air, in degrees, when a real sky is watched. */
+  temperatureC: number | null = null;
+  /** A season set from the real calendar, when the island keeps our time. */
+  seasonOverride: string | null = null;
+  /** The hours the ferry docks. Hourly from six to eight by default; a real timetable when the island keeps our time. */
+  ferryTimes: number[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
   /** Other islands, by id, that a ferry crosses to. */
   harbors: { id: string; name: string }[];
   name: string;
@@ -99,7 +107,21 @@ export class Town {
   // ---------- time ----------
   get minuteOfDay(): number { return this.t % MINUTES_PER_DAY; }
   get hour(): number { return Math.floor(this.minuteOfDay / 60); }
-  get season(): string { return SEASONS[Math.floor(((this.day - 1) % 360) / 90)] ?? "autumn"; }
+  get season(): string { return this.seasonOverride ?? SEASONS[Math.floor(((this.day - 1) % 360) / 90)] ?? "autumn"; }
+  /** The real sky, or the ops room, sets the weather; it is news when it changes. */
+  setWeather(w: string, note?: string): void {
+    if (w === this.weather) return; this.weather = w;
+    this.emit("weather.change", [], undefined, note ?? `The weather turned to ${w}.`, w === "storm" ? 0.5 : 0.1);
+  }
+  /** The next hour the ferry docks, and whether that is tomorrow. */
+  nextFerry(): { hour: number; tomorrow: boolean } {
+    const later = this.ferryTimes.filter((h) => h > this.hour).sort((a, b) => a - b)[0];
+    return later !== undefined ? { hour: later, tomorrow: false } : { hour: [...this.ferryTimes].sort((a, b) => a - b)[0] ?? 6, tomorrow: true };
+  }
+  /** Let minutes pass without anyone thinking: the island catching up with the real clock after a slow stretch or a restart. */
+  skip(minutes: number): void {
+    for (let i = 0; i < minutes; i++) { for (const a of this.agents.values()) this.decayNeeds(a); const prev = this.hour; this.t += 1; if (this.hour !== prev) this.hourly(); }
+  }
   clock(t = this.t): string {
     const d = Math.floor(t / MINUTES_PER_DAY) + 1; const m = t % MINUTES_PER_DAY;
     return `day ${d} ${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -271,7 +293,7 @@ export class Town {
     const q = [a.persona.want, ...nearby.map((n) => n.name), here.name].join(" ");
     return {
       type: "perceive", agent_id: a.id,
-      time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather },
+      time: { sim: this.clock(), day: this.day, minute: this.minuteOfDay, season: this.season, weather: this.weather, ...(this.temperatureC !== null ? { temperature_c: this.temperatureC } : {}) },
       self: { location: a.location, needs: { ...a.needs }, coins: a.coins, inventory: [...a.inventory], job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, debts: a.debts.map((d) => ({ to: this.agents.get(d.to)?.persona.name ?? d.to, coins: d.coins, overdue: this.t >= d.due })), days_hungry: a.starving, weak: a.starving >= 2, family: { partner: this.partnerOf(a)?.persona.name ?? null, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => `${c.name}, ${this.day - c.bornDay} days old`) }, owns: [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name), housing: a.home ? { kind: a.home.place, nights_left: a.home.nightsPaid } : null },
       nearby,
       place: { id: here.id, name: here.name, kind: here.kind, for_sale: here.sells.map((s) => ({ item: s.item, price: this.price(here, s.item) ?? s.base })), jobs_open: this.openJobsAt(here.id).map((j) => j.id), exits: [...here.exits],
@@ -545,7 +567,7 @@ export class Town {
   // ---------- hourly and nightly ----------
   private hourly(): void {
     const h = this.hour;
-    if (h >= 6 && h <= 20) {
+    if (this.ferryTimes.includes(h)) {
       if (this.ferryHeld) this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not come.`, 0.2);
       else if (this.weather === "storm") this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry did not cross; the sea was too high.`, 0.25);
       else this.emit("ferry.dock", [], "harbor", `The ${String(h).padStart(2, "0")}:00 ferry docked.`, 0.03);
@@ -624,7 +646,7 @@ export class Town {
     // new day
     this.emit("tick.day", [], undefined, `Day ${this.day} ended.`, 0.02);
     this.day++;
-    const w = this.rollWeather(); if (w !== this.weather) { this.weather = w; this.emit("weather.change", [], undefined, `The weather turned to ${w}.`, w === "storm" ? 0.5 : 0.1); }
+    const w = this.weatherSource === "real" ? this.weather : this.rollWeather(); if (w !== this.weather) { this.weather = w; this.emit("weather.change", [], undefined, `The weather turned to ${w}.`, w === "storm" ? 0.5 : 0.1); }
     if (this.weather === "storm" && !this.flourShortage) { this.flourShortage = true; this.emit("economy.price", [], "bakery", "The storm took the roof off the mill. No flour from the island; bread costs double.", 0.7); }
     else if (this.weather !== "storm" && this.flourShortage && this.rng.chance(0.25)) { this.flourShortage = false; this.emit("economy.price", [], "bakery", "Flour is back. Bread is a coin again.", 0.4); }
     this.arrivalsToday = 0; this.departuresToday = 0;

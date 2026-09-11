@@ -14,11 +14,12 @@ import type { Brain } from "@ferrytown/engine";
 import { Action, Persona, type TownEvent, Passenger } from "@ferrytown/protocol";
 import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@ferrytown/cognition";
 import { TownStore, FileStore } from "@ferrytown/store";
-import { publicAgent, ownerAgent, clockOf } from "./views.ts";
+import { publicAgent, ownerAgent, clockOf, realClock } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
 import type { BrainRow, Plan, Store } from "@ferrytown/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
 import { Metrics } from "./ops.ts";
+import { RealWorld, PLACES } from "./realworld.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const envFile = resolve(here, "../../../.env");
@@ -80,6 +81,14 @@ if (saved && saved.agents.length > 0) {
   log("a new island: seeded the first citizens");
 }
 clockRef = () => ({ day: town.day, hour: town.hour, t: town.t });
+// the island keeps our time: a real Adriatic island's sky, calendar, clock and timetable
+const REAL = process.env.FT_REAL_WORLD ? (PLACES[process.env.FT_REAL_WORLD] ?? PLACES.hvar!) : null;
+const real = REAL ? new RealWorld(town, REAL, log) : null;
+if (real) {
+  const jumped = real.alignClock();
+  real.start(); realClock.place = REAL!.name;
+  log(`the island keeps ${REAL!.name}'s time${jumped ? ` (moved the clock ${jumped} minutes forward to ${town.clock()})` : ""}; the sky is ${REAL!.name}'s, the ferry keeps the ${town.season} timetable`);
+}
 for (const h of HARBORS) void harborTown(h).then((d) => { const n = (d as { name?: string } | null)?.name; if (n) { h.name = n; const th = town.harbors.find((x) => x.id === h.id); if (th) th.name = n; } });
 if (HARBORS.length) log(`ferries run to ${HARBORS.map((h) => h.id).join(", ")}${FERRY_SECRET ? "" : " (no FT_FERRY_SECRET: arrivals from other islands are refused)"}`);
 log(`${town.agents.size} citizens · brain ${brain.name} · ${MS_PER_SIM_MINUTE} ms per sim minute · store ${store ? (store instanceof FileStore ? "file" : "supabase") : "memory only"} · sign-in ${process.env.SUPABASE_URL ? "supabase" : "dev names"}`);
@@ -97,6 +106,7 @@ async function loop() {
         // morning plans are worth a thought each; write them down as soon as they exist so a restart does not ask twice
         const plannedAfter = [...town.agents.values()].filter((a) => a.plan?.day === town.day).length;
         if (store && plannedAfter > plannedBefore) void store.snapshot(town).catch((e: Error) => log(`plan snapshot failed: ${e.message}`));
+        if (real) { const lag = real.lag(); if (lag > 3) { town.skip(lag); log(`caught up ${lag} minutes with ${real.place.name}`); } realClock.temperatureC = real.state.temperatureC; realClock.sunrise = real.state.sunrise; realClock.sunset = real.state.sunset; }
         if (town.hour !== lastHour) { lastHour = town.hour; broadcast({ type: "clock", clock: clockOf(town) }); await hourly(); }
       } catch (err) { log(`tick failed: ${(err as Error).message}`); }
       ticking = false;
@@ -157,8 +167,8 @@ app.get("/api/children", (c) => c.json({
   grown: [...town.agents.values()].filter((a) => !a.owner && a.persona.origin.startsWith("born on the island")).map((a) => publicAgent(town, a)),
 }));
 const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
-const nextFerry = () => { const h = town.hour < 6 ? 6 : town.hour >= 20 ? 6 : town.hour + 1; return `${String(h).padStart(2, "0")}:00${town.hour >= 20 ? " tomorrow" : ""}`; };
-const liveTown = () => ({ id: store?.townId ?? "island", name: TOWN_NAME, live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : "Ferries hourly, 06:00 to 20:00", next: town.ferryRunning ? nextFerry() : null, spaces: town.ferryRunning ? Math.max(0, FERRY_SPACES - town.pendingArrivals()) : 0 });
+const nextFerry = () => { const n = town.nextFerry(); return `${String(n.hour).padStart(2, "0")}:00${n.tomorrow ? " tomorrow" : ""}`; };
+const liveTown = () => ({ id: store?.townId ?? "island", name: TOWN_NAME, live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : town.weather === "storm" ? "No crossing in this storm" : real ? `${town.ferryTimes.length} crossings a day, the ${town.season} timetable` : "Ferries hourly, 06:00 to 20:00", next: town.ferryRunning ? nextFerry() : null, spaces: town.ferryRunning ? Math.max(0, FERRY_SPACES - town.pendingArrivals()) : 0 });
 app.get("/api/towns", async (c) => {
   const rows = store ? await store.towns().catch(() => []) : [];
   const live = liveTown();
@@ -341,6 +351,7 @@ app.get("/api/ops", (c) => {
     stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, fallbacksToday: metrics.fallbacks.filter((f) => Date.now() - f.at < 86400000).length, cachedTokens: townBrain instanceof OpenRouterBrain ? townBrain.cachedTokens() : 0, ceiling: Number(process.env.FT_DAILY_CEILING_USD ?? 120) },
     hours: metrics.hours.filter((h) => h.day === town.day).map((h) => ({ hour: h.hour, calls: h.t1 + h.t2 + h.t3 + h.converse, t1: h.t1, t2: h.t2, t3: h.t3, converse: h.converse, cost: Math.round(h.cost * 100) / 100 })),
     byTier: [{ tier: "Tier 1 · routine", model: MODELS.routine, calls: today.t1 + today.converse }, { tier: "Tier 2 · stakes", model: MODELS.stakes, calls: today.t2 }, { tier: "Tier 3 · reflection and the paper", model: MODELS.reflect, calls: today.t3 }],
+    real: real ? { ...real.state, season: town.season, timetable: town.ferryTimes } : null,
     health: { coins, tills: [...town.places.values()].reduce((s, p) => s + p.treasury, 0), council: town.places.get("council")?.treasury ?? 0, employed, jobs: jobs.reduce((s, j) => s + j.slots, 0), flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boredomPct: funded.length ? Math.round(bored / funded.length * 100) : 0, events: town.events.length, tickP50: ticks.length ? ticks[Math.floor(ticks.length / 2)] : 0, tickMax: ticks.length ? ticks[ticks.length - 1] : 0, store: !!store, brain: townBrain.name, msPerMinute: MS_PER_SIM_MINUTE },
     holds: metrics.holds.slice(0, 20), ownBrains: brains,
   });

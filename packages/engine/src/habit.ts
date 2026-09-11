@@ -77,7 +77,7 @@ export function habit(a: AgentState, v: HabitView): Action {
   }
 
   // Rain sends the idle indoors; a storm sends everyone.
-  const wet = v.weather === "rain" || v.weather === "storm";
+  const wet = v.weather === "rain" || v.weather === "storm" || v.weather === "snow";
   if (wet && (v.weather === "storm" || a.needs.social < 0.7)) {
     const here = v.places.get(a.location)!;
     const indoors = here.kind === "inn" || here.kind === "home" || here.kind === "shop" || here.kind === "workplace" || here.kind === "civic" || here.id === "tavern" || here.id === "chapel";

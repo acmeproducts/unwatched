@@ -230,7 +230,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         ferry.position.x += (ferryTarget - ferry.position.x) * 0.02;
         // weather: what falls, what lingers, what blows
         const c = clockRef.current; const weather = c?.weather ?? "clear"; const winter = c?.season === "winter";
-        const wet = weather === "rain" || weather === "storm"; const snowing = wet && winter;
+        const wet = weather === "rain" || weather === "storm" || weather === "snow"; const snowing = weather === "snow" || (wet && winter);
         const wind = weather === "storm" ? 1 : weather === "wind" ? 0.8 : weather === "rain" ? 0.45 : weather === "fog" ? 0.1 : 0.2;
         if (tick % 2 === 0) {
           rain.clear();
@@ -251,8 +251,11 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         if (weather === "storm") { if (tick > nextBolt) { flash.alpha = 0.55; nextBolt = tick + 300 + Math.random() * 900; } flash.alpha *= 0.82; } else flash.alpha = 0;
         // light: a warm dawn, a coral dusk, kelp at night
         const hour = c ? c.hour + (c.minute % 60) / 60 : 12;
-        const nightAmt = (hour < 5 ? 0.42 : hour < 7 ? 0.42 * (7 - hour) / 2 : hour < 19 ? 0 : hour < 21 ? 0.42 * (hour - 19) / 2 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
-        const duskAmt = hour >= 5.5 && hour < 7.5 ? 0.16 * (1 - Math.abs(hour - 6.5)) : hour >= 18.5 && hour < 20.5 ? 0.2 * (1 - Math.abs(hour - 19.5)) : 0;
+        // dawn and dusk follow the real sunrise and sunset when the island keeps our time
+        const hm = (t?: string | null) => t ? Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60 : null;
+        const rise = hm(c?.sunrise) ?? 6.5, set = hm(c?.sunset) ?? 19.5;
+        const nightAmt = (hour < rise - 1 ? 0.42 : hour < rise + 0.5 ? 0.42 * (rise + 0.5 - hour) / 1.5 : hour < set - 0.5 ? 0 : hour < set + 1 ? 0.42 * (hour - (set - 0.5)) / 1.5 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
+        const duskAmt = Math.abs(hour - rise) < 1 ? 0.16 * (1 - Math.abs(hour - rise)) : Math.abs(hour - set) < 1 ? 0.2 * (1 - Math.abs(hour - set)) : 0;
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
         if (tick % 10 === 0) {
           lamps.clear(); windows.clear();
@@ -318,7 +321,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         <div className="text-sm">{placeInfo.people.length === 0 ? <span className="text-drift">Nobody here right now.</span> : placeInfo.people.map((pp) => <div key={pp.name}>{pp.name}{pp.asleep ? ", asleep" : pp.job ? `, ${pp.job}` : ""}</div>)}</div>
       </div>}
       <div className="absolute left-3 bottom-3 sm:left-6 sm:bottom-6 bg-shell rounded-card p-3 sm:p-4 w-[calc(100%-24px)] sm:w-[330px] flex flex-col gap-1.5 pointer-events-auto max-h-[38%] sm:max-h-none overflow-hidden">
-        <div className="label">Just now{clock ? ` · day ${clock.day} ${String(clock.hour).padStart(2, "0")}:${String(clock.minute % 60).padStart(2, "0")} · ${clock.weather}` : ""}</div>
+        <div className="label">Just now{clock ? ` · day ${clock.day} ${String(clock.hour).padStart(2, "0")}:${String(clock.minute % 60).padStart(2, "0")} · ${clock.weather}${typeof clock.temperatureC === "number" ? ` · ${Math.round(clock.temperatureC)}°` : ""}` : ""}</div>
         {feed.slice(0, 6).map((e) => <div key={e.id} className="grid gap-x-2.5 items-center" style={{ gridTemplateColumns: "44px 14px 1fr" }}><span className="text-[12px] text-drift tabular">{String(Math.floor((e.t % 1440) / 60)).padStart(2, "0")}:{String(e.t % 60).padStart(2, "0")}</span><span className="rounded-full" style={{ width: e.importance >= 0.45 ? 10 : 7, height: e.importance >= 0.45 ? 10 : 7, background: e.importance >= 0.45 ? "#E8735A" : "#1F5F5B" }} /><span className={`text-[13px] leading-tight line-clamp-2 ${e.importance >= 0.45 ? "font-semibold" : ""}`}>{e.text}</span></div>)}
         {feed.length === 0 && <div className="text-sm text-drift">A quiet minute on the island.</div>}
       </div>

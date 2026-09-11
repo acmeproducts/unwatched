@@ -86,12 +86,12 @@ export class Ambience {
   tick(s: Scene): void {
     if (!this.ctx || this.muted) return;
     const night = s.hour < 6 || s.hour >= 21;
-    const rain = s.weather === "rain" ? 0.5 : s.weather === "storm" ? 0.85 : 0;
+    const rain = s.weather === "rain" ? 0.5 : s.weather === "storm" ? 0.85 : 0; // snow falls without a sound
     const coast = s.district === "harbor" || s.district === "north shore";
     const L = (n: LayerName) => this.layers.get(n)!;
     L("sea").set((coast ? 0.4 : s.district === "pinewood" ? 0.1 : 0.18) * (s.weather === "storm" ? 1.6 : 1));
     L("rain").set(rain);
-    L("wind").set(s.weather === "storm" ? 0.5 : s.weather === "wind" ? 0.4 : s.weather === "fog" ? 0.06 : s.district === "pinewood" || s.district === "hill" ? 0.16 : 0.06);
+    L("wind").set(s.weather === "storm" ? 0.5 : s.weather === "wind" ? 0.4 : s.weather === "snow" ? 0.2 : s.weather === "fog" ? 0.06 : s.district === "pinewood" || s.district === "hill" ? 0.16 : 0.06);
     L("forest").set(s.district === "pinewood" && !night ? 0.3 : 0);
     L("night").set(night && !rain && s.season !== "winter" ? 0.25 : 0);
     const social = s.place === "tavern" || s.place === "inn";

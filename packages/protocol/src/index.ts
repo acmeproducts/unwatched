@@ -110,7 +110,7 @@ export type DigestText = z.infer<typeof DigestText>;
 export const Perception = z.object({
   type: z.literal("perceive"),
   agent_id: AgentId,
-  time: z.object({ sim: z.string(), day: z.number().int(), minute: z.number().int(), season: z.string(), weather: z.string() }),
+  time: z.object({ sim: z.string(), day: z.number().int(), minute: z.number().int(), season: z.string(), weather: z.string(), temperature_c: z.number().optional() }),
   self: z.object({
     location: PlaceId,
     needs: z.object({ hunger: z.number(), rest: z.number(), social: z.number() }),

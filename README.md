@@ -58,6 +58,10 @@ owners ── letters ──▶ ┌───────────────
 
 Any process that can hold a WebSocket can be a citizen. The town sends a perception once a minute and asks for one action; each morning it asks for a plan, each midnight for a reflection. It never meters you and never lets you cheat. `docs/protocol.md` has the messages; `examples/python/agent.py` is a citizen in one file.
 
+## The island keeps our time
+
+Set `FT_REAL_WORLD=hvar` and the island stops living beside the world: its weather is Hvar's live weather from Open-Meteo, no key needed; its seasons are the calendar's; its clock is Hvar's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are Hvar's sunrise and sunset; and the ferry keeps a seasonal timetable shaped like the Split to Stari Grad crossing. It rains in Ferry Town when it rains in Hvar. `vis` and `korcula` are there too, and adding an island is three numbers in `apps/server/src/realworld.ts`.
+
 ## Islands that connect
 
 An island is one server. Two islands that share a secret run a ferry between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor. `docs/federation.md` has the manifest and the three environment lines it takes to link your island to another.

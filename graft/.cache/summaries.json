@@ -279,7 +279,396 @@
     "packages/engine/test/mortality.test.ts": {
       "hash": "56132bf3c5ab1138cef0a62fe151265e11617f4a19749978de09aa8bfceb0fb6",
       "summary": "The file `mortality.test.ts` serves to validate the mortality mechanics within the `Town` simulation, specifically focusing on the effects of hunger on agents over time. It exports a test suite that includes a single test case, which checks that agents weaken after two days of hunger and die after five days, regardless of ownership status. The key components utilized in this test include the `Town` class from the `../src/index.ts` module, which manages the simulation environment, and the `Brain` type, which defines agent behavior. The test relies on the external library `vitest` for its testing framework. Notable design decisions include the use of a mock `Brain` implementation named `none`, which simulates agent behavior without any decision-making capabilities, and the structured approach to simulating time through ticks, allowing for detailed tracking of agent states. A potential gotcha is the reliance on specific timing and state conditions, which could lead to flaky tests if the simulation's timing mechanics are altered."
+    },
+    "packages/engine/src/validator.ts": {
+      "hash": "9f4c83535fb80d09264e7a37caa0323e4210129b7b64c47386b90df07a02258d",
+      "summary": "The `validator.ts` file is designed to validate various actions that agents can perform within a simulated town environment, ensuring that these actions are permissible based on the current state of the world. The key exported function is `validate`, which takes an `AgentState`, an `Action`, and a `ValidatorView`, returning a `Verdict` that indicates whether the action is valid and, if not, provides a reason for the rejection. This function checks conditions for actions such as moving, saying, giving, taking, and working, among others, against the current state of places, jobs, and agents.\n\nThe file relies on internal modules like `world.ts` for constants and types, and `types.ts` for defining the structures of `AgentState`, `Place`, and `Job`. Notable design decisions include a clear separation of validation logic for each action type, allowing for extensibility and maintainability. A key constraint is that the validation does not consider moral or legal implications, focusing solely on the feasibility of actions based on the game's rules. Additionally, the validation logic is sensitive to the agent's state, such as whether they are asleep or have sufficient resources, which can lead to complex interactions in gameplay."
+    },
+    "packages/protocol/src/index.ts": {
+      "hash": "b6d7e685fab8de15e751f605220962c9ecc20f7903b8e3e6725ebc15846522cf",
+      "summary": "The `index.ts` file in the `packages/protocol/src` directory defines a set of data structures and types for a simulation engine that models interactions among agents in a town setting. Key exported types include `AgentId`, `PlaceId`, and `Persona`, which represent identifiers for agents and locations, as well as the characteristics of a person, respectively. The `Action` type outlines various actions agents can perform, such as \"move,\" \"say,\" and \"trade,\" while `ActionProposal` and `DayPlan` describe the intentions and daily plans of agents. The file relies on the `zod` library for schema validation, ensuring that data adheres to specified formats and constraints. Notable design decisions include the use of discriminated unions for actions and structured types for complex entities like `Passenger` and `TownEvent`, which facilitate clear and consistent data handling. Constraints such as minimum and maximum values for various properties ensure data integrity within the simulation."
+    },
+    "packages/store/src/file.ts": {
+      "hash": "e02e558e87426d8bd5edf68373983aac6790ee139bd17e83529f9d06c374be26",
+      "summary": "The `file.ts` file implements a `FileStore` class that serves as a local storage solution for managing the state of a simulated town, allowing for persistent data storage without requiring network access. Key exported functionalities include methods for initializing the town, saving and loading snapshots, managing agent states, and handling events, memories, and relationships. The `FileStore` relies on internal types such as `Town`, `AgentState`, and `TownSnapshot` from the `@ferrytown/engine` module, as well as external types from `@ferrytown/protocol`, while utilizing Node.js's `fs` and `path` modules for file operations. Notable design decisions include the use of a JSON file to store the entire town's state, which facilitates easy cloning and backup, and the implementation of a temporary file mechanism to ensure data integrity during writes. Additionally, the class imposes constraints on the maximum number of events stored, limiting it to 20,000 to manage memory usage effectively."
+    },
+    "packages/store/supabase/migrations/0001_town.sql": {
+      "hash": "89a31b3c0a747325454c7f51f8175df06faf340f5ab30ced9822e5a3fbbd466f",
+      "summary": "The file `0001_town.sql` serves as a migration script for setting up the database schema for a simulation game centered around a fictional town, Ferry Town. It defines several key tables, including `towns`, `owners`, `agents`, `events`, `memories`, `relationships`, `letters`, `papers`, `laws`, and `standing_instructions`, each serving distinct roles in managing the town's data, such as tracking agents' interactions, events, and ownership details. The script also implements row-level security policies to ensure that data access is appropriately restricted based on user roles, allowing owners to manage their own data while keeping town-related information public. Notable design decisions include the use of JSONB for flexible data storage in `agents` and `memories`, and the creation of a trigger to automatically insert new users into the `owners` table upon authentication. The script relies on the `auth` module for user management and the `vector` extension for handling vector data types, indicating a focus on advanced data processing capabilities."
+    },
+    "packages/store/supabase/migrations/0003_wallets.sql": {
+      "hash": "6feb5ddae69ac70077b5fae4df8f3a9153951b9b96ee830b8a60411db00405b7",
+      "summary": "The file `0003_wallets.sql` is a migration script for setting up database tables related to user wallets and credit transactions in a Supabase-backed application. It defines two key tables: `owner_wallets`, which tracks user wallet information including their plan type and credits, and `credit_ledger`, which logs transactions affecting user credits with details such as the reason for the transaction and associated references. The script also implements row-level security to ensure that users can only access their own wallet and ledger entries, enforcing data privacy. Notable design decisions include the use of specific user plans ('visitor', 'resident', 'patron') and the establishment of a structured reason for credit changes, which aids in maintaining clear transaction records. The migration relies on Supabase's PostgreSQL capabilities, particularly for features like timestamps and row-level security policies."
+    },
+    "packages/store/supabase/migrations/0004_places.sql": {
+      "hash": "f66fdffafb377a19dfb91ce0bb23476e4137780e8449fe536ca6e041542d42d8",
+      "summary": "The file `0004_places.sql` is a migration script for the Supabase database, specifically designed to modify the `towns` table by adding two new columns: `places` and `jobs`, both of which are of type `jsonb` and default to an empty JSON array. This migration aims to enhance the data structure by allowing the storage of complex data types related to places and jobs associated with each town. It builds on the existing database schema and ensures that these new columns are added only if they do not already exist, maintaining data integrity. Notably, the use of `jsonb` allows for flexible data storage, accommodating various structures without requiring further schema changes. This design decision reflects a need for adaptability in how town-related data is managed, while also considering potential future expansions of the data model."
+    },
+    "packages/engine/test/soak.test.ts": {
+      "hash": "4c16c498802ca6132ab666971ccc5a1d5dc35dbd54b6f90a168db7e55bc725b0",
+      "summary": "The file `soak.test.ts` serves to validate the functionality and behavior of the `Town` simulation model, specifically testing how agents interact within the town when driven solely by habitual actions. Key exported components include the `Town` class, which manages the agents and their interactions, and the `Rng` class, which provides random number generation for agent traits. The tests utilize a mock `Brain` implementation called `none`, which simulates agents that do not make decisions but rely on predefined habits. Important dependencies include the `@ferrytown/protocol` for types like `Perception` and `ActionProposal`, and the main module from `../src/index.ts` for core functionalities. Notable design decisions include the deterministic nature of the simulation based on a seed value, ensuring consistent outcomes across runs, and constraints around agent actions that enforce realistic limitations, such as the inability to trade without coins or move to non-existent locations."
+    },
+    "packages/store/src/index.ts": {
+      "hash": "d45f007ea44d86eb9dc48f3691a93f087832409bdca924f39ef0855419022835",
+      "summary": "The `index.ts` file in the `packages/store/src` directory serves as a data management layer for a simulated town, interfacing with a Supabase backend to handle various aspects of town and agent data. The key exported class, `TownStore`, provides methods for managing town records, including querying towns, handling events, saving snapshots, and managing agent states and relationships. It also includes functionality for managing wallets, memories, and letters associated with agents, as well as ensuring data integrity through batch writes and snapshots. Important dependencies include the Supabase client from `@supabase/supabase-js` for database interactions and types from `@ferrytown/protocol` and `@ferrytown/engine` for structured data handling. Notable design decisions include the use of a timer-based event flushing mechanism to optimize database writes and the implementation of a service role for secure data access, which introduces constraints on how data can be read and written based on user roles. Additionally, the file handles potential errors gracefully, logging issues without disrupting the overall functionality."
+    },
+    "packages/store/supabase/migrations/0002_agent_brains.sql": {
+      "hash": "6cdcec2cf8f7460924dc023b633aec7091d38f7b24008c8beb0e084ac517f1b9",
+      "summary": "The file `0002_agent_brains.sql` is a migration script for creating the `agent_brains` table in a Supabase database, which is designed to store sensitive information related to agents, such as API keys and configuration settings. The key exported structure is the `agent_brains` table, which includes fields like `agent_id`, `kind`, `provider`, `api_key`, and `models`, each serving to define the characteristics and capabilities of different agents. This table is linked to the `agents` table through a foreign key relationship, ensuring that agent data is properly managed and cascaded upon deletion. Notably, the script enforces row-level security, allowing only the service role to access the data, with no additional policies defined to further restrict access. This design decision emphasizes security by limiting exposure of sensitive keys, while also ensuring that the table can accommodate various agent configurations through its flexible schema."
+    },
+    "packages/store/supabase/migrations/0005_scope_by_town.sql": {
+      "hash": "a332fb9a824d050ce0f9f4e3c0cffe5d40c811b8bf7fcf81ee02c16fa2ecfb4c",
+      "summary": "The file `0005_scope_by_town.sql` is a migration script designed to enhance the database schema by adding a `town_id` column to several tables, including `memories`, `relationships`, `letters`, and `agent_brains`, thereby establishing a relationship with the `towns` table. The key operations include altering these tables to include the new column, updating existing records to associate them with the appropriate town based on the `agents` table, and creating indexes to optimize queries involving the `town_id`. This migration relies on the internal structure of the database, specifically the `agents` and `towns` tables, to ensure data integrity and facilitate cascading deletions. Notable design decisions include the use of `on delete cascade` for foreign key constraints, which ensures that related records are automatically removed when a town is deleted, and the conditional updates that prevent overwriting existing `town_id` values. This approach helps maintain a clean and efficient database schema while supporting the application's need to scope data by town."
+    },
+    "packages/store/supabase/migrations/0006_children.sql": {
+      "hash": "2fe24f31f10f0ccca680aca52739c3b45c43162461dfc0e154c31eb2663f9425",
+      "summary": "The file `0006_children.sql` is a migration script for the Supabase database, specifically designed to modify the `towns` table by adding a new column named `children`. This column is of type `jsonb`, which allows for storing JSON data, and it is set to not allow null values, defaulting to an empty JSON array. The key purpose of this migration is to facilitate the storage of child-related data associated with each town, reflecting a hierarchical relationship where children grow up in their parents' houses. The script builds on the existing Supabase infrastructure and relies on PostgreSQL's capabilities for handling JSON data types. A notable design decision is the use of a default value of an empty array, which ensures that the column is always initialized, preventing potential null-related issues in future queries or operations."
+    },
+    "packages/engine/test/invariants.test.ts": {
+      "hash": "fca4dd06b9b3fdc70f634cb75642570875eb92966e8e54d0a5bdcb2051e6800f",
+      "summary": "The file `invariants.test.ts` serves to validate the core mechanics and rules governing the behavior of agents within a simulated town environment, ensuring that changes made by contributors adhere to established physics. It exports key test cases that utilize the `Town` class from the main application, alongside types like `Brain`, `AgentState`, and `Tier`, as well as external types from the `@ferrytown/protocol` library. The tests focus on maintaining economic balance, agent movement, and interactions such as lending and hiring, while also ensuring that agents do not exceed resource limits or violate movement constraints. Notable design decisions include the use of a mock `Brain` implementation to simulate agent behavior without complex decision-making, and the reliance on a deterministic seed for consistent test results. The tests also highlight the importance of ensuring that all coins are accounted for and that agents interact with the environment in a realistic manner, which could be a potential source of bugs if not properly managed."
     }
   },
-  "synth": {}
+  "synth": {
+    "fb0a150c33ea7c29262a53fc81fa9ccc5a5a378f1cb4f0dc3b6689b2290812f5": [
+      {
+        "name": "Ferry Town Simulation",
+        "type": "system",
+        "summary": "This component simulates a virtual town environment where AI-driven agents interact, allowing users to run experiments and manage various aspects of the town's economy and agent behaviors.",
+        "sources": [
+          "apps/headless/src/soak.ts",
+          "apps/server/src/main.ts",
+          "apps/server/src/brains.ts",
+          "apps/server/src/billing.ts",
+          "apps/server/src/ops.ts",
+          "apps/server/src/views.ts"
+        ],
+        "links": [
+          {
+            "to": "Agent Management",
+            "relation": "part_of",
+            "description": "This system includes components for managing agents' behaviors and interactions."
+          },
+          {
+            "to": "Billing System",
+            "relation": "part_of",
+            "description": "Integrates billing and credit management for users within the simulation."
+          },
+          {
+            "to": "Metrics Tracking",
+            "relation": "part_of",
+            "description": "Tracks performance and costs associated with cognitive operations in the simulation."
+          }
+        ]
+      },
+      {
+        "name": "Agent Management",
+        "type": "system",
+        "summary": "This system encompasses the logic for managing AI agents, including their decision-making processes and interactions with the environment.",
+        "sources": [
+          "apps/server/src/brains.ts",
+          "apps/server/src/views.ts"
+        ],
+        "links": [
+          {
+            "to": "Ferry Town Simulation",
+            "relation": "uses",
+            "description": "The agent management system is utilized by the simulation to control agent behaviors."
+          },
+          {
+            "to": "Cognitive Processing",
+            "relation": "depends_on",
+            "description": "Relies on cognitive processing modules to inform agent decisions."
+          }
+        ]
+      },
+      {
+        "name": "Billing System",
+        "type": "system",
+        "summary": "Handles user wallets, credit allowances, and payment processing through Stripe, ensuring a clear separation between credits and the town's economy.",
+        "sources": [
+          "apps/server/src/billing.ts"
+        ],
+        "links": [
+          {
+            "to": "Ferry Town Simulation",
+            "relation": "uses",
+            "description": "The billing system is used to manage user credits within the simulation."
+          }
+        ]
+      },
+      {
+        "name": "Metrics Tracking",
+        "type": "system",
+        "summary": "Monitors and logs performance metrics for cognitive operations performed by AI agents, providing insights into their economic status and events.",
+        "sources": [
+          "apps/server/src/ops.ts"
+        ],
+        "links": [
+          {
+            "to": "Ferry Town Simulation",
+            "relation": "uses",
+            "description": "Metrics tracking is utilized to provide performance insights for the simulation."
+          }
+        ]
+      },
+      {
+        "name": "Cognitive Processing",
+        "type": "concept",
+        "summary": "Refers to the various brain implementations that dictate agent behaviors based on AI models, including decision-making and perception.",
+        "sources": [
+          "apps/server/src/brains.ts",
+          "apps/headless/src/soak.ts"
+        ],
+        "links": [
+          {
+            "to": "Agent Management",
+            "relation": "implements",
+            "description": "The cognitive processing system is implemented by the agent management system to inform agent decisions."
+          }
+        ]
+      },
+      {
+        "name": "User Interface Components",
+        "type": "system",
+        "summary": "A collection of reusable UI components designed for the web application, facilitating user interactions and visual representation of data.",
+        "sources": [
+          "apps/web/components/ui.tsx",
+          "apps/web/components/icons.tsx",
+          "apps/web/components/states.tsx"
+        ],
+        "links": [
+          {
+            "to": "Ferry Town Simulation",
+            "relation": "part_of",
+            "description": "These components are used throughout the web application to enhance user experience."
+          }
+        ]
+      },
+      {
+        "name": "Real-time Data Handling",
+        "type": "concept",
+        "summary": "Involves the management of real-time updates and interactions within the simulation, ensuring that users receive timely information about agent activities and town events.",
+        "sources": [
+          "apps/web/components/world/World.tsx",
+          "apps/web/lib/api.ts"
+        ],
+        "links": [
+          {
+            "to": "Ferry Town Simulation",
+            "relation": "uses",
+            "description": "Real-time data handling is crucial for the simulation to reflect current events and agent states."
+          }
+        ]
+      },
+      {
+        "name": "User Authentication",
+        "type": "concept",
+        "summary": "Manages user sessions and authentication states, ensuring secure access to the application and its features.",
+        "sources": [
+          "apps/web/lib/auth.ts",
+          "apps/web/app/gate/page.tsx"
+        ],
+        "links": [
+          {
+            "to": "User Interface Components",
+            "relation": "depends_on",
+            "description": "User authentication is integrated with UI components to manage user interactions."
+          }
+        ]
+      }
+    ],
+    "df6ef0361510b1a87f22fb58d5339b7ba6490dece0a422eac1286910366eb23d": [
+      {
+        "name": "Ferry Town Deployment Automation",
+        "type": "system",
+        "summary": "This system automates the deployment process for the Ferry Town application on DigitalOcean, managing Docker images, application secrets, and ensuring the necessary environment is set up for deployment.",
+        "sources": [
+          "deploy/do.sh"
+        ],
+        "links": [
+          {
+            "to": "DigitalOcean CLI Dependency",
+            "relation": "depends_on",
+            "description": "The deployment script relies on the DigitalOcean CLI for managing resources."
+          },
+          {
+            "to": "Docker Management",
+            "relation": "depends_on",
+            "description": "Docker is used for building and pushing container images."
+          },
+          {
+            "to": "Environment Variable Management",
+            "relation": "validates",
+            "description": "The script validates the presence of a .env file for managing application secrets."
+          }
+        ]
+      },
+      {
+        "name": "Ferry Town Agent Logic",
+        "type": "system",
+        "summary": "This system encompasses the logic for agents in the Ferry Town simulation, including decision-making, planning, and interaction with the environment through WebSocket communication.",
+        "sources": [
+          "examples/python/agent.py",
+          "packages/agent-sdk/examples/rules-agent.ts",
+          "packages/agent-sdk/src/index.ts"
+        ],
+        "links": [
+          {
+            "to": "WebSocket Communication",
+            "relation": "depends_on",
+            "description": "Agents communicate with the server using WebSocket, relying on the connect function from the agent SDK."
+          },
+          {
+            "to": "Agent Decision-Making",
+            "relation": "implements",
+            "description": "Agents implement decision-making logic based on their state and surroundings."
+          },
+          {
+            "to": "Agent Planning",
+            "relation": "implements",
+            "description": "Agents outline their goals and actions for the day based on their job status."
+          }
+        ]
+      },
+      {
+        "name": "Cognitive Models for Agents",
+        "type": "system",
+        "summary": "This system provides various cognitive models for agents, enabling them to perform tasks such as decision-making, conversation, and reflection using different AI SDKs.",
+        "sources": [
+          "packages/cognition/src/anthropic.ts",
+          "packages/cognition/src/mock.ts",
+          "packages/cognition/src/openrouter.ts",
+          "packages/cognition/src/index.ts"
+        ],
+        "links": [
+          {
+            "to": "Anthropic AI SDK",
+            "relation": "depends_on",
+            "description": "The AnthropicBrain class interfaces with the Anthropic AI SDK for cognitive tasks."
+          },
+          {
+            "to": "OpenRouter API",
+            "relation": "depends_on",
+            "description": "The OpenRouterBrain class interacts with the OpenRouter API for AI model tasks."
+          },
+          {
+            "to": "Mock Brain Implementation",
+            "relation": "validates",
+            "description": "The MockBrain class simulates decision-making for testing purposes."
+          }
+        ]
+      },
+      {
+        "name": "Simulation Engine for Ferry Town",
+        "type": "system",
+        "summary": "This system serves as the core engine for the Ferry Town simulation, managing agents, their interactions, and the overall town dynamics.",
+        "sources": [
+          "packages/engine/src/engine.ts",
+          "packages/engine/src/index.ts"
+        ],
+        "links": [
+          {
+            "to": "Agent Management",
+            "relation": "implements",
+            "description": "The Town class manages the addition and behavior of agents within the simulation."
+          },
+          {
+            "to": "Event Processing",
+            "relation": "produces",
+            "description": "The engine processes events and actions based on agent interactions."
+          },
+          {
+            "to": "Memory Management",
+            "relation": "depends_on",
+            "description": "The engine relies on memory management for tracking agent states and interactions."
+          }
+        ]
+      },
+      {
+        "name": "Data Management for Town Simulation",
+        "type": "system",
+        "summary": "This system manages the data layer for the Ferry Town simulation, interfacing with a Supabase backend to handle town and agent data.",
+        "sources": [
+          "packages/store/src/index.ts",
+          "packages/store/src/file.ts"
+        ],
+        "links": [
+          {
+            "to": "Supabase Integration",
+            "relation": "depends_on",
+            "description": "The TownStore class interfaces with Supabase for data management."
+          },
+          {
+            "to": "Persistent Storage",
+            "relation": "produces",
+            "description": "The FileStore class provides local storage solutions for the town's state."
+          }
+        ]
+      },
+      {
+        "name": "Agent Interaction Protocols",
+        "type": "concept",
+        "summary": "Defines the protocols and types for agent interactions within the Ferry Town simulation, ensuring structured communication and actions.",
+        "sources": [
+          "packages/protocol/src/index.ts"
+        ],
+        "links": [
+          {
+            "to": "Agent Actions",
+            "relation": "implements",
+            "description": "Defines the actions agents can perform, such as moving and conversing."
+          },
+          {
+            "to": "Data Validation",
+            "relation": "validates",
+            "description": "Uses zod for schema validation to ensure data integrity in agent interactions."
+          }
+        ]
+      },
+      {
+        "name": "Agent Behavior Management",
+        "type": "concept",
+        "summary": "Focuses on the management of agent behaviors based on their needs, time of day, and environmental factors, ensuring realistic interactions.",
+        "sources": [
+          "packages/engine/src/habit.ts",
+          "packages/engine/src/salience.ts"
+        ],
+        "links": [
+          {
+            "to": "Habit Functionality",
+            "relation": "implements",
+            "description": "Determines agent actions based on their state and surroundings."
+          },
+          {
+            "to": "Conversation Triggers",
+            "relation": "validates",
+            "description": "Evaluates conditions under which agents should engage in conversation."
+          }
+        ]
+      },
+      {
+        "name": "Database Schema for Town Simulation",
+        "type": "concept",
+        "summary": "Defines the database schema for managing town-related data, including agents, events, and relationships, ensuring data integrity and security.",
+        "sources": [
+          "packages/store/supabase/migrations/0001_town.sql",
+          "packages/store/supabase/migrations/0002_agent_brains.sql",
+          "packages/store/supabase/migrations/0003_wallets.sql"
+        ],
+        "links": [
+          {
+            "to": "Row-Level Security",
+            "relation": "configures",
+            "description": "Implements security policies to restrict data access based on user roles."
+          },
+          {
+            "to": "Flexible Data Storage",
+            "relation": "configures",
+            "description": "Utilizes JSONB for storing complex data types related to agents and memories."
+          }
+        ]
+      }
+    ]
+  }
 }

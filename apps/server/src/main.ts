@@ -37,7 +37,7 @@ let clockRef = () => ({ day: 1, hour: 6, t: 0 });
 const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
-let store = TownStore.fromEnv("island");
+let store = TownStore.fromEnv(process.env.FT_TOWN_ID ?? "island");
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
 const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
@@ -110,7 +110,8 @@ async function ownerOf(req: Request): Promise<string | null> {
 }
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
-app.get("/api/town", (c) => c.json({ ...clockOf(town), places: [...town.places.values()].map((p) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id) })), laws: town.laws }));
+const placeView = (p: import("@ferrytown/engine").Place) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id), x: p.x, y: p.y, district: p.district, sprite: p.sprite, owner: p.owner ? (town.agents.get(p.owner)?.persona.name ?? null) : null, site: p.site ? { what: p.site.what, name: p.site.name, by: town.agents.get(p.site.by)?.persona.name ?? p.site.by, done: p.site.labor, of: p.site.laborNeeded } : null, beds: p.beds ? { price: p.beds.price, free: p.freeBeds ?? 0 } : null });
+app.get("/api/town", (c) => c.json({ ...clockOf(town), size: { w: 3000, h: 1800 }, places: [...town.places.values()].map(placeView), laws: town.laws }));
 const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
 const nextFerry = () => { const h = town.hour < 6 ? 6 : town.hour >= 20 ? 6 : town.hour + 1; return `${String(h).padStart(2, "0")}:00${town.hour >= 20 ? " tomorrow" : ""}`; };
 const liveTown = () => ({ id: store?.townId ?? "island", name: "The island", live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : "Ferries hourly, 06:00 to 20:00", next: town.ferryHeld ? null : nextFerry(), spaces: town.ferryHeld ? 0 : Math.max(0, FERRY_SPACES - town.pendingArrivals()) });

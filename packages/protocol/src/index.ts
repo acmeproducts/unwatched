@@ -50,7 +50,7 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("propose"), law: z.string().max(200) }),
   z.object({ kind: z.literal("vote"), proposal: z.string(), yes: z.boolean() }),
   z.object({ kind: z.literal("write"), title: z.string().max(80), text: z.string().max(2000) }),
-  z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId }),
+  z.object({ kind: z.literal("build"), what: z.string(), at: PlaceId, name: z.string().max(60).optional() }),
   z.object({ kind: z.literal("message_owner"), text: z.string().min(1).max(1200) }),
   z.object({ kind: z.literal("sleep") }),
   z.object({ kind: z.literal("wait") }),
@@ -90,7 +90,10 @@ export const Perception = z.object({
     agent: AgentId, name: z.string(),
     relation: z.object({ trust: z.number(), affection: z.number(), opinion: z.string().optional() }).optional(),
   })),
-  place: z.object({ id: PlaceId, name: z.string(), kind: z.string(), for_sale: z.array(z.object({ item: z.string(), price: z.number() })), jobs_open: z.array(z.string()), exits: z.array(PlaceId) }),
+  place: z.object({ id: PlaceId, name: z.string(), kind: z.string(), for_sale: z.array(z.object({ item: z.string(), price: z.number() })), jobs_open: z.array(z.string()), exits: z.array(PlaceId),
+    owner: z.string().nullable().optional(),
+    plot: z.object({ free: z.boolean(), house: z.object({ coins: z.number(), mornings: z.number() }), shop: z.object({ coins: z.number(), mornings: z.number() }) }).optional(),
+    site: z.object({ what: z.string(), name: z.string(), by: z.string(), done: z.number(), of: z.number() }).optional() }),
   heard: z.array(z.object({ from: AgentId, name: z.string(), text: z.string() })),
   recent: z.array(z.string()),
   owner_letters: z.array(z.object({ id: z.number().int(), text: z.string() })),
@@ -107,7 +110,7 @@ export const EventKind = z.enum([
   "agent.work", "agent.hired", "agent.quit", "agent.fired", "agent.sleep", "agent.wake",
   "agent.eat", "agent.rent", "agent.evicted", "agent.reflect", "agent.letter",
   "relation.change", "economy.price", "weather.change", "law.proposed", "law.passed", "law.failed",
-  "conversation", "action.rejected", "town.notice", "agent.plan",
+  "conversation", "action.rejected", "town.notice", "agent.plan", "agent.build", "town.built", "agent.unpaid",
 ]);
 export type EventKind = z.infer<typeof EventKind>;
 

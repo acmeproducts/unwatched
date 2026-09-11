@@ -1,47 +1,47 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Application, Assets, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
-import { WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
+import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
 
 /**
- * The island, drawn by PixiJS from the live event stream, in the Tide style:
- * real vector-drawn buildings, trees, props and citizens rendered as sprites on a hand-laid map.
- * Labels and bubbles are HTML positioned over the canvas so they use the real fonts.
+ * The island, drawn by PixiJS from the live event stream, in the Tide style.
+ * The server owns the map: every place arrives with its position, district and sprite, so a house someone builds
+ * this morning stands on the canvas by the time the paper prints it. Labels and bubbles are HTML over the canvas.
  */
-const W = 1700, H = 1100;
-const C = { water: 0xdcebe3, waterDeep: 0xcfe3d8, sand: 0xefede4, shell: 0xf7f5ee, grass: 0xd5e6da, sage: 0xb9d9c6, teal: 0x1f5f5b, kelp: 0x1e2a2b, coral: 0xe8735a };
+const C = { water: 0xdcebe3, waterDeep: 0xcfe3d8, sand: 0xefede4, shell: 0xf7f5ee, grass: 0xd5e6da, sage: 0xb9d9c6, teal: 0x1f5f5b, kelp: 0x1e2a2b, coral: 0xe8735a, drift: 0x6f7a78 };
 
-/** Where each place stands: its foot point, its sprite, how wide it should be, and where people gather. */
-const PLACES: Record<string, { x: number; y: number; sprite: string; w: number; name: string; gather: { x: number; y: number; w: number } }> = {
-  harbor:    { x: 330, y: 700, sprite: "harbor-office", w: 150, name: "the harbor",        gather: { x: 250, y: 760, w: 220 } },
-  inn:       { x: 560, y: 560, sprite: "inn",           w: 240, name: "the harbor inn",    gather: { x: 480, y: 610, w: 200 } },
-  market:    { x: 880, y: 620, sprite: "stall",         w: 170, name: "the market square", gather: { x: 800, y: 680, w: 260 } },
-  bakery:    { x: 860, y: 380, sprite: "bakery",        w: 200, name: "Ilić's bakery",     gather: { x: 790, y: 420, w: 180 } },
-  chandlery: { x: 620, y: 800, sprite: "chandlery",     w: 150, name: "the chandlery",     gather: { x: 560, y: 840, w: 160 } },
-  tavern:    { x: 1140, y: 700, sprite: "tavern",       w: 190, name: "the tavern",        gather: { x: 1060, y: 740, w: 200 } },
-  council:   { x: 1150, y: 430, sprite: "council",      w: 220, name: "the council hall",  gather: { x: 1080, y: 470, w: 200 } },
-  hill:      { x: 1330, y: 560, sprite: "well",         w: 90,  name: "the hill road",     gather: { x: 1280, y: 600, w: 160 } },
-  mill:      { x: 1440, y: 300, sprite: "mill",         w: 200, name: "the mill",          gather: { x: 1380, y: 340, w: 160 } },
-  fields:    { x: 1520, y: 560, sprite: "field",        w: 230, name: "the hill fields",   gather: { x: 1450, y: 640, w: 220 } },
-  boatshed:  { x: 250, y: 880, sprite: "boatshed",      w: 190, name: "the boat shed",     gather: { x: 200, y: 930, w: 180 } },
-};
-const ROADS: [string, string][] = [["harbor", "inn"], ["harbor", "market"], ["harbor", "chandlery"], ["harbor", "boatshed"], ["inn", "market"], ["market", "bakery"], ["market", "chandlery"], ["market", "tavern"], ["market", "council"], ["market", "hill"], ["hill", "mill"], ["hill", "fields"], ["mill", "fields"]];
-const DECOR: { sprite: string; x: number; y: number; w: number; flip?: boolean }[] = [
-  { sprite: "pier", x: 150, y: 735, w: 260 }, { sprite: "rowboat", x: 170, y: 800, w: 90 }, { sprite: "crates", x: 420, y: 720, w: 80 }, { sprite: "lamp", x: 470, y: 690, w: 30 },
-  { sprite: "bench", x: 660, y: 600, w: 70 }, { sprite: "lamp", x: 720, y: 640, w: 30 }, { sprite: "tree-large", x: 440, y: 480, w: 160 }, { sprite: "tree-small", x: 700, y: 470, w: 100 },
-  { sprite: "bush", x: 760, y: 560, w: 70 }, { sprite: "cottage", x: 700, y: 330, w: 150 }, { sprite: "cottage", x: 1010, y: 300, w: 150, flip: true }, { sprite: "tree-large", x: 1280, y: 260, w: 160 },
-  { sprite: "tree-small", x: 1000, y: 780, w: 100 }, { sprite: "bush", x: 1230, y: 770, w: 70 }, { sprite: "lamp", x: 990, y: 660, w: 30 }, { sprite: "bench", x: 1240, y: 640, w: 70 },
-  { sprite: "fence", x: 1560, y: 680, w: 140 }, { sprite: "field", x: 1300, y: 720, w: 200 }, { sprite: "tree-small", x: 1600, y: 420, w: 100 }, { sprite: "rock", x: 1200, y: 880, w: 60 },
-  { sprite: "bush", x: 380, y: 940, w: 70 }, { sprite: "tree-large", x: 900, y: 900, w: 150 }, { sprite: "searocks", x: 80, y: 980, w: 110 }, { sprite: "searocks", x: 1640, y: 900, w: 110 },
-  { sprite: "crates", x: 560, y: 870, w: 70 }, { sprite: "lamp", x: 1130, y: 500, w: 30 }, { sprite: "tree-small", x: 300, y: 560, w: 100 },
-];
+type PlaceView = { id: string; name: string; kind: string; exits: string[]; x: number; y: number; district: string; sprite: string; owner: string | null; site: { what: string; name: string; by: string; done: number; of: number } | null; crowd: number };
+type TownView = Clock & { size: { w: number; h: number }; places: PlaceView[] };
+
+/** How wide each sprite stands, in map units. Anything not listed stands 160 wide. */
+const WIDTH: Record<string, number> = { "harbor-office": 150, inn: 240, stall: 170, bakery: 200, chandlery: 150, tavern: 190, council: 220, well: 90, mill: 200, field: 230, boatshed: 190, cottage: 150, house: 160, shop: 170, lamp: 30, bench: 70, rowboat: 90, searocks: 110, "tree-large": 160, "tree-small": 100, rock: 60, crates: 80, fence: 140, pier: 260, ferry: 170, bush: 70, fishhouse: 170, chapel: 170, smithy: 160, orchard: 220, sawpit: 150, quarry: 200, lighthouse: 120 };
+/** Until a sprite of its own is drawn, a new kind of place borrows a neighbour's. */
+const STAND_IN: Record<string, string> = { fishhouse: "boatshed", chapel: "council", smithy: "chandlery", orchard: "field", sawpit: "crates", quarry: "rock", lighthouse: "harbor-office", house: "cottage", shop: "stall" };
+
 const CHARS = ["char-mira", "char-innkeeper", "char-baker", "char-farmer", "char-elder", "char-young", "char-banker", "char-constable", "char-teen", "char-fisherman", "char-painter", "char-priest"];
-const ROLE: [RegExp, string][] = [[/rosa|dora/i, "char-innkeeper"], [/petar/i, "char-baker"], [/luka|franjo|goran/i, "char-farmer"], [/mara|vesna/i, "char-elder"], [/marko|jure|bruno/i, "char-young"], [/davor|ivana|teodor/i, "char-banker"], [/katarina/i, "char-constable"], [/iva /i, "char-teen"], [/nikola/i, "char-fisherman"], [/ema|ana /i, "char-painter"], [/stjepan/i, "char-priest"]];
+const ROLE: [RegExp, string][] = [[/rosa|dora/i, "char-innkeeper"], [/petar/i, "char-baker"], [/luka|franjo|goran/i, "char-farmer"], [/mara|vesna/i, "char-elder"], [/marko|jure|bruno/i, "char-young"], [/davor|ivana|teodor/i, "char-banker"], [/katarina/i, "char-constable"], [/iva /i, "char-teen"], [/nikola/i, "char-fisherman"], [/ana/i, "char-painter"], [/stjepan/i, "char-priest"]];
 function charFor(a: PublicAgent): string {
   if (a.ownerId) return "char-mira";
   for (const [re, s] of ROLE) if (re.test(a.name + " ")) return s;
   let h = 0; for (const ch of a.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return CHARS[1 + (h % (CHARS.length - 1))]!;
+}
+
+/** Trees, rocks and props laid by district so the island reads as a landscape and not a diagram. Positions are map units. */
+function decorFor(places: PlaceView[]): { sprite: string; x: number; y: number; w?: number; flip?: boolean }[] {
+  const at = (id: string) => places.find((p) => p.id === id) ?? { x: 0, y: 0 };
+  const h = at("harbor"), m = at("market"), pw = at("pinewood"), q = at("quarry"), f = at("fields"), o = at("orchard"), cv = at("cove"), lh = at("lighthouse"), sh = at("shore"), ln = at("lane");
+  const out: { sprite: string; x: number; y: number; w?: number; flip?: boolean }[] = [
+    { sprite: "pier", x: h.x - 250, y: h.y + 40 }, { sprite: "rowboat", x: h.x - 230, y: h.y + 110 }, { sprite: "crates", x: h.x + 110, y: h.y + 30 }, { sprite: "lamp", x: h.x + 150, y: h.y - 10 }, { sprite: "searocks", x: h.x - 320, y: h.y + 220 },
+    { sprite: "bench", x: m.x - 200, y: m.y + 40 }, { sprite: "lamp", x: m.x - 150, y: m.y + 70 }, { sprite: "lamp", x: m.x + 160, y: m.y + 60 }, { sprite: "bush", x: m.x + 210, y: m.y - 40 }, { sprite: "tree-small", x: m.x - 260, y: m.y - 120 },
+    { sprite: "lamp", x: ln.x, y: ln.y + 10 }, { sprite: "bench", x: ln.x + 120, y: ln.y + 30 }, { sprite: "bush", x: ln.x - 140, y: ln.y + 60 },
+    { sprite: "fence", x: f.x + 60, y: f.y + 120 }, { sprite: "field", x: f.x - 120, y: f.y + 200, w: 200 }, { sprite: "tree-small", x: o.x + 180, y: o.y - 60 }, { sprite: "tree-small", x: o.x - 160, y: o.y + 80 }, { sprite: "tree-small", x: o.x + 40, y: o.y + 140 },
+    { sprite: "searocks", x: cv.x - 120, y: cv.y + 120 }, { sprite: "searocks", x: cv.x + 260, y: cv.y - 60 }, { sprite: "rowboat", x: cv.x + 120, y: cv.y + 80, flip: true }, { sprite: "bush", x: sh.x + 120, y: sh.y + 90 }, { sprite: "tree-small", x: sh.x - 200, y: sh.y + 60 },
+    { sprite: "rock", x: q.x - 120, y: q.y + 90 }, { sprite: "rock", x: q.x + 140, y: q.y + 60 }, { sprite: "searocks", x: lh.x + 140, y: lh.y + 120 }, { sprite: "rock", x: lh.x - 100, y: lh.y + 60 },
+  ];
+  // the pinewood is a wood
+  for (let i = 0; i < 14; i++) out.push({ sprite: i % 3 === 0 ? "tree-small" : "tree-large", x: pw.x - 260 + (i * 173) % 520, y: pw.y - 140 + (i * 97) % 300, flip: i % 2 === 0 });
+  return out;
 }
 
 type Fig = { id: string; g: Container; sprite: Sprite; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string };
@@ -64,7 +64,12 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
     let app: Application | null = null; let ws: WebSocket | null = null; let alive = true; let inited = false;
     (async () => {
       const el = host.current!;
-      const manifest = await (await fetch("/world/manifest.json")).json() as Record<string, { w: number; h: number }>;
+      const [manifest, townView] = await Promise.all([
+        (await fetch("/world/manifest.json")).json() as Promise<Record<string, { w: number; h: number }>>,
+        (await fetch(`${API}/api/town`, { cache: "no-store" })).json() as Promise<TownView>,
+      ]);
+      const W = townView.size?.w ?? 3000, H = townView.size?.h ?? 1800;
+      const places = new Map<string, PlaceView>(townView.places.map((p) => [p.id, p]));
       const names = Object.keys(manifest);
       const textures = (await Assets.load(names.map((n) => ({ alias: n, src: `/world/png/${n}.png` })))) as unknown as Record<string, Texture>;
       const tex = (n: string) => textures[n] ?? Texture.WHITE;
@@ -79,32 +84,69 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       // sea, with slow ripples
       const sea = new Graphics(); world.addChild(sea);
       const ripples: Graphics = new Graphics(); world.addChild(ripples);
-      // island
+      // the island: a soft blob with a sandy heart, big enough that every district has shore or hill behind it
       const ground = new Graphics();
-      ground.moveTo(120, 640).bezierCurveTo(140, 420, 420, 260, 760, 240).bezierCurveTo(1100, 210, 1400, 180, 1600, 320).bezierCurveTo(1720, 440, 1700, 700, 1560, 820).bezierCurveTo(1400, 960, 1000, 1020, 620, 990).bezierCurveTo(360, 970, 100, 880, 120, 640).closePath().fill(C.grass);
-      ground.moveTo(200, 660).bezierCurveTo(230, 500, 460, 340, 780, 320).bezierCurveTo(1060, 300, 1360, 280, 1520, 400).bezierCurveTo(1620, 500, 1600, 700, 1480, 790).bezierCurveTo(1330, 900, 980, 950, 640, 920).bezierCurveTo(400, 900, 180, 820, 200, 660).closePath().fill(C.sand);
-      for (const [a, b] of ROADS) { const A = PLACES[a]!, B = PLACES[b]!; ground.moveTo(A.gather.x + A.gather.w / 2, A.gather.y).lineTo(B.gather.x + B.gather.w / 2, B.gather.y).stroke({ width: 16, color: C.shell, cap: "round" }); }
+      const blob = (g: Graphics, inset: number, color: number) => {
+        const pts: [number, number][] = [];
+        const cx = W / 2, cy = H / 2 + 40, n = 28;
+        for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; const r = 1 + 0.14 * Math.sin(a * 3 + 0.7) + 0.08 * Math.cos(a * 5 + 2); pts.push([cx + Math.cos(a) * (W / 2 - 120 - inset) * r, cy + Math.sin(a) * (H / 2 - 100 - inset) * r]); }
+        g.moveTo(pts[0]![0], pts[0]![1]);
+        for (let i = 0; i < n; i++) { const p = pts[i]!, q = pts[(i + 1) % n]!; g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
+        g.closePath().fill(color);
+      };
+      blob(ground, 0, C.grass); blob(ground, 110, C.sand);
+      const gather = (p: PlaceView) => ({ x: p.x - 110, y: p.y + 40, w: 220 });
+      const roads = new Set<string>();
+      for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); ground.moveTo(A.x + A.w / 2, A.y).lineTo(B.x + B.w / 2, B.y).stroke({ width: 16, color: C.shell, cap: "round" }); }
       world.addChild(ground);
 
       // everything with a foot on the ground sorts by y
       const scene = new Container(); scene.sortableChildren = true; world.addChild(scene);
-      const put = (name: string, x: number, y: number, w: number, flip = false) => {
-        const m = manifest[name]; if (!m) return null;
-        const s = new Sprite(tex(name)); s.anchor.set(0.5, 1); s.scale.set(w / m.w); if (flip) s.scale.x *= -1; s.position.set(x, y); s.zIndex = y; scene.addChild(s); return s;
+      const put = (name: string, x: number, y: number, w?: number, flip = false) => {
+        const real = manifest[name] ? name : STAND_IN[name] ?? name; const m = manifest[real]; if (!m) return null;
+        const s = new Sprite(tex(real)); s.anchor.set(0.5, 1); s.scale.set((w ?? WIDTH[name] ?? WIDTH[real] ?? 160) / m.w); if (flip) s.scale.x *= -1; s.position.set(x, y); s.zIndex = y; scene.addChild(s); return s;
       };
-      for (const [id, p] of Object.entries(PLACES)) put(p.sprite, p.x, p.y, p.w);
-      for (const d of DECOR) put(d.sprite, d.x, d.y, d.w, d.flip);
-      const ferry = put("ferry", 140, 700, 170)!; ferry.zIndex = 650; let ferryTarget = 140;
-      // place names
-      const nameStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: 0x6f7a78, letterSpacing: 1.2 });
-      for (const p of Object.values(PLACES)) { const t = new Text({ text: p.name.replace(/^the /, "").toUpperCase(), style: nameStyle }); t.anchor.set(0.5, 0); t.position.set(p.x, p.y + 6); t.zIndex = 100000; scene.addChild(t); }
+      const nameStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
+      const smallStyle = new TextStyle({ fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: C.teal });
+      // each place owns its drawn things so it can be redrawn when someone builds on it
+      const drawn = new Map<string, Container>();
+      const drawPlace = (p: PlaceView) => {
+        drawn.get(p.id)?.destroy({ children: true });
+        const g = new Container(); g.sortableChildren = true; g.zIndex = p.y; scene.addChild(g); drawn.set(p.id, g);
+        const local = (name: string, w?: number) => { const s = put(name, 0, 0, w); if (s) { scene.removeChild(s); g.addChild(s); } return s; };
+        if (p.kind === "plot" && !p.site) {
+          // pegged-out land: a dashed rectangle and four stakes
+          const r = new Graphics(); for (let i = 0; i < 4; i++) { const x0 = -80 + (i % 2) * 160, y0 = -60 + Math.floor(i / 2) * 70; r.rect(x0 - 3, y0 - 14, 6, 14).fill(C.drift); }
+          for (let x = -80; x < 80; x += 16) r.moveTo(x, -60).lineTo(x + 8, -60).moveTo(x, 10).lineTo(x + 8, 10).stroke({ width: 2, color: C.drift });
+          for (let y = -60; y < 10; y += 16) r.moveTo(-80, y).lineTo(-80, y + 8).moveTo(80, y).lineTo(80, y + 8).stroke({ width: 2, color: C.drift });
+          r.rect(-80, -60, 160, 70).fill({ color: C.sage, alpha: 0.35 }); g.addChild(r);
+        } else if (p.site) {
+          // a site: timber frame, a crates pile, and how many mornings are done
+          const r = new Graphics(); r.rect(-70, -70, 140, 70).fill({ color: C.sand, alpha: 0.9 });
+          for (let x = -70; x <= 70; x += 35) r.moveTo(x, 0).lineTo(x, -70).stroke({ width: 5, color: 0xc9b58f });
+          r.moveTo(-70, -70).lineTo(70, -70).stroke({ width: 6, color: 0xc9b58f }); r.moveTo(-70, -35).lineTo(70, -35).stroke({ width: 4, color: 0xc9b58f });
+          if (p.site.what === "house") r.moveTo(-76, -70).lineTo(0, -120).lineTo(76, -70).stroke({ width: 6, color: 0xc9b58f });
+          g.addChild(r); const c = local("crates", 60); if (c) c.position.set(95, 4);
+          const t = new Text({ text: `${p.site.name} · ${p.site.done} of ${p.site.of}`, style: smallStyle }); t.anchor.set(0.5, 0); t.position.set(0, 6); g.addChild(t);
+        } else {
+          local(p.sprite);
+        }
+        const t = new Text({ text: p.name.replace(/^the /, "").replace(/^an? /, "").toUpperCase(), style: nameStyle }); t.anchor.set(0.5, 0); t.position.set(0, p.site ? 22 : 6); t.zIndex = 100000; g.addChild(t);
+        g.position.set(p.x, p.y);
+      };
+      for (const p of places.values()) drawPlace(p);
+      const decor = decorFor([...places.values()]);
+      for (const d of decor) put(d.sprite, d.x, d.y, d.w, d.flip);
+      const harbor = places.get("harbor") ?? { x: 560, y: 1180 };
+      const dockX = harbor.x - 420, awayX = -300;
+      const ferry = put("ferry", dockX, harbor.y + 20)!; ferry.zIndex = harbor.y - 30; let ferryTarget = dockX;
 
       // weather and time
       const rain = new Graphics(); rain.zIndex = 200000; scene.addChild(rain);
-      const night = new Graphics(); night.rect(-2000, -2000, W + 4000, H + 4000).fill(C.kelp); night.alpha = 0; world.addChild(night);
+      const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(C.kelp); night.alpha = 0; world.addChild(night);
       const lamps = new Graphics(); lamps.zIndex = 150000; scene.addChild(lamps);
 
-      const spot = (place: string, seat: number) => { const p = PLACES[place] ?? PLACES.market!; const g = p.gather; const cols = 5; return { x: g.x + 20 + (seat % cols) * ((g.w - 40) / (cols - 1)), y: g.y + Math.floor(seat / cols) * 26 }; };
+      const spot = (place: string, seat: number) => { const p = places.get(place) ?? places.get("market")!; const g = gather(p); const cols = 5; return { x: g.x + 20 + (seat % cols) * ((g.w - 40) / (cols - 1)), y: g.y + Math.floor(seat / cols) * 26 }; };
       const ensure = (a: PublicAgent) => {
         agents.current.set(a.id, a);
         let f = figs.current.get(a.id);
@@ -122,7 +164,8 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         }
         return f;
       };
-      const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = PLACES[place]?.name ?? place; } };
+      const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
+      const refreshPlaces = async () => { try { const t = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView; for (const p of t.places) { const old = places.get(p.id); places.set(p.id, p); if (!old || old.kind !== p.kind || old.name !== p.name || JSON.stringify(old.site) !== JSON.stringify(p.site)) drawPlace(p); } } catch {} };
 
       ws = new WebSocket(WS);
       ws.onmessage = (m) => {
@@ -136,9 +179,10 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
           if (e.kind === "agent.wake") { const f = figs.current.get(e.actors[0]!); if (f) f.asleep = false; }
           if (e.kind === "agent.say") { const q = /“([^”]+)”/.exec(e.text)?.[1]; if (q) bubbles.current.set(e.actors[0]!, { text: q, until: Date.now() + 7000 }); }
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
-          if (e.kind === "ferry.dock") { ferry.position.x = -200; ferryTarget = 140; }
-          if (e.kind === "ferry.depart") ferryTarget = -260;
-          if (e.kind === "agent.arrive") { void fetch(`${WS.replace(/^ws/, "http").replace("/stream", "")}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) ensure(a); }); }
+          if (e.kind === "ferry.dock") { ferry.position.x = awayX; ferryTarget = dockX; }
+          if (e.kind === "ferry.depart") ferryTarget = awayX;
+          if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) ensure(a); }); }
+          if (e.kind === "agent.build" || e.kind === "town.built" || (e.kind === "agent.work" && /mornings done/.test(e.text))) void refreshPlaces();
           if (e.importance >= 0.1 && e.kind !== "agent.move") setFeed((f) => [e, ...f].slice(0, 12));
         }
       };
@@ -150,22 +194,22 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         const zoom = viewRef.current === "map" ? Math.min(Wd / W, Hd / H) : 1.05;
         cam.zoom += (zoom - cam.zoom) * 0.08;
         let fx = W / 2, fy = H / 2 + 40;
-        if (viewRef.current === "street" && cam.follow) { const f = figs.current.get(cam.follow); if (f) { fx = f.x; fy = f.y - 60; } }
+        if (viewRef.current === "street") { const f = cam.follow ? figs.current.get(cam.follow) : null; if (f) { fx = f.x; fy = f.y - 60; } else { const mk = places.get("market"); if (mk) { fx = mk.x; fy = mk.y; } } }
         const tx = Wd / 2 - fx * cam.zoom, ty = Hd / 2 - fy * cam.zoom;
         cam.x += (tx - cam.x) * 0.08; cam.y += (ty - cam.y) * 0.08;
         world.scale.set(cam.zoom); world.position.set(cam.x, cam.y);
         // sea
-        sea.clear(); sea.rect(-2000, -2000, W + 4000, H + 4000).fill(C.water);
-        if (tick % 6 === 0) { ripples.clear(); for (let i = 0; i < 28; i++) { const yy = ((i * 97 + tick * 0.4) % (H + 400)) - 200; const xx = ((i * 331) % (W + 600)) - 300 + Math.sin(tick / 90 + i) * 12; ripples.moveTo(xx, yy).lineTo(xx + 60 + (i % 3) * 20, yy).stroke({ width: 3, color: C.waterDeep, cap: "round" }); } }
+        sea.clear(); sea.rect(-3000, -3000, W + 6000, H + 6000).fill(C.water);
+        if (tick % 6 === 0) { ripples.clear(); for (let i = 0; i < 48; i++) { const yy = ((i * 97 + tick * 0.4) % (H + 600)) - 300; const xx = ((i * 331) % (W + 800)) - 400 + Math.sin(tick / 90 + i) * 12; ripples.moveTo(xx, yy).lineTo(xx + 60 + (i % 3) * 20, yy).stroke({ width: 3, color: C.waterDeep, cap: "round" }); } }
         // ferry
         ferry.position.x += (ferryTarget - ferry.position.x) * 0.02;
         // weather
         const c = clockRef.current;
-        if (tick % 2 === 0) { rain.clear(); if (c && (c.weather === "rain" || c.weather === "storm")) { const n = c.weather === "storm" ? 220 : 110; for (let i = 0; i < n; i++) { const xx = ((i * 137 + tick * 9) % (W + 200)) - 100; const yy = ((i * 251 + tick * 14) % (H + 200)) - 100; rain.moveTo(xx, yy).lineTo(xx - 3, yy + 14).stroke({ width: 1.5, color: C.teal, alpha: 0.35 }); } } }
+        if (tick % 2 === 0) { rain.clear(); if (c && (c.weather === "rain" || c.weather === "storm")) { const n = c.weather === "storm" ? 360 : 180; for (let i = 0; i < n; i++) { const xx = ((i * 137 + tick * 9) % (W + 200)) - 100; const yy = ((i * 251 + tick * 14) % (H + 200)) - 100; rain.moveTo(xx, yy).lineTo(xx - 3, yy + 14).stroke({ width: 1.5, color: C.teal, alpha: 0.35 }); } } }
         const hour = c ? c.hour + (c.minute % 60) / 60 : 12;
         const nightAmt = hour < 5 ? 0.38 : hour < 7 ? 0.38 * (7 - hour) / 2 : hour < 19 ? 0 : hour < 21 ? 0.38 * (hour - 19) / 2 : 0.38;
         night.alpha += (nightAmt - night.alpha) * 0.05;
-        if (tick % 10 === 0) { lamps.clear(); if (night.alpha > 0.05) for (const d of DECOR) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.38) }); }
+        if (tick % 10 === 0) { lamps.clear(); if (night.alpha > 0.05) for (const d of decor) if (d.sprite === "lamp") lamps.circle(d.x, d.y - 24, 26).fill({ color: 0xfff2c2, alpha: 0.35 * (night.alpha / 0.38) }); }
         // people
         const now = Date.now(); const next: typeof labels = [];
         for (const f of figs.current.values()) {

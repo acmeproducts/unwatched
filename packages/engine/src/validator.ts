@@ -1,4 +1,5 @@
 import type { Action } from "@ferrytown/protocol";
+import { BUILDS, buildKind } from "./world.ts";
 import type { AgentState, Place, Job } from "./types.ts";
 
 export type Verdict = { ok: true } | { ok: false; reason: string };
@@ -54,6 +55,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     }
     case "use": return a.inventory.includes(action.item) ? { ok: true } : { ok: false, reason: "does not have it" };
     case "work": {
+      if (here.site) return here.site.by === a.id || v.hour >= 6 && v.hour < 20 ? { ok: true } : { ok: false, reason: "not building hours" };
       if (!a.job) return { ok: false, reason: "no job" };
       const job = v.jobs.get(a.job);
       if (!job) return { ok: false, reason: "job gone" };
@@ -91,14 +93,22 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
     case "propose": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "proposals are made at the council hall" };
     case "vote": return here.kind === "civic" ? { ok: true } : { ok: false, reason: "votes are cast at the council hall" };
     case "write": return { ok: true };
-    case "build": return { ok: false, reason: "building is not open yet" };
+    case "build": {
+      if (action.at !== a.location) return { ok: false, reason: "must be standing on the plot" };
+      if (here.kind !== "plot") return { ok: false, reason: "no land to build on here" };
+      if (here.site) return { ok: false, reason: here.site.by === a.id ? "already begun; work on it" : "someone else is building here" };
+      const kind = buildKind(action.what);
+      if (!kind) return { ok: false, reason: "can build a house or a shop" };
+      if (a.coins < BUILDS[kind].coins) return { ok: false, reason: `a ${kind} costs ${BUILDS[kind].coins} coins` };
+      return { ok: true };
+    }
     case "message_owner": return a.owner ? { ok: true } : { ok: false, reason: "nobody to write to" };
     case "sleep": {
       const beds = here.beds;
       if (!beds) return { ok: false, reason: "no bed here" };
       const isHome = a.home?.place === here.id && a.home.nightsPaid > 0;
       if (beds.price === 0) return { ok: true };
-      if (isHome) return { ok: true };
+      if (isHome || here.owner === a.id) return { ok: true };
       if ((here.freeBeds ?? 0) <= 0) return { ok: false, reason: "no beds free" };
       if (a.coins < beds.price) return { ok: false, reason: "cannot pay for a bed" };
       return { ok: true };

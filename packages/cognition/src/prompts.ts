@@ -4,6 +4,7 @@ import type { AgentState, ConverseContext, PaperContext, PlanContext, ReflectCon
 /** One set of prompts for every brain, so a hosted agent and an own-key agent are the same person. */
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
 Rules of the island, which are physics, not advice:
+- Land can be bought and built on. A house or a shop takes coins and mornings of work. What you build is yours: you sleep free, rent and takings come to you, and you pay anyone you employ.
 - You have free will. Nothing here is a game with a goal. Do what this person would do.
 - The engine enforces only what a world enforces: you cannot walk through walls, spend coins you do not have, or act more than once a minute. Everything else is allowed, including lying, stealing, quitting, refusing, and leaving on the ferry.
 - Laws exist only if other people enforce them. There is no narrator and no referee.
@@ -37,6 +38,9 @@ People you know: ${ctx.relationships.map((r) => `${r.name} (${r.id}) trust ${r.t
 Letters waiting for you: ${ctx.unreadLetters.join(" | ") || "none"}.
 Places on the island: ${ctx.places.map((p) => `${p.id} (${p.name})`).join(", ")}.
 Work going: ${ctx.jobsOpen.join("; ") || "none"}.
+Land for sale, paid to the council: ${ctx.land.join("; ") || "none left"}. A house costs ${ctx.builds.house.coins} coins and ${ctx.builds.house.labor} mornings of work (${ctx.builds.house.describe}). A shop costs ${ctx.builds.shop.coins} coins and ${ctx.builds.shop.labor} mornings (${ctx.builds.shop.describe}). To build, stand on the plot and build; then turn up and work on it, or get others to help.
+Being built on the island: ${ctx.building.join("; ") || "nothing"}.
+What you own: ${ctx.owned.join("; ") || "nothing"}.
 Give a mood in a few words, one to three goals for the day, and one to six steps with the hour you mean to start each and the place id if it has one. You may plan to do nothing, to talk to someone, to change your life, or to leave. Answer with JSON only.`;
 }
 

@@ -1,6 +1,6 @@
 import type { AgentState, Tier } from "./types.ts";
 
-export interface SalienceView { hour: number; t: number; nearby: AgentState[]; jobsOpenHere: number }
+export interface SalienceView { hour: number; t: number; nearby: AgentState[]; jobsOpenHere: number; plotHere?: boolean }
 
 /** A plan step whose hour has come, not yet acted on. Habit walks them there; this is the thought on arrival. */
 function dueStep(a: AgentState, hour: number, day: number) { return a.plan?.day === day ? a.plan.steps.find((s) => !s.done && s.hour <= hour) ?? null : null; }
@@ -16,6 +16,7 @@ export function salience(a: AgentState, v: SalienceView): { tier: Tier; why: str
   if (a.letters.some((l) => !l.read) && v.hour >= 6 && v.hour < 9) return { tier: 1, why: "letter" };
   const step = a.plan ? dueStep(a, v.hour, a.plan.day) : null;
   if (step && (step.place === null || step.place === a.location) && v.t - a.lastThought >= 3) return { tier: 1, why: `plan: ${step.do}` };
+  if (v.plotHere && a.coins >= 15 && v.t - a.lastThought > 60 && v.hour >= 7 && v.hour < 19) return { tier: 2, why: "standing on land for sale" };
   if (a.coins <= 3 && a.job === null && v.hour >= 8 && v.hour < 18 && v.t - a.lastThought > 90) return { tier: 2, why: "broke" };
   if (a.job === null && v.jobsOpenHere > 0 && v.hour >= 6 && v.hour < 18 && v.t - a.lastThought > 45) return { tier: 1, why: "job here" };
   if (a.heard.length > 0 && v.t - a.lastThought > 10) return { tier: 1, why: "spoken to" };

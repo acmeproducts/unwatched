@@ -55,6 +55,14 @@ export function habit(a: AgentState, v: HabitView): Action {
     }
   }
 
+  // A site of your own: turn up and work on it whenever you are not at your job.
+  const site = [...v.places.values()].find((p) => p.site?.by === a.id);
+  if (site && v.hour >= 8 && v.hour < 18 && !(a.job && (() => { const j = v.jobs.get(a.job!); return j && v.hour >= j.hours[0] && v.hour < j.hours[1]; })())) {
+    if (a.location === site.id) return { kind: "work" };
+    const next = v.path(a.location, site.id);
+    if (next) return { kind: "move", to: next };
+  }
+
   // No job: go where the work is, so a thought can be spent on applying there.
   if (!a.job && v.hour >= 6 && v.hour < 17) {
     const open = [...v.jobs.values()].filter((j) => j.holders.length < j.slots);

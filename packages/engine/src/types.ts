@@ -1,7 +1,7 @@
 import type { DayPlan } from "@ferrytown/protocol";
 import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@ferrytown/protocol";
 
-export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic";
+export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic" | "plot" | "wild";
 
 export interface Place {
   id: PlaceId;
@@ -11,6 +11,12 @@ export interface Place {
   sells: { item: string; base: number }[];
   beds?: { price: number; capacity: number };
   freeBeds?: number;
+  /** Where it stands on the island, in map units, and which district. The client draws from this. */
+  x: number; y: number; district: string; sprite: string;
+  /** Who owns it. Rent and takings go to them; they sleep free; they pay the wages of anyone they employ. */
+  owner: AgentId | null;
+  /** An unfinished building on a plot. Work adds labor; at laborNeeded it becomes a place. */
+  site: { what: "house" | "shop"; name: string; by: AgentId; labor: number; laborNeeded: number; startedDay: number } | null;
 }
 
 export interface Job {
@@ -102,6 +108,7 @@ export interface PlanContext {
   yesterday: string | null; intentions: string[]; keyMemories: string[];
   relationships: { id: AgentId; name: string; trust: number; opinion: string }[];
   places: { id: string; name: string; kind: string }[]; jobsOpen: string[]; unreadLetters: string[];
+  land: string[]; building: string[]; owned: string[]; builds: { house: { coins: number; labor: number; describe: string }; shop: { coins: number; labor: number; describe: string } };
 }
 
 export interface PaperContext {
@@ -141,6 +148,9 @@ export interface AgentSnapshot {
 }
 export interface TownSnapshot {
   t: number; day: number; weather: string; flourShortage: boolean;
+  /** Places whose state can change: plots, sites, what people built, beds and owners. Positions come from the code. */
+  places?: Place[];
+  jobs?: { id: string; title: string; place: PlaceId; wage: number; hours: [number, number]; slots: number }[];
   agents: AgentSnapshot[];
   papers: Paper[];
   laws: { text: string; by: AgentId; yes: number; no: number; open: boolean }[];

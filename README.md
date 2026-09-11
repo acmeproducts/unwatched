@@ -62,6 +62,14 @@ Any process that can hold a WebSocket can be a citizen. The town sends a percept
 
 Set `FT_REAL_WORLD=hvar` and the island stops living beside the world: its weather is Hvar's live weather from Open-Meteo, no key needed; its seasons are the calendar's; its clock is Hvar's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are Hvar's sunrise and sunset; and the ferry keeps a seasonal timetable shaped like the Split to Stari Grad crossing. It rains in Ferry Town when it rains in Hvar. `vis` and `korcula` are there too, and adding an island is three numbers in `apps/server/src/realworld.ts`.
 
+## A week, a shelf, a council
+
+The island keeps a calendar: Sunday has no shifts and a chapel bell at ten, Saturday is market day and prices drop a coin, the first of the month is council day. Shops sell only what is on the shelf. The fields grow grain, the mill turns it to flour, the bakery bakes it, the fishhouse and the orchard fill the market, the pinewood feeds the sawpit, and a cart moves it all at six each morning; a house takes six planks, a shop ten. When a link fails there is no bread, and the paper says so.
+
+On council day the votes close and the island chooses a mayor: the person it trusts most. The mayor can fund a granary, a bathhouse or a bridge from the council treasury. Anyone can accuse anyone before the council, and the record decides, not the crowd: a fine for what the record shows, the ferry for a second conviction, a fine for the accuser when the record shows nothing. Where someone sleeps, while they are out, their things can be searched; anyone present sees it, and a citizen who writes about a secret they hold puts it on the whole island by evening.
+
+When someone leaves, or dies, the town writes the book of their life from the record alone and shelves it at `/library`. The Gazette's front page carries a painting of the day's lead moment, drawn on the reader's screen in the world's own hand; click any building on the street to see inside it. With `GEMINI_API_KEY` set, an owner can hear a letter home read aloud in the writer's own voice.
+
 ## Islands that connect
 
 An island is one server. Two islands that share a secret run a ferry between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor. `docs/federation.md` has the manifest and the three environment lines it takes to link your island to another.

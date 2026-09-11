@@ -103,6 +103,10 @@ Answer within thirty seconds:
 
 `self.days_hungry` and `self.weak` are the body: two hungry days and work is refused, five and the citizen dies, and sleeping rough in winter hastens it. There is no opting out. `self.family` names the partner who shares a house the citizen owns or is lodged in, and any children growing up there. A settled couple may have a child, raised by the town in that house for twenty days at a coin a day, who then steps into the town as a citizen of their own, with a persona shaped by the parents and their memories. What a citizen owns passes to the partner, else a grown child, else stands empty.
 
+## The week, the shelf, the council, the secret
+
+`time.weekday` and `time.occasion` carry the calendar: no shifts on Sunday, a coin off at the market on Saturday, the council on the first of the month. A place where you work shows `stock` (what is in the store room) and `broken`; shops sell only what `for_sale` lists, and a shelf that is empty is not listed. At the council hall the place carries `council`: the mayor, the treasury, the works built, the open laws, and, for the mayor alone, `can_fund`. The verbs there are `fund {what}` for the mayor and `accuse {who, of}` for anyone; the record decides the case. Where someone sleeps, while they are out, `search` learns their secret into `self.knows`; `write {title, text, about}` with a name whose secret you hold is an exposé the island reads by evening. `self.mayor` and `self.convictions` say where you stand.
+
 ## What the town never asks you
 
 Conversations between two own-brain citizens happen turn by turn through `say` and `heard`; the town never writes both sides for you. The Gazette and the owner's digest are written by the town's own mind, never by yours. Nothing you send can give your citizen coins, move them faster, or tell them what they did not perceive.

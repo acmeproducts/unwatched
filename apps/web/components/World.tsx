@@ -7,7 +7,7 @@ import { Citizen, lookFor, aged, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
-import { Lighting, WaterFilter, Weather, type LightSource } from "./world/fx";
+import { Lighting, WaterFilter, Weather, Clouds, type LightSource } from "./world/fx";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
 
@@ -68,7 +68,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
   const figs = useRef(new Map<string, Fig>());
   const agents = useRef(new Map<string, PublicAgent>());
   const bubbles = useRef(new Map<string, { text: string; until: number }>());
-  const camera = useRef({ x: 0, y: 0, zoom: 1, follow: mineId as string | null });
+  const camera = useRef({ x: 0, y: 0, zoom: 1, follow: mineId as string | null, hand: null as { x: number; y: number; zoom: number; vx: number; vy: number } | null });
   const seatOf = useRef(new Map<string, number>());
   const viewRef = useRef(view); viewRef.current = view;
   const effectsRef = useRef(effects); effectsRef.current = effects;
@@ -247,6 +247,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.night); night.alpha = 0; world.addChild(night);
       // the GPU's share, behind a switch so the old street and the new can be compared: night the lights cut through, and water that moves
       const lighting = new Lighting(world, W, H); const water = new WaterFilter(); let effectsOn = false;
+      const clouds = new Clouds(W, H); clouds.shadows.zIndex = 0.4; scene.addChild(clouds.shadows); clouds.puffs.zIndex = 220000; scene.addChild(clouds.puffs);
       const weatherFx = new Weather(W, H); weatherFx.rain.zIndex = 200000; scene.addChild(weatherFx.rain); weatherFx.snow.zIndex = 200001; scene.addChild(weatherFx.snow); weatherFx.fog.zIndex = 210000; scene.addChild(weatherFx.fog);
       const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.dusk); dusk.alpha = 0; world.addChild(dusk);
       const lamps = new Graphics(); lamps.zIndex = 150000; scene.addChild(lamps);
@@ -314,23 +315,44 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       };
 
       let tick = 0;
+      // a hand on the camera in the street view: drag to look around, wheel to zoom, a little inertia after letting go
+      const canvas = app.canvas; let press: { x: number; y: number; cx: number; cy: number; moved: boolean } | null = null; let lastMove = { x: 0, y: 0, t: 0 };
+      const handOn = () => { const c = camera.current; if (!c.hand) { const Wd = app!.screen.width, Hd = app!.screen.height; c.hand = { x: (Wd / 2 - c.x) / c.zoom, y: (Hd / 2 - c.y) / c.zoom, zoom: c.zoom, vx: 0, vy: 0 }; c.follow = null; } return c.hand; };
+      canvas.addEventListener("pointerdown", (e) => { if (viewRef.current !== "street") return; press = { x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY, moved: false }; lastMove = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+      canvas.addEventListener("pointermove", (e) => { if (!press) return; const dx = e.clientX - press.cx, dy = e.clientY - press.cy; if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 6) return; press.moved = true; const h = handOn(); h.x -= dx / camera.current.zoom; h.y -= dy / camera.current.zoom; const now = performance.now(); const dt = Math.max(8, now - lastMove.t); h.vx = Math.max(-30, Math.min(30, -(e.clientX - lastMove.x) / dt * 16 / camera.current.zoom)); h.vy = Math.max(-30, Math.min(30, -(e.clientY - lastMove.y) / dt * 16 / camera.current.zoom)); lastMove = { x: e.clientX, y: e.clientY, t: now }; press.cx = e.clientX; press.cy = e.clientY; });
+      const release = () => { if (press?.moved && camera.current.hand && performance.now() - lastMove.t > 80) { camera.current.hand.vx = 0; camera.current.hand.vy = 0; } press = null; };
+      canvas.addEventListener("pointerup", release); canvas.addEventListener("pointercancel", release); canvas.addEventListener("pointerleave", release);
+      canvas.addEventListener("wheel", (e) => { if (viewRef.current !== "street") return; e.preventDefault(); const h = handOn(); const before = h.zoom; h.zoom = Math.min(1.9, Math.max(0.55, h.zoom * Math.exp(-e.deltaY * 0.0012))); const r = canvas.getBoundingClientRect(); const mx = e.clientX - r.left - app!.screen.width / 2, my = e.clientY - r.top - app!.screen.height / 2; h.x += mx / before - mx / h.zoom; h.y += my / before - my / h.zoom; }, { passive: false });
+      let lastCut = ""; let cutAt = 0;
       // where the frame goes, for tuning: window.__ftperf holds milliseconds per section since load
       const perf: Record<string, number> = {}; let perfT = 0; let perfSection = "start"; (window as unknown as { __ftperf: Record<string, number>; __ftworld: Container; __ftscene: Container }).__ftperf = perf; (window as unknown as { __ftworld: Container }).__ftworld = world; (window as unknown as { __ftscene: Container }).__ftscene = scene;
       const perfMark = (next: string) => { const now = performance.now(); perf[perfSection] = (perf[perfSection] ?? 0) + (now - perfT); perfT = now; perfSection = next; };
       app.ticker.add(() => {
         if (!app) return; tick++; perfT = performance.now(); perfSection = "camera"; perf.frames = (perf.frames ?? 0) + 1;
         const Wd = app.screen.width, Hd = app.screen.height; const cam = camera.current;
-        const zoom = viewRef.current === "map" ? Math.min(Wd / (W * 1.1), Hd / (H * 1.24)) : viewRef.current === "cinema" ? 1.25 : 1.05; // the map leaves sea around the island, so the horizon shows
-        cam.zoom += (zoom - cam.zoom) * 0.08;
+        const hand = viewRef.current === "street" ? cam.hand : null;
+        if (viewRef.current !== "street" && cam.hand) cam.hand = null;
+        const followed = viewRef.current === "street" && cam.follow ? figs.current.get(cam.follow) : null;
+        const talking = followed ? followed.pose === "talk" : false;
+        // the cinema breathes: the zoom swells and settles over half a minute; a followed conversation draws the camera in a step
+        const zoom = viewRef.current === "map" ? Math.min(Wd / (W * 1.1), Hd / (H * 1.24)) : viewRef.current === "cinema" ? 1.22 + Math.sin(tick / 1400) * 0.06 : hand ? hand.zoom : talking ? 1.16 : 1.05; // the map leaves sea around the island, so the horizon shows
+        cam.zoom += (zoom - cam.zoom) * (hand ? 0.16 : 0.05);
         let fx = W / 2, fy = H / 2 + 40;
-        if (viewRef.current === "street") { const f = cam.follow ? figs.current.get(cam.follow) : null; if (f) { fx = f.x; fy = f.y - 60; } else { const mk = places.get("market"); if (mk) { fx = mk.x; fy = mk.y; } } }
+        if (hand) { hand.vx = Math.max(-22, Math.min(22, hand.vx)); hand.vy = Math.max(-22, Math.min(22, hand.vy)); hand.x = Math.max(-200, Math.min(W + 200, hand.x + hand.vx)); hand.y = Math.max(-150, Math.min(H + 150, hand.y + hand.vy)); hand.vx *= 0.86; hand.vy *= 0.86; fx = hand.x; fy = hand.y; } // the hand stays over the island and never flings it
+        else if (viewRef.current === "street") { if (followed) { const lead = Math.max(-70, Math.min(70, (followed.tx - followed.x) * 0.7)); fx = followed.x + lead; fy = followed.y - 60; } else { const mk = places.get("market"); if (mk) { fx = mk.x; fy = mk.y; } } }
         // the camera follows the day: the latest moment that mattered, or the busiest place when nothing has happened for a while
         const stagedNow = staged.current && Date.now() < staged.current.until ? staged.current : null;
         if (viewRef.current === "cinema" && stagedNow) { fx = stagedNow.x; fy = stagedNow.y + 20; }
         else if (viewRef.current === "cinema") { const cn = cinema.current; if (cn && Date.now() - cn.at < 120000) { const f = cn.ids[0] ? figs.current.get(cn.ids[0]) : null; fx = f?.x ?? cn.x; fy = (f?.y ?? cn.y) - 50; } else { let best: PlaceView | null = null; for (const p of places.values()) if (!best || p.crowd > best.crowd) best = p; if (best) { fx = best.x; fy = best.y - 20; } } }
+        if (viewRef.current === "cinema") { const key = stagedNow ? `s:${stagedNow.place}` : cinema.current ? `c:${cinema.current.at}` : "idle"; if (key !== lastCut) { lastCut = key; cutAt = tick; } fx += Math.sin(tick / 900) * 36; fy += Math.cos(tick / 1100) * 18; } // a slow drift while the moment plays
         const tx = Wd / 2 - fx * cam.zoom, ty = Hd / 2 - fy * cam.zoom;
-        const ease = viewRef.current === "cinema" ? 0.02 : 0.08; cam.x += (tx - cam.x) * ease; cam.y += (ty - cam.y) * ease;
+        const cutting = viewRef.current === "cinema" && tick - cutAt < 90; // a new moment is a cut, not a crawl
+        const ease = hand ? 1 : viewRef.current === "cinema" ? (cutting ? 0.09 : 0.02) : 0.08; cam.x += (tx - cam.x) * ease; cam.y += (ty - cam.y) * ease;
         world.scale.set(cam.zoom); world.position.set(cam.x, cam.y);
+        // parallax: what is far moves less than the island, what is near moves more, measured from where the camera looks
+        const cwx = (Wd / 2 - cam.x) / cam.zoom, cwy = (Hd / 2 - cam.y) / cam.zoom;
+        const par = (f: number) => [(cwx - cx) * (1 - f), (cwy - cy) * (1 - f)] as const;
+        { const [sx, sy] = par(0.92); sea.position.set(sx, sy); ripples.position.set(sx, sy); const [hx, hy] = par(0.8); horizon.position.set(hx, hy); const [ex, ey] = par(0.7); celestial.position.set(ex, ey); const [gx, gy] = par(1.1); gulls.position.set(gx, gy); const [kx, ky] = par(1.03); smoke.position.set(kx, ky); const [ox, oy] = par(1.06); fog.position.set(ox, oy); weatherFx.fog.position.set(ox, oy); const [rx, ry] = par(1.04); weatherFx.rain.position.set(rx, ry); weatherFx.snow.position.set(rx, ry); const [px, py] = par(1.2); clouds.puffs.position.set(px, py); }
         // sea
         perfMark("sea");
         sea.clear(); sea.rect(-3000, -3000, W + 6000, H + 6000).fill(C.water);
@@ -403,11 +425,12 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         const nightAmt = (hour < rise - 1 ? 0.42 : hour < rise + 0.5 ? 0.42 * (rise + 0.5 - hour) / 1.5 : hour < set - 0.5 ? 0 : hour < set + 1 ? 0.42 * (hour - (set - 0.5)) / 1.5 : 0.42) + (weather === "storm" ? 0.12 : weather === "rain" ? 0.05 : 0);
         const duskAmt = Math.abs(hour - rise) < 1 ? 0.16 * (1 - Math.abs(hour - rise)) : Math.abs(hour - set) < 1 ? 0.2 * (1 - Math.abs(hour - set)) : 0;
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
-        if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; rain.visible = !effectsOn; fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; } }
+        if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; rain.visible = !effectsOn; fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }
         if (effectsOn) {
           const up = hour > rise && hour < set; let lx: number, ly: number, ls: number;
           if (up) { const f = (hour - rise) / Math.max(1, set - rise); const ang = Math.PI * (1 - f); lx = cx - Rx * 1.05 * Math.cos(ang); ly = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(ang)) - 30; ls = 0.9; }
           else { lx = W - 220; ly = 90; ls = 0.55 * Math.max(0, (night.alpha - 0.1) / 0.32); }
+          { const [ex, ey] = par(0.7); lx += ex; ly += ey; }
           water.update({ time: tick / 60, cam: { x: cam.x, y: cam.y, zoom: cam.zoom }, sun: { x: lx, y: ly, strength: ls * (weather === "storm" ? 0.15 : weather === "rain" || weather === "fog" ? 0.35 : 1) }, color: GROUND.water, deep: GROUND.waterDeep, glint: up ? 0xffe9a8 : 0xd9e3ff, rough, night: Math.min(1, night.alpha / 0.42) });
           const sources: LightSource[] = [];
           if (night.alpha > 0.03) {
@@ -417,6 +440,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
           if (night.alpha > 0.1) sources.push({ x: W - 220, y: 90, r: 130, color: 0xdfe8ff, strength: 0.5, noHole: true }); // the moon blooms too
           lighting.update(night.alpha, sources, tick, flash.alpha);
           weatherFx.update({ weather, wind, snowing, wet, tick, night: Math.min(1, night.alpha / 0.42), fogColor: 0xd7dfe2, rainColor: night.alpha > 0.15 ? 0xdfe8ee : 0x4b5560 });
+          clouds.update({ tick, wind, sunUp: up ? 1 - Math.min(1, night.alpha / 0.42) : 0, night: Math.min(1, night.alpha / 0.42), weather });
         }
         // long shadows near sunrise and sunset
         const lowSun = Math.max(0, 1 - Math.min(Math.abs(hour - rise), Math.abs(hour - set)) / 1.5) * (night.alpha < 0.3 ? 1 : 0);
@@ -492,7 +516,7 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mineId]);
 
-  useEffect(() => { camera.current.follow = mineId; }, [mineId]);
+  useEffect(() => { camera.current.follow = mineId; camera.current.hand = null; }, [mineId]);
   const z = camera.current.zoom;
   const showLabels = view === "street" || z > 0.6;
 

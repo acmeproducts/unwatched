@@ -1,4 +1,4 @@
-# Ferry Town server. One long-lived process: the town's clock, the API, and the WebSocket streams.
+# Small Hours server. One long-lived process: the town's clock, the API, and the WebSocket streams.
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.10.0 --activate
 WORKDIR /app

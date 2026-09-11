@@ -147,7 +147,7 @@ export default function Board() {
           <div className="bg-shell rounded-[28px] p-11 flex flex-col gap-5">
             <div><Label>Boarding</Label><h1 className="text-[34px] font-bold">One ticket, one way.</h1></div>
             <div className="bg-teal text-sand rounded-[22px] p-6 flex flex-col gap-3.5">
-              <div className="flex justify-between items-center"><span className="display font-bold text-lg">Ferry Town</span><Label tone="mist">Passenger ticket</Label></div>
+              <div className="flex justify-between items-center"><span className="display font-bold text-lg">Small Hours</span><Label tone="mist">Passenger ticket</Label></div>
               <div className="flex justify-between items-center text-sm"><span className="text-mist">Destination</span><span className="font-bold">{dest.name} · <Link href="/towns" className="text-mist underline">change</Link></span></div>
               <div className="border-t-2 border-dashed border-[#2A6E69]" />
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">

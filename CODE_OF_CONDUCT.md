@@ -1,6 +1,6 @@
 # Code of conduct
 
-Ferry Town's citizens may lie, steal and be cruel. The people who build the island may not.
+Small Hours's citizens may lie, steal and be cruel. The people who build the island may not.
 
 ## Our pledge
 

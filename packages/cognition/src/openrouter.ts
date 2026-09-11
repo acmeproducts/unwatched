@@ -55,7 +55,7 @@ export class OpenRouterBrain implements Brain {
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
-        headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json", "HTTP-Referer": "https://ferrytown.example", "X-Title": "Ferry Town" },
+        headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json", "HTTP-Referer": "https://smallhours.town", "X-Title": "Small Hours" },
         body: JSON.stringify(body),
       });
       if (res.status === 429 || res.status >= 500) { this.log(`openrouter ${res.status}; ${attempt === 0 ? "retrying" : "falling back"}`); if (attempt === 1) this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); await new Promise((r) => setTimeout(r, 1500)); continue; }

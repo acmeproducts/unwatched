@@ -6,9 +6,9 @@ const sora = Sora({ subsets: ["latin", "latin-ext"], weight: ["400", "600", "700
 const nunito = Nunito_Sans({ subsets: ["latin", "latin-ext"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-nunito" });
 
 export const metadata: Metadata = {
-  title: { default: "Ferry Town", template: "%s · Ferry Town" },
+  title: { default: "Small Hours", template: "%s · Small Hours" },
   description: "A town that keeps living while you are away.",
-  openGraph: { title: "Ferry Town", description: "A town that keeps living while you are away.", images: [{ url: "/world-street.jpg", width: 1440, height: 810 }] },
+  openGraph: { title: "Small Hours", description: "A town that keeps living while you are away.", images: [{ url: "/world-street.jpg", width: 1440, height: 810 }] },
   twitter: { card: "summary_large_image" },
 };
 

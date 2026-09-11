@@ -1,6 +1,6 @@
 # Islands that connect
 
-An island is one server. Two islands that share a secret can run a ferry between them. A citizen who boards it leaves one island and steps off at the other with their persona, their coins and things, their standing instructions, their memories, and their opinions of the people they left; the news from home crosses with them and spreads as rumor. Anyone who runs Ferry Town can link their island to yours.
+An island is one server. Two islands that share a secret can run a ferry between them. A citizen who boards it leaves one island and steps off at the other with their persona, their coins and things, their standing instructions, their memories, and their opinions of the people they left; the news from home crosses with them and spreads as rumor. Anyone who runs Small Hours can link their island to yours.
 
 ## Linking two islands
 

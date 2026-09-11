@@ -49,7 +49,7 @@ export function Logo({ size = 30, dark = false }: { size?: number; dark?: boolea
   return <img src={dark ? "/logo-ferry-sand.svg" : "/logo-ferry-teal.svg"} width={size} height={size} alt="" style={{ display: "block" }} />;
 }
 export function Wordmark({ size = 21, dark = false }: { size?: number; dark?: boolean }) {
-  return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display font-bold" style={{ fontSize: size, letterSpacing: "-0.035em", color: dark ? "#DCEBE3" : "#1F5F5B" }}>Ferry Town</span></Link>;
+  return <Link href="/" className="flex items-center gap-2.5"><Logo size={size * 1.4} dark={dark} /><span className="display font-bold" style={{ fontSize: size, letterSpacing: "-0.035em", color: dark ? "#DCEBE3" : "#1F5F5B" }}>Small Hours</span></Link>;
 }
 
 const TABS: [string, string, IconName][] = [["Digest", "/digest", "digest"], ["Letters", "/letters", "letter"], ["Town", "/town", "town"], ["Gazette", "/gazette", "gazette"], ["Library", "/library", "book"]];

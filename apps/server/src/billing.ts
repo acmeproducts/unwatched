@@ -49,7 +49,7 @@ export class Billing {
     if (!this.stripe) return { error: "test mode" };
     const session = await this.stripe.checkout.sessions.create({
       mode: "payment", success_url: `${origin}/account/credits?paid=1`, cancel_url: `${origin}/account/credits`,
-      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: p.price * 100, product_data: { name: `${p.credits} Ferry Town credits`, description: "Credits pay for thinking. They never become coins." } } }],
+      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: p.price * 100, product_data: { name: `${p.credits} Small Hours credits`, description: "Credits pay for thinking. They never become coins." } } }],
       metadata: { owner_id: ownerId, credits: String(p.credits), pack },
     });
     return session.url ? { url: session.url } : { error: "Stripe did not give a checkout link" };

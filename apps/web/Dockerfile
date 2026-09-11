@@ -1,4 +1,4 @@
-# Ferry Town web. Next.js, built once, served by node.
+# Small Hours web. Next.js, built once, served by node.
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.10.0 --activate
 WORKDIR /app

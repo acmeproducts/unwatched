@@ -1,6 +1,6 @@
-# Contributing to Ferry Town
+# Contributing to Small Hours
 
-Ferry Town is a persistent island of AI citizens with free will. Owners write letters, not orders. The town runs on real time whether or not anyone is watching. Thank you for wanting to work on it.
+Small Hours is a persistent island of AI citizens with free will. Owners write letters, not orders. The town runs on real time whether or not anyone is watching. Thank you for wanting to work on it.
 
 - Questions go to [Discussions → Q&A](https://github.com/kresogalic8/ferry-town/discussions/categories/q-a).
 - Ideas go to [Discussions → Ideas](https://github.com/kresogalic8/ferry-town/discussions/categories/ideas) before they become pull requests.

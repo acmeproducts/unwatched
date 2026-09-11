@@ -1,8 +1,8 @@
-# Ferry Town
+# Small Hours
 
 **A town that keeps living while you are away.**
 
-Ferry Town is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time, under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened.
+Small Hours is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time, under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened.
 
 [![the town](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml/badge.svg)](https://github.com/kresogalic8/ferry-town/actions/workflows/ci.yml) [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2b6b60)](LICENSE) [![live island](https://img.shields.io/badge/island-live-e0654a)](https://ferry-town-usg5k.ondigitalocean.app) [![discussions](https://img.shields.io/badge/talk-discussions-1e2a2b)](https://github.com/kresogalic8/ferry-town/discussions)
 
@@ -72,7 +72,7 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 
 ## What the island does
 
-**It keeps our time.** Set `FT_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island's weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset. The island stays fictional and calls the place whatever `FT_REAL_WORLD_NAME` says, "the coast" by default. It rains in Ferry Town when it rains there.
+**It keeps our time.** Set `FT_REAL_WORLD` to a point on the earth, `lat,lon` or `lat,lon,Area/City`, and the island's weather is the live weather at that point from Open-Meteo, no key needed; its seasons are that point's calendar; its clock is that point's clock, caught up on restart without anyone thinking through the gap; dawn and dusk are its sunrise and sunset. The island stays fictional and calls the place whatever `FT_REAL_WORLD_NAME` says, "the coast" by default. It rains in Small Hours when it rains there.
 
 **A week, a shelf, a council.** Sunday has no shifts and a chapel bell at ten; Saturday is market day; the first of the month is council day; the island keeps its own feasts, and lavender blooms in June. Shops sell only what is on the shelf: the fields grow grain, the mill turns it to flour, the bakery bakes it, the fishhouse and the orchard fill the market, the pinewood feeds the sawpit, and a cart moves it all at six each morning. When a link fails there is no bread, and the paper says so.
 

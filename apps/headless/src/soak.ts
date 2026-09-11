@@ -44,7 +44,7 @@ const personas = seedPersonas(new Rng(seed), agents);
 for (const [i, p] of personas.entries()) town.addAgent({ persona: p, owner: i < 3 ? owner : null });
 const mira = town.agents.values().next().value!;
 
-console.log(`Ferry Town · ${agents} citizens · ${days} days · brain ${brain.name} · seed ${seed}`);
+console.log(`Small Hours · ${agents} citizens · ${days} days · brain ${brain.name} · seed ${seed}`);
 const t0 = Date.now();
 let lastDay = town.day;
 const startT = town.t;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ferry Town on DigitalOcean. Run from the repo root after `doctl auth init` once.
+# Small Hours on DigitalOcean. Run from the repo root after `doctl auth init` once.
 #   deploy/do.sh            build both images, push, create or update the app
 #   deploy/do.sh secrets    push the secrets from .env into the app (run once, and after rotating a key)
 set -euo pipefail

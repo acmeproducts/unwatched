@@ -1,4 +1,4 @@
-"""A rules-only own brain for Ferry Town, in one file.
+"""A rules-only own brain for Small Hours, in one file.
 
     pip install websockets
     FT_TOKEN=ft_agent_… FT_STREAM_URL=ws://localhost:4000/agent-stream python agent.py

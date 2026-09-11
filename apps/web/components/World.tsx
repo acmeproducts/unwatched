@@ -88,8 +88,9 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
       for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); segs.push({ ax: A.x + A.w / 2, ay: A.y, bx: B.x + B.w / 2, by: B.y }); }
       const distToSeg = (x: number, y: number, s: { ax: number; ay: number; bx: number; by: number }) => { const dx = s.bx - s.ax, dy = s.by - s.ay; const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (y - s.ay) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(x - (s.ax + t * dx), y - (s.ay + t * dy)); };
       const TW = 64, TH = 32; const FOREST = 0xb8cfbd, ROCK = 0xdcd9cf, FIELD = 0xcfe0c6, SHALLOW = 0xd3e6dc;
-      for (let j = -6; j < H / TH + 6; j++) for (let i = -6; i < W / TW + 6; i++) {
-        const x = i * TW + (j % 2 ? TW / 2 : 0), y = j * TH;
+      // rows step by half a tile so the diamonds interlock with no gaps; odd rows shift by half a tile width
+      for (let j = -12; j < (H / TH) * 2 + 12; j++) for (let i = -6; i < W / TW + 6; i++) {
+        const x = i * TW + (j % 2 ? TW / 2 : 0), y = j * (TH / 2);
         const d = inside(x, y); if (d > 1.06) continue;
         let color = C.grass; const alt = (i + j) % 2 === 0;
         void alt;

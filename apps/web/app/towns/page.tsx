@@ -20,7 +20,7 @@ function describe(t: TownRow): string {
 export default function Towns() {
   const [towns, setTowns] = useState<TownRow[] | null>(null); const [err, setErr] = useState(false); const [dest, setDest] = useState<string>("island");
   useEffect(() => { try { const t = localStorage.getItem("ft.town"); if (t) setDest(t); } catch {} void api<TownRow[]>("/api/towns").then(setTowns).catch(() => setErr(true)); }, []);
-  const chosen = towns?.find((t) => t.id === dest) ?? towns?.[0];
+  const chosen = towns?.find((t) => t.id === dest && (t.live || t.far)) ?? towns?.find((t) => t.live) ?? towns?.[0];
   const choose = (id: string) => { setDest(id); try { localStorage.setItem("ft.town", id); } catch {} };
   return (
     <Page>

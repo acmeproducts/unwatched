@@ -21,7 +21,7 @@ export class MockBrain implements Brain {
       return { action: { kind: "wait" }, remember: [`Whoever sent me wrote: "${l.text}". ${follows ? "I will keep it in mind." : "Noted."}`] };
     }
     // Standing on land for sale with the coins and no roof: build.
-    if (p.place.plot?.free && p.self.housing === null && p.self.coins >= p.place.plot.house.coins && (tr.ambition > 0.4 || this.rng.chance(0.3))) return { action: { kind: "build", what: "house", at: p.place.id }, intent: "a roof of my own", remember: ["I bought the land. Now the work."] };
+    if (p.place.plot?.free && (p.self.housing === null || p.self.housing.nights_left === 0) && p.self.coins >= p.place.plot.house.coins && (tr.ambition > 0.4 || this.rng.chance(0.3))) return { action: { kind: "build", what: "house", at: p.place.id }, intent: "a roof of my own", remember: ["I bought the land. Now the work."] };
     if (p.place.site) return { action: { kind: "work" }, intent: "raise the frame", remember: [] };
     // Broke and jobless: ask for work, or do something desperate.
     if (p.self.job === null && p.place.jobs_open.length > 0) {
@@ -121,7 +121,7 @@ export class MockBrain implements Brain {
     if (!a.job) { goals.push("Find work before the coins run out."); steps.push({ hour: 8, do: "Ask for work wherever it is going.", place: "market" }); }
     else { goals.push("Do the day's work and keep the bed."); }
     if (a.needs.social > 0.5 || a.persona.traits.warmth > 0.6) { goals.push("Talk to someone properly."); steps.push({ hour: 18, do: "Go where people are and talk.", place: this.rng.chance(0.5) ? "tavern" : "market" }); }
-    if (ctx.land.length && a.coins >= ctx.builds.house.coins && !a.home && a.persona.traits.ambition > 0.5) { goals.push("Buy land and start a house."); steps.push({ hour: 9, do: "Go to the plot and build a house.", place: ctx.land[0]!.split(" ")[0]! }); }
+    if (ctx.land.length && a.coins >= ctx.builds.house.coins && !ctx.owned.length && a.persona.traits.ambition > 0.4) { goals.push("Buy land and start a house."); steps.push({ hour: 9, do: "Go to the plot and build a house.", place: ctx.land[0]!.split(" ")[0]! }); }
     for (const i of ctx.intentions.slice(0, 2)) steps.push({ hour: 10 + steps.length * 3, do: i, place: null });
     return { mood: a.coins < 6 ? "worried about money" : "steady", goals: goals.slice(0, 3), steps: steps.slice(0, 6) };
   }

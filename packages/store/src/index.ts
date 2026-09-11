@@ -121,7 +121,7 @@ export class TownStore {
     });
     return {
       t: Number(town.sim_t), day: town.day, weather: town.weather, flourShortage: town.flour_shortage,
-      places: (town.places ?? []) as TownSnapshot["places"], jobs: (town.jobs ?? []) as TownSnapshot["jobs"],
+      places: (town.places ?? []) as NonNullable<TownSnapshot["places"]>, jobs: (town.jobs ?? []) as NonNullable<TownSnapshot["jobs"]>,
       agents, papers: (papers ?? []).map((p) => p.paper as Paper).reverse(),
       laws: (laws ?? []).map((l) => ({ text: l.text, by: l.proposed_by ?? "", yes: l.yes, no: l.no, open: l.open })),
     };

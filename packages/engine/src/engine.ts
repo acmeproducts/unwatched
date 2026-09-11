@@ -171,9 +171,12 @@ export class Town {
     for (const a of this.agents.values()) this.decayNeeds(a);
     // 2. habit for everyone, salience for some
     const thinkers: { a: AgentState; tier: Tier; why: string }[] = [];
+    for (const a of this.agents.values()) if (a.asleep) this.maybeWake(a);
+    // morning plans touch nothing but the planner, so they run side by side, a few at a time
+    const planners = [...this.agents.values()].filter((a) => !a.asleep && a.plan?.day !== this.day);
+    for (let i = 0; i < planners.length; i += 6) await Promise.all(planners.slice(i, i + 6).map((a) => this.maybePlan(a)));
     for (const a of this.agents.values()) {
-      if (a.asleep) { this.maybeWake(a); if (a.asleep) continue; }
-      await this.maybePlan(a);
+      if (a.asleep) continue;
       const here = this.places.get(a.location)!;
       const nearby = this.nearby(a);
       const s = this.brain.name === "none" || this.paused ? null : salience(a, { hour: this.hour, t: this.t, nearby, jobsOpenHere: this.openJobsAt(here.id).length });

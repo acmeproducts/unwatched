@@ -85,7 +85,7 @@ export class OwnBrain implements Brain {
     return parsed?.success ? parsed.data : this.fallback.reflect(ctx);
   }
   async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
-    const got = await this.ask({ type: "plan", agent_id: ctx.agent.id, day: ctx.day, hour: ctx.hour, weather: ctx.weather, yesterday: ctx.yesterday, intentions: ctx.intentions, key_memories: ctx.keyMemories, relationships: ctx.relationships, places: ctx.places, jobs_open: ctx.jobsOpen, letters: ctx.unreadLetters, coins: ctx.agent.coins, job: ctx.agent.job }, 30000);
+    const got = await this.ask({ type: "plan", agent_id: ctx.agent.id, day: ctx.day, hour: ctx.hour, weather: ctx.weather, yesterday: ctx.yesterday, intentions: ctx.intentions, key_memories: ctx.keyMemories, relationships: ctx.relationships, places: ctx.places, jobs_open: ctx.jobsOpen, letters: ctx.unreadLetters, coins: ctx.agent.coins, job: ctx.agent.job }, 12000);
     const parsed = got ? DayPlanSchema.safeParse(got) : null;
     return parsed?.success ? parsed.data : this.fallback.plan(ctx, tier);
   }

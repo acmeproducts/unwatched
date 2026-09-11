@@ -104,6 +104,8 @@ export interface AgentState {
   convictions: number;
   /** Other people's secrets this person has learned, by whose id. */
   secretsKnown: Record<AgentId, string>;
+  /** Someone this person went over to talk with this minute; the next conversation pairs them. */
+  seek: AgentId | null;
 }
 
 /** A DayPlan once the engine has it: dated, with each step ticked off as its thought is spent. */

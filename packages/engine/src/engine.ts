@@ -153,7 +153,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null, debts: [], hint: null, heading: null, starving: 0, roofless: 0, convictions: 0, secretsKnown: {},
+      plan: null, debts: [], hint: null, heading: null, starving: 0, roofless: 0, convictions: 0, secretsKnown: {}, seek: null,
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -187,7 +187,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0, convictions: sa.state.convictions ?? 0, secretsKnown: { ...(sa.state.secretsKnown ?? {}) },
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0, convictions: sa.state.convictions ?? 0, secretsKnown: { ...(sa.state.secretsKnown ?? {}) }, seek: null,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -400,12 +400,14 @@ export class Town {
         break;
       }
       case "say": {
+        if (!action.text) { a.seek = action.to ?? null; if (action.to) { const b = this.agents.get(action.to); if (b) this.emit("agent.say", [a.id, b.id], here.id, `${name} went over to ${b.persona.name}.`, 0.08); } break; }
         const listeners = this.nearby(a);
-        for (const b of listeners) if (!action.to || b.id === action.to) b.heard.push({ from: a.id, name, text: action.text, t: this.t });
+        const said = action.text;
+        for (const b of listeners) if (!action.to || b.id === action.to) b.heard.push({ from: a.id, name, text: said, t: this.t });
         const to = action.to ? this.agents.get(action.to)?.persona.name : undefined;
-        this.emit("agent.say", [a.id, ...(action.to ? [action.to] : [])], here.id, `${name}${to ? ` to ${to}` : ""}: “${action.text}”`, 0.15);
-        this.remember(a, `I said${to ? ` to ${to}` : ""}: "${action.text}"`, 0.2);
-        for (const b of listeners) this.remember(b, `${name} said${to ? ` to ${to}` : ""}: "${action.text}"`, 0.25);
+        this.emit("agent.say", [a.id, ...(action.to ? [action.to] : [])], here.id, `${name}${to ? ` to ${to}` : ""}: “${said}”`, 0.15);
+        this.remember(a, `I said${to ? ` to ${to}` : ""}: "${said}"`, 0.2);
+        for (const b of listeners) this.remember(b, `${name} said${to ? ` to ${to}` : ""}: "${said}"`, 0.25);
         break;
       }
       case "give": {
@@ -616,11 +618,14 @@ export class Town {
     for (const a of this.agents.values()) if (!a.asleep) (byPlace.get(a.location) ?? byPlace.set(a.location, []).get(a.location)!).push(a);
     for (const [placeId, group] of byPlace) {
       if (group.length < 2) continue;
-      const g = this.rng.shuffle([...group]);
-      for (let i = 0; i + 1 < g.length; i += 2) {
-        const a = g[i]!, b = g[i + 1]!;
+      // whoever went over to someone this minute talks with them first; the rest pair off by chance
+      const used = new Set<AgentId>(); const pairs: [AgentState, AgentState, boolean][] = [];
+      for (const x of group) { if (!x.seek) continue; const y = group.find((o) => o.id === x.seek); x.seek = null; if (!y || used.has(x.id) || used.has(y.id)) continue; used.add(x.id); used.add(y.id); pairs.push([x, y, true]); }
+      const g = this.rng.shuffle(group.filter((x) => !used.has(x.id)));
+      for (let i = 0; i + 1 < g.length; i += 2) pairs.push([g[i]!, g[i + 1]!, false]);
+      for (const [a, b, sought] of pairs) {
         if (a.brainKind === "own_brain" || b.brainKind === "own_brain") continue;
-        if (!wantsConversation(a, b, this.t) && !wantsConversation(b, a, this.t)) continue;
+        if (!sought && !wantsConversation(a, b, this.t) && !wantsConversation(b, a, this.t)) continue;
         // when something is at stake between them, the town does not write the talk for them: each takes a turn, minute by minute
         const stake = this.stakeBetween(a, b);
         if (stake) {
@@ -970,7 +975,7 @@ export class Town {
     let plan: DayPlan;
     try { plan = await this.brain.plan(ctx, tier); }
     catch (err) { this.log(`plan failed for ${a.persona.name}: ${(err as Error).message}`); a.plan = { day: this.day, mood: "", goals: [], steps: [] }; return; }
-    const steps = plan.steps.map((st) => ({ ...st, place: st.place === null ? null : this.resolvePlace(st.place) })).map((st) => ({ ...st, place: st.place && this.places.has(st.place) ? st.place : null })).sort((x, y) => x.hour - y.hour).map((st) => ({ ...st, done: false }));
+    const steps = plan.steps.map((st) => ({ hour: st.hour, do: st.do ?? "", place: st.place ? this.resolvePlace(st.place) : null })).map((st) => ({ ...st, place: st.place && this.places.has(st.place) ? st.place : null })).sort((x, y) => x.hour - y.hour).map((st) => ({ ...st, done: false }));
     a.plan = { ...plan, steps, day: this.day };
     a.lastThought = this.t;
     if (plan.goals[0]) { this.remember(a, `What I meant to do today: ${plan.goals.join("; ")}`, 0.35, "plan"); this.emit("agent.plan", [a.id], a.location, `${a.persona.name} set out to ${lower(plan.goals[0])}`, 0.15, { goals: plan.goals, mood: plan.mood }); }

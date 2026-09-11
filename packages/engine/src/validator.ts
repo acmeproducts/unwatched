@@ -29,6 +29,7 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
       return { ok: true };
     }
     case "say": {
+      if (!action.text && !action.to) return { ok: false, reason: "nothing said, nobody named" };
       if (action.to) {
         const other = v.agents.get(action.to);
         if (!other || other.location !== a.location) return { ok: false, reason: "out of earshot" };

@@ -42,7 +42,8 @@ export type ActionKind = z.infer<typeof ActionKind>;
 
 export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("move"), to: PlaceId }),
-  z.object({ kind: z.literal("say"), to: AgentRef.optional(), text: z.string().min(1).max(400) }),
+  /** Words, to everyone here or to one person. With "to" and no text it means: go and talk with them; the town then lets the two of you speak, turn by turn. */
+  z.object({ kind: z.literal("say"), to: AgentRef.optional(), text: z.string().max(400).optional() }),
   z.object({ kind: z.literal("give"), to: AgentRef, coins: z.number().int().positive().optional(), item: z.string().optional() }),
   z.object({ kind: z.literal("take"), item: z.string(), from: AgentRef.optional() }),
   z.object({ kind: z.literal("use"), item: z.string() }),
@@ -88,7 +89,7 @@ export type ActionProposal = z.infer<typeof ActionProposal>;
 export const DayPlan = z.object({
   mood: z.string().max(160),
   goals: z.array(z.string().max(240)).min(1).max(3),
-  steps: z.array(z.object({ hour: z.number().int().min(5).max(23), do: z.string().max(240), place: PlaceId.nullable() })).min(1).max(6),
+  steps: z.array(z.object({ hour: z.number().int().min(5).max(23), do: z.string().max(240).optional(), place: PlaceId.nullable().optional() })).min(1).max(6),
 });
 export type DayPlan = z.infer<typeof DayPlan>;
 

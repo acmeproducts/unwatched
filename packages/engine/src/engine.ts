@@ -459,6 +459,9 @@ export class Town {
   }
 
   /** An operator did something. It is logged and it is news. */
+  /** People who boarded today and have not yet stepped off. */
+  pendingArrivals(): number { return this.arrivalsToday; }
+
   actOfGod(text: string): void { this.emit("town.notice", [], undefined, text, 0.6); }
 
   private async printPaper(): Promise<void> {

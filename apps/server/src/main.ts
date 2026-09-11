@@ -111,6 +111,15 @@ async function ownerOf(req: Request): Promise<string | null> {
 const owns = (a: { owner: string | null }, owner: string | null) => !!owner && a.owner === owner;
 
 app.get("/api/town", (c) => c.json({ ...clockOf(town), places: [...town.places.values()].map((p) => ({ id: p.id, name: p.name, kind: p.kind, exits: p.exits, crowd: town.crowd(p.id) })), laws: town.laws }));
+const FERRY_SPACES = Number(process.env.FT_FERRY_SPACES ?? 8);
+const nextFerry = () => { const h = town.hour < 6 ? 6 : town.hour >= 20 ? 6 : town.hour + 1; return `${String(h).padStart(2, "0")}:00${town.hour >= 20 ? " tomorrow" : ""}`; };
+const liveTown = () => ({ id: store?.townId ?? "island", name: "The island", live: true, day: town.day, weather: town.weather, population: town.agents.size, flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, ferries: town.ferryHeld ? "The ferry is held at the mainland" : "Ferries hourly, 06:00 to 20:00", next: town.ferryHeld ? null : nextFerry(), spaces: town.ferryHeld ? 0 : Math.max(0, FERRY_SPACES - town.pendingArrivals()) });
+app.get("/api/towns", async (c) => {
+  const rows = store ? await store.towns().catch(() => []) : [];
+  const live = liveTown();
+  const others = rows.filter((r) => r.id !== live.id).map((r) => ({ id: r.id, name: r.name, live: false, day: r.day, weather: r.weather, population: r.population, flourShortage: r.flour_shortage, laws: 0, openLaws: 0, ferries: "No ferry runs there from here yet", next: null, spaces: 0 }));
+  return c.json([live, ...others]);
+});
 app.get("/api/agents", (c) => c.json([...town.agents.values()].map((a) => publicAgent(town, a))));
 app.get("/api/agents/:id", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person on the island" }, 404);
@@ -297,8 +306,10 @@ app.get("/api/events", (c) => {
 });
 app.post("/api/board", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the ferry office first" }, 401);
-  const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted") }).safeParse(await c.req.json());
+  const body = z.object({ persona: Persona, appearance: z.record(z.string(), z.unknown()).optional(), brain: z.enum(["hosted", "own_key", "own_brain"]).default("hosted"), town: z.string().optional() }).safeParse(await c.req.json());
   if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "the manifest is incomplete" }, 400);
+  if (body.data.town && body.data.town !== (store?.townId ?? "island")) return c.json({ error: "no ferry runs to that island from here yet" }, 400);
+  if (town.ferryHeld) return c.json({ error: "the ferry is held at the mainland; try again later" }, 503);
   const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
   a.appearance = body.data.appearance ?? null; billing.applyPlan(a);
   if (store) await store.snapshot(town);

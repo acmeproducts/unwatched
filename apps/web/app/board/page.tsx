@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wordmark, Button, Label, Chip } from "@/components/ui";
@@ -13,6 +14,8 @@ const F = (l: string, v: string, set: (s: string) => void, ph = "", multi = fals
 export default function Board() {
   const r = useRouter();
   const [step, setStep] = useState(0);
+  const [dest, setDest] = useState("island");
+  useEffect(() => { try { const t = localStorage.getItem("ft.town"); if (t) setDest(t); } catch {} }, []);
   const [p, setP] = useState({ name: "", age: "34", origin: "the mainland", summary: "", want: "", fear: "", secret: "", strangers: "Wary at first, loyal after.", advice: "Reads it twice. Rarely follows it." });
   const [traits, setTraits] = useState({ warmth: 0.5, pride: 0.5, caution: 0.5, honesty: 0.6, ambition: 0.5 });
   const [look, setLook] = useState({ build: "Average", hair: "Bob", hat: "None", carrying: "Suitcase", top: "Teal", bottom: "Sage", coral: "Suitcase" });
@@ -27,7 +30,7 @@ export default function Board() {
   async function board() {
     setBusy(true); setErr(null);
     try {
-      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain }) });
+      const res = await api<{ id: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest }) });
       rememberAgent(res.id);
       if (instructions.trim()) await api(`/api/agents/${res.id}/letters`, { method: "POST", body: JSON.stringify({ text: instructions.trim() }) });
       r.push("/digest");
@@ -117,6 +120,7 @@ export default function Board() {
             <div><Label>Boarding</Label><h1 className="text-[34px] font-bold">One ticket, one way.</h1></div>
             <div className="bg-teal text-sand rounded-[22px] p-6 flex flex-col gap-3.5">
               <div className="flex justify-between items-center"><span className="display font-bold text-lg">Ferry Town</span><Label tone="mist">Passenger ticket</Label></div>
+              <div className="flex justify-between items-center text-sm"><span className="text-mist">Destination</span><span className="font-bold">{dest === "island" ? "The island" : dest} · <Link href="/towns" className="text-mist underline">change</Link></span></div>
               <div className="border-t-2 border-dashed border-[#2A6E69]" />
               <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                 <div><div className="text-[11px] tracking-[0.1em] uppercase text-mist font-bold">Passenger</div><div className="display text-xl font-semibold">{p.name}</div></div>

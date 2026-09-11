@@ -34,6 +34,15 @@ export class TownStore {
     return error.message;
   }
 
+  /** Every island the record knows about, with how many people are on each. */
+  async towns(): Promise<{ id: string; name: string; seed: number; sim_t: number; day: number; weather: string; flour_shortage: boolean; created_at: string; population: number }[]> {
+    const [{ data: towns }, { data: heads }] = await Promise.all([
+      this.sb.from("towns").select("id, name, seed, sim_t, day, weather, flour_shortage, created_at").order("created_at", { ascending: true }),
+      this.sb.from("agents").select("town_id").is("left_t", null).not("arrived_t", "is", null),
+    ]);
+    const pop = new Map<string, number>(); for (const h of heads ?? []) pop.set(h.town_id as string, (pop.get(h.town_id as string) ?? 0) + 1);
+    return (towns ?? []).map((t) => ({ ...t, sim_t: Number(t.sim_t), population: pop.get(t.id as string) ?? 0 }));
+  }
   async ensureTown(name: string, seed: number): Promise<void> {
     await this.sb.from("towns").upsert({ id: this.townId, name, seed }, { onConflict: "id", ignoreDuplicates: true });
   }

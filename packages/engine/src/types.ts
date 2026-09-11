@@ -92,6 +92,8 @@ export interface AgentState {
   hint: string | null;
   /** Coins owed to others, with the sim minute they are due. Repaying is giving. */
   debts: { to: AgentId; coins: number; due: number }[];
+  /** Where they are walking to, when it is more than one road away. Habit takes the next road each minute until they arrive. */
+  heading: PlaceId | null;
   /** Days in a row that ended hungry, and days in a row that ended without a roof. Two hungry days makes you weak; five can kill. */
   starving: number; roofless: number;
 }

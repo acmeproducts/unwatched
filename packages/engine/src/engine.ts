@@ -115,7 +115,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null, debts: [], hint: null, starving: 0, roofless: 0,
+      plan: null, debts: [], hint: null, heading: null, starving: 0, roofless: 0,
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -149,7 +149,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0,
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0,
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -222,6 +222,8 @@ export class Town {
       if (s && this.spend(a, s.tier)) { thinkers.push({ a, tier: s.tier, why: s.why }); if (s.why.startsWith("plan")) this.dueStep(a)!.done = true; }
       else {
         let act = habit(a, this.habitView());
+        if (a.heading && a.heading !== a.location && act.kind !== "sleep" && act.kind !== "use" && this.places.has(a.heading)) { const nx = this.path(a.location, a.heading); if (nx) act = { kind: "move", to: nx }; else a.heading = null; }
+        if (a.heading === a.location) a.heading = null;
         const step = this.dueStep(a);
         // A plan step with a place pulls harder than habit's drift, for three hours from its time, unless hunger or night or a shift says otherwise.
         const onShift = a.job && (() => { const j = this.jobs.get(a.job!); return !!j && this.hour >= j.hours[0] && this.hour < j.hours[1]; })();
@@ -321,7 +323,7 @@ export class Town {
   apply(a: AgentState, rawAction: Action, source: string): boolean {
     const action = this.resolveAction(a, rawAction);
     const here = this.places.get(a.location)!;
-    const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, price: (p, i) => this.price(p, i) });
+    const verdict = validate(a, action, { places: this.places, jobs: this.jobs, agents: this.agents, hour: this.hour, price: (p, i) => this.price(p, i), path: (f, t) => this.path(f, t) });
     if (!verdict.ok) {
       if (source !== "habit") this.emit("action.rejected", [a.id], here.id, `${a.persona.name} tried to ${action.kind} but ${verdict.reason}.`, 0.05, { action, source });
       return false;
@@ -329,8 +331,11 @@ export class Town {
     const name = a.persona.name;
     switch (action.kind) {
       case "move": {
-        a.location = action.to;
-        this.emit("agent.move", [a.id], action.to, `${name} went to ${this.places.get(action.to)!.name}.`, 0.02);
+        // one road a minute; a far place becomes a heading that habit follows until they arrive
+        const next = here.exits.includes(action.to) ? action.to : this.path(a.location, action.to)!;
+        a.heading = next === action.to ? null : action.to;
+        a.location = next;
+        this.emit("agent.move", [a.id], next, `${name} went to ${this.places.get(next)!.name}${a.heading ? `, on the way to ${this.places.get(a.heading)!.name}` : ""}.`, 0.02);
         break;
       }
       case "say": {

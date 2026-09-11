@@ -10,6 +10,7 @@ export interface ValidatorView {
   agents: Map<string, AgentState>;
   hour: number;
   price(place: Place, item: string): number | null;
+  path(from: string, to: string): string | null;
 }
 
 /**
@@ -23,7 +24,8 @@ export function validate(a: AgentState, action: Action, v: ValidatorView): Verdi
   switch (action.kind) {
     case "move": {
       if (action.to === a.location) return { ok: false, reason: "already there" };
-      if (!here.exits.includes(action.to)) return { ok: false, reason: `no road from ${here.id} to ${action.to}` };
+      if (!v.places.has(action.to)) return { ok: false, reason: `no such place as ${action.to}` };
+      if (!here.exits.includes(action.to) && !v.path(a.location, action.to)) return { ok: false, reason: `no road from ${here.id} to ${action.to}` };
       return { ok: true };
     }
     case "say": {

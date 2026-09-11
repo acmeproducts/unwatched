@@ -45,7 +45,10 @@ describe("the town on habit alone", () => {
   it("rejects what the world cannot carry out", () => {
     const town = new Town({ seed: 2, brain: none });
     const a = town.addAgent({ persona: persona("R", new Rng(2)), coins: 0 });
-    expect(town.apply(a, { kind: "move", to: "mill" }, "test")).toBe(false); // no road from harbor
+    expect(town.apply(a, { kind: "move", to: "nowhere" }, "test")).toBe(false); // no such place
+    expect(town.apply(a, { kind: "move", to: "mill" }, "test")).toBe(true); // far away: one road now, a heading for the rest
+    expect(a.location).not.toBe("harbor"); expect(a.heading).toBe("mill");
+    a.location = "harbor"; a.heading = null;
     expect(town.apply(a, { kind: "trade", with: "harbor", buy: "bread", coins: 1 }, "test")).toBe(false); // nothing for sale
     expect(town.apply(a, { kind: "move", to: "inn" }, "test")).toBe(true);
     expect(town.apply(a, { kind: "trade", with: "inn", buy: "bread", coins: 1 }, "test")).toBe(false); // no coins

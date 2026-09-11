@@ -10,6 +10,7 @@ const none: Brain = {
   async converse() { throw new Error("no"); },
   async reflect() { throw new Error("no"); },
   async plan() { throw new Error("no"); },
+  async digest() { return { text: "a day", headline: "A day" }; },
   async writePaper() { throw new Error("no"); },
 };
 

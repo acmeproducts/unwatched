@@ -75,6 +75,10 @@ export const DayPlan = z.object({
 });
 export type DayPlan = z.infer<typeof DayPlan>;
 
+/** The day, told. Three or four sentences in the town's voice, from the record and nothing else. */
+export const DigestText = z.object({ text: z.string().max(900), headline: z.string().max(90) });
+export type DigestText = z.infer<typeof DigestText>;
+
 export const Perception = z.object({
   type: z.literal("perceive"),
   agent_id: AgentId,

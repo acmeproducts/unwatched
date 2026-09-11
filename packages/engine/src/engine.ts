@@ -1,7 +1,7 @@
 import type { Action, ActionProposal, AgentId, Perception, TownEvent, EventKind, Persona, Paper, Reflection, DayPlan } from "@ferrytown/protocol";
 import { OPTIONS_DEFAULT } from "@ferrytown/protocol";
 import { Rng } from "./rng.ts";
-import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot } from "./types.ts";
+import type { AgentState, Brain, Budget, EventSink, Job, Place, Tier, Memory, TownSnapshot, AgentSnapshot, DigestContext } from "./types.ts";
 import { makeJobs, makePlaces, FOOD_ITEMS, MINUTES_PER_DAY, SEASONS, BUILDS, buildKind, siteName } from "./world.ts";
 import { retrieve, compress } from "./memory.ts";
 import { validate } from "./validator.ts";
@@ -203,18 +203,26 @@ export class Town {
         this.apply(a, act, "habit");
       }
     }
-    // 3. thoughts, sequential so the world is consistent between them
-    for (const th of thinkers) {
-      const p = this.perceive(th.a);
-      let proposal: ActionProposal;
-      try { proposal = await this.brain.decide(p, th.a, th.tier); }
-      catch (err) { this.log(`brain failed for ${th.a.persona.name}: ${(err as Error).message}`); proposal = { action: { kind: "wait" }, remember: [] }; }
+    // 3. thoughts. Everyone perceives the same minute, thinks at the same time, and acts in seeded order; the validator settles any clash.
+    const perceived = thinkers.map((th) => ({ th, p: this.perceive(th.a) }));
+    const proposals: ActionProposal[] = new Array(perceived.length);
+    const CONCURRENCY = 8;
+    for (let i = 0; i < perceived.length; i += CONCURRENCY) {
+      await Promise.all(perceived.slice(i, i + CONCURRENCY).map(async ({ th, p }, j) => {
+        try { proposals[i + j] = await this.brain.decide(p, th.a, th.tier); }
+        catch (err) { this.log(`brain failed for ${th.a.persona.name}: ${(err as Error).message}`); proposals[i + j] = { action: { kind: "wait" }, remember: [] }; }
+      }));
+    }
+    perceived.forEach(({ th }, i) => {
+      const proposal = proposals[i]!;
       th.a.lastThought = this.t;
       for (const l of th.a.letters) if (!l.read) { l.read = true; this.remember(th.a, `A letter from whoever sent me: "${l.text}"`, 0.6, "letter"); }
       for (const r of proposal.remember) this.remember(th.a, r, 0.4);
       th.a.heard = [];
+      this.because = proposal.intent ?? null;
       this.apply(th.a, proposal.action, `tier ${th.tier}: ${th.why}`);
-    }
+      this.because = null;
+    });
     // 4. conversations between co-located people
     await this.conversations();
     // 5. clock
@@ -631,8 +639,11 @@ export class Town {
   remember(a: AgentState, text: string, importance: number, kind: Memory["kind"] = "obs"): void {
     a.memory.push({ t: this.t, text, importance: clamp(importance), kind });
   }
+  /** The intent behind the action being applied right now. Goes into the event so an owner can read why. */
+  private because: string | null = null;
   emit(kind: EventKind, actors: AgentId[], place: string | undefined, text: string, importance: number, payload?: Record<string, unknown>): TownEvent {
-    const e: TownEvent = { id: this.nextEventId++, t: this.t, day: this.day, kind, actors, text, importance: clamp(importance), ...(place ? { place } : {}), ...(payload ? { payload } : {}) };
+    const withWhy = this.because && kind !== "action.rejected" ? { ...(payload ?? {}), because: this.because } : payload;
+    const e: TownEvent = { id: this.nextEventId++, t: this.t, day: this.day, kind, actors, text, importance: clamp(importance), ...(place ? { place } : {}), ...(withWhy ? { payload: withWhy } : {}) };
     this.events.push(e); this.onEvent?.(e);
     return e;
   }
@@ -647,6 +658,21 @@ export class Town {
     const top = [...items].sort((x, y) => weight(y) - weight(x))[0];
     return { headline: top?.text ?? `Nothing changed for ${a.persona.name}.`, items, people: [...a.relationships.entries()].map(([id, r]) => ({ name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion })) };
   }
+
+  /** Everything the writer of a digest may know: the record, the plan, the letter, the people. Nothing invented. */
+  digestContext(agentId: AgentId, sinceT: number): DigestContext | null {
+    const a = this.agents.get(agentId); if (!a) return null;
+    const d = this.digest(agentId, sinceT);
+    const letter = [...this.events].reverse().find((e) => e.kind === "agent.letter" && e.actors[0] === agentId && e.t >= sinceT);
+    return {
+      agent: a, name: a.persona.name, day: this.day, daysAway: Math.max(1, Math.round((this.t - sinceT) / MINUTES_PER_DAY)),
+      events: d.items.slice(0, 14).map((e) => `${this.clockAt(e.t)}: ${e.text}${e.payload?.because ? ` (because: ${String(e.payload.because)})` : ""}`),
+      plan: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals } : null,
+      letter: letter ? String(letter.payload?.text ?? "") : null,
+      people: d.people.slice(0, 6), coins: a.coins, job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, home: a.home ? (this.places.get(a.home.place)?.name ?? a.home.place) : null,
+    };
+  }
+  clockAt(t: number): string { const d = Math.floor(t / MINUTES_PER_DAY) + 1, m = t % MINUTES_PER_DAY; return `day ${d} ${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; }
 }
 
 function clamp(x: number, lo = 0, hi = 1): number { return Math.max(lo, Math.min(hi, x)); }

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext } from "@ferrytown/engine";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext } from "@ferrytown/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, planPrompt, digestSystem, digestPrompt } from "./prompts.ts";
 
 export interface OpenRouterBrainOptions {
   apiKey?: string;
@@ -35,6 +35,8 @@ export class OpenRouterBrain implements Brain {
   }
 
   usage() { return { ...this.spent }; }
+  /** Called whenever an answer could not be used and the plain fallback stood in. The ops room listens. */
+  onFallback: ((f: { what: string; model: string; reason: string }) => void) | null = null;
 
   private async call<T>(model: string, system: string, user: string, schema: z.ZodType<T>, name: string, maxTokens: number): Promise<T | null> {
     // Providers behind OpenRouter accept a subset of JSON Schema: no regex patterns, no defaults, anyOf not oneOf.
@@ -52,8 +54,8 @@ export class OpenRouterBrain implements Brain {
         headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json", "HTTP-Referer": "https://ferrytown.example", "X-Title": "Ferry Town" },
         body: JSON.stringify(body),
       });
-      if (res.status === 429 || res.status >= 500) { this.log(`openrouter ${res.status}; ${attempt === 0 ? "retrying" : "falling back"}`); await new Promise((r) => setTimeout(r, 1500)); continue; }
-      if (!res.ok) { this.log(`openrouter ${res.status}: ${(await res.text()).slice(0, 200)}`); return null; }
+      if (res.status === 429 || res.status >= 500) { this.log(`openrouter ${res.status}; ${attempt === 0 ? "retrying" : "falling back"}`); if (attempt === 1) this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); await new Promise((r) => setTimeout(r, 1500)); continue; }
+      if (!res.ok) { const msg = (await res.text()).slice(0, 200); this.log(`openrouter ${res.status}: ${msg}`); this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); return null; }
       const data = await res.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
       this.spent.calls++; this.spent.prompt += data.usage?.prompt_tokens ?? 0; this.spent.completion += data.usage?.completion_tokens ?? 0;
       const text = data.choices?.[0]?.message?.content ?? "";
@@ -61,7 +63,8 @@ export class OpenRouterBrain implements Brain {
         const parsed = schema.safeParse(JSON.parse(text.trim().replace(/^```json\s*|```$/g, "")));
         if (parsed.success) return parsed.data;
         this.log(`schema mismatch from ${model}: ${parsed.error.issues[0]?.message ?? "?"}`);
-      } catch { this.log(`not json from ${model}: ${text.slice(0, 80)}`); }
+        if (attempt === 1) this.onFallback?.({ what: name, model, reason: `schema: ${parsed.error.issues[0]?.message ?? "?"}` });
+      } catch { this.log(`not json from ${model}: ${text.slice(0, 80)}`); if (attempt === 1) this.onFallback?.({ what: name, model, reason: "not json" }); }
     }
     return null;
   }
@@ -81,6 +84,10 @@ export class OpenRouterBrain implements Brain {
   async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
     const out = await this.call(tier >= 2 ? this.stakes : this.routine, `${WORLD}\n\n${personaBlock(ctx.agent)}`, planPrompt(ctx), DayPlan, "day_plan", 1200);
     return out ?? this.fallback.plan(ctx, tier);
+  }
+  async digest(ctx: DigestContext): Promise<DigestText> {
+    const out = await this.call(this.routine, digestSystem, digestPrompt(ctx), DigestText, "digest", 600);
+    return out ?? this.fallback.digest(ctx);
   }
   async writePaper(ctx: PaperContext): Promise<Paper> {
     const out = await this.call(this.reflectModel, paperSystem, paperPrompt(ctx), Paper, "paper", 3000);

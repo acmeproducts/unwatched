@@ -1,4 +1,4 @@
-import type { DayPlan } from "@ferrytown/protocol";
+import type { DayPlan, DigestText } from "@ferrytown/protocol";
 import type { AgentId, PlaceId, Persona, TownEvent, Perception, ActionProposal, Reflection, Dialogue, Paper } from "@ferrytown/protocol";
 
 export type PlaceKind = "harbor" | "inn" | "market" | "shop" | "workplace" | "public" | "home" | "civic" | "plot" | "wild";
@@ -41,6 +41,8 @@ export interface Memory {
   text: string;
   importance: number;
   kind: "obs" | "reflect" | "letter" | "rumor" | "plan";
+  /** Cached embedding, computed on first retrieval. Never serialized. */
+  vec?: Float32Array;
 }
 
 export interface Budget {
@@ -111,6 +113,12 @@ export interface PlanContext {
   land: string[]; building: string[]; owned: string[]; builds: { house: { coins: number; labor: number; describe: string }; shop: { coins: number; labor: number; describe: string } };
 }
 
+export interface DigestContext {
+  agent: AgentState; name: string; day: number; daysAway: number;
+  events: string[]; plan: { mood: string; goals: string[] } | null; letter: string | null; people: { name: string; trust: number; opinion: string }[];
+  coins: number; job: string | null; home: string | null;
+}
+
 export interface PaperContext {
   edition: number; date: string; weather: string;
   events: { text: string; importance: number; actors: string[] }[];
@@ -125,6 +133,8 @@ export interface Brain {
   reflect(ctx: ReflectContext): Promise<Reflection>;
   /** Once a morning: what this person means to do today. Tier 2 when they can afford it, tier 1 otherwise. */
   plan(ctx: PlanContext, tier: Tier): Promise<DayPlan>;
+  /** The owner's daily reading, written from the record. Always the town's mind, never a private one. */
+  digest(ctx: DigestContext): Promise<DigestText>;
   writePaper(ctx: PaperContext): Promise<Paper>;
 }
 

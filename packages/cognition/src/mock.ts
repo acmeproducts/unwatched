@@ -1,5 +1,5 @@
-import type { ActionProposal, DayPlan, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
-import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext } from "@ferrytown/engine";
+import type { ActionProposal, DayPlan, DigestText, Dialogue, Paper, Perception, Reflection } from "@ferrytown/protocol";
+import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext } from "@ferrytown/engine";
 import { Rng } from "@ferrytown/engine";
 
 /**
@@ -124,6 +124,12 @@ export class MockBrain implements Brain {
     if (ctx.land.length && a.coins >= ctx.builds.house.coins && !ctx.owned.length && a.persona.traits.ambition > 0.4) { goals.push("Buy land and start a house."); steps.push({ hour: 9, do: "Go to the plot and build a house.", place: ctx.land[0]!.split(" ")[0]! }); }
     for (const i of ctx.intentions.slice(0, 2)) steps.push({ hour: 10 + steps.length * 3, do: i, place: null });
     return { mood: a.coins < 6 ? "worried about money" : "steady", goals: goals.slice(0, 3), steps: steps.slice(0, 6) };
+  }
+
+  async digest(ctx: DigestContext): Promise<DigestText> {
+    const top = ctx.events.slice(0, 3).map((e) => e.replace(/^day \d+ \d\d:\d\d: /, ""));
+    const text = top.length ? `${top.join(" ")} ${ctx.name} has ${ctx.coins} coins and ${ctx.job ? `works as ${ctx.job}` : "no work"}.` : `A quiet ${ctx.daysAway > 1 ? "few days" : "day"} for ${ctx.name}: ${ctx.coins} coins, ${ctx.job ? `still working as ${ctx.job}` : "still no work"}.`;
+    return { text: text.slice(0, 880), headline: (top[0] ?? `Nothing changed for ${ctx.name}`).replace(/[.!?].*$/, "").slice(0, 88) };
   }
 
   async writePaper(ctx: PaperContext): Promise<Paper> {

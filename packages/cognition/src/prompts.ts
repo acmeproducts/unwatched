@@ -1,5 +1,5 @@
 import type { Perception } from "@ferrytown/protocol";
-import type { AgentState, ConverseContext, PaperContext, PlanContext, ReflectContext } from "@ferrytown/engine";
+import type { AgentState, ConverseContext, DigestContext, PaperContext, PlanContext, ReflectContext } from "@ferrytown/engine";
 
 /** One set of prompts for every brain, so a hosted agent and an own-key agent are the same person. */
 export const WORLD = `You are playing one citizen of Ferry Town, a small island harbor town.
@@ -58,4 +58,15 @@ export const paperSystem = `You are the editor of the Gazette, the newspaper of 
 
 export function paperPrompt(ctx: PaperContext): string {
   return `Edition ${ctx.edition}, ${ctx.date}, weather ${ctx.weather}. Population ${ctx.population}, ${ctx.arrivals} arrived, ${ctx.departures} left. Open proposals at the council: ${ctx.laws.join(" | ") || "none"}.\nThe day's record, most important first:\n${ctx.events.map((e, i) => `${i + 1}. [${e.importance.toFixed(2)}] ${e.text}`).join("\n")}\n\nWrite the paper: one lead story, up to four briefs, and notices.`;
+}
+
+export const digestSystem = `You write the daily reading an owner gets about the person they sent to Ferry Town, a small island harbor town. You are not that person; you are the town telling the owner what happened. Three or four sentences, plain and specific: names, places, coins, hours. Lead with what mattered most. If a letter was written to the owner, say so and quote a few words. If nothing happened, say what the day was like instead of apologising. No exclamation marks, no advice, nothing invented: every fact comes from the record you are given. Also give a headline of at most eight words, no full stop. Answer with JSON only.`;
+export function digestPrompt(ctx: DigestContext): string {
+  return `${ctx.name}, day ${ctx.day}. The owner has been away ${ctx.daysAway} day${ctx.daysAway > 1 ? "s" : ""}.
+Now: ${ctx.coins} coins, ${ctx.job ? `works as ${ctx.job}` : "no work"}, ${ctx.home ? `sleeps at ${ctx.home}` : "no bed of their own"}.
+${ctx.plan ? `This morning they set out, ${ctx.plan.mood}: ${ctx.plan.goals.join("; ")}.` : "No plan was made today."}
+The record since the owner last looked, most important first:
+${ctx.events.map((e, i) => `${i + 1}. ${e}`).join("\n") || "(nothing in the record)"}
+People they know: ${ctx.people.map((p) => `${p.name} (trust ${p.trust.toFixed(2)}${p.opinion ? `, "${p.opinion}"` : ""})`).join("; ") || "nobody yet"}.
+${ctx.letter ? `They wrote to the owner: "${ctx.letter}"` : "They did not write."}`;
 }

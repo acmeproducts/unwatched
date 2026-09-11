@@ -1,3 +1,4 @@
+import type { AgentState } from "@ferrytown/engine";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +38,7 @@ let clockRef = () => ({ day: 1, hour: 6, t: 0 });
 const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS);
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
+if (townBrain instanceof OpenRouterBrain) townBrain.onFallback = (f) => metrics.fallback(f);
 const TOWN_ID = process.env.FT_TOWN_ID ?? "island";
 let store = TownStore.fromEnv(TOWN_ID);
 if (store) { const bad = await store.probe(); if (bad) { log(`store disabled: ${bad}`); store = null; } }
@@ -44,7 +46,7 @@ const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: e }); } });
+const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); } });
 const saved = store ? await store.loadSnapshot() : null;
 if (saved && saved.agents.length > 0) {
   town.restore(saved);
@@ -132,12 +134,26 @@ app.get("/api/agents/:id", async (c) => {
   const owner = await ownerOf(c.req.raw);
   return c.json(owns(a, owner) ? ownerAgent(town, a) : publicAgent(town, a));
 });
+/** The written digest is one model call; it is remembered for the sim hour so a page refresh costs nothing. */
+const digestCache = new Map<string, { key: string; text: string; headline: string }>();
+async function writtenDigest(a: AgentState, since: number): Promise<{ text: string; headline: string } | null> {
+  const key = `${town.day}:${town.hour}:${since}`;
+  const hit = digestCache.get(a.id); if (hit && hit.key === key) return hit;
+  const ctx = town.digestContext(a.id, since); if (!ctx) return null;
+  try { const w = await brain.digest(ctx); const v = { key, ...w }; digestCache.set(a.id, v); return v; }
+  catch (err) { log(`digest failed for ${a.persona.name}: ${(err as Error).message}`); return null; }
+}
+/** An intent is the owner's to read, not the town's. Public streams carry the deed, never the why. */
+const publicEvent = (e: TownEvent): TownEvent => { if (!e.payload || !("because" in e.payload)) return e; const { because: _b, ...rest } = e.payload; return { ...e, ...(Object.keys(rest).length ? { payload: rest } : {}) } as TownEvent; };
 app.get("/api/agents/:id/digest", async (c) => {
   const a = town.agents.get(c.req.param("id")); if (!a) return c.json({ error: "no such person" }, 404);
   const since = Math.max(Number(c.req.query("since") ?? town.t - 3 * MINUTES_PER_DAY), a.arrivedAt); // nothing before the ferry counts as "away"
   const d = town.digest(a.id, since);
   const owner = await ownerOf(c.req.raw);
-  return c.json({ ...d, since, now: town.t, agent: owns(a, owner) ? ownerAgent(town, a) : publicAgent(town, a), letters: owns(a, owner) ? town.events.filter((e) => e.kind === "agent.letter" && e.actors[0] === a.id && e.t >= since).map((e) => ({ t: e.t, text: String(e.payload?.text ?? e.text) })) : [] });
+  const mine = owns(a, owner);
+  const written = mine ? await writtenDigest(a, since) : null;
+  if (!mine) d.items = d.items.map(publicEvent);
+  return c.json({ ...d, written, since, now: town.t, agent: owns(a, owner) ? ownerAgent(town, a) : publicAgent(town, a), letters: owns(a, owner) ? town.events.filter((e) => e.kind === "agent.letter" && e.actors[0] === a.id && e.t >= since).map((e) => ({ t: e.t, text: String(e.payload?.text ?? e.text) })) : [] });
 });
 app.get("/api/agents/:id/events", (c) => {
   const id = c.req.param("id"); const since = Number(c.req.query("since") ?? 0);
@@ -284,7 +300,7 @@ app.get("/api/ops", (c) => {
   const ticks = [...metrics.tickMs].sort((x, y) => x - y);
   return c.json({
     clock: clockOf(town), switches: { paused: town.paused, economyFrozen: town.economyFrozen, ferryHeld: town.ferryHeld },
-    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, ceiling: Number(process.env.FT_DAILY_CEILING_USD ?? 120) },
+    stats: { agents: agents.length, funded: funded.length, hosted: hosted.length, ownKey: ownKey.length, ownBrain: ownBrain.length, costToday: Math.round(today.cost * 100) / 100, costPerFunded: hosted.length ? Math.round(today.cost / hosted.length * 100) / 100 : 0, p50: today.p50, p95: today.p95, holds: metrics.holds.filter((h) => !h.done && h.level === "hold").length, fallbacksToday: metrics.fallbacks.filter((f) => Date.now() - f.at < 86400000).length, ceiling: Number(process.env.FT_DAILY_CEILING_USD ?? 120) },
     hours: metrics.hours.filter((h) => h.day === town.day).map((h) => ({ hour: h.hour, calls: h.t1 + h.t2 + h.t3 + h.converse, t1: h.t1, t2: h.t2, t3: h.t3, converse: h.converse, cost: Math.round(h.cost * 100) / 100 })),
     byTier: [{ tier: "Tier 1 · routine", model: MODELS.routine, calls: today.t1 + today.converse }, { tier: "Tier 2 · stakes", model: MODELS.stakes, calls: today.t2 }, { tier: "Tier 3 · reflection and the paper", model: MODELS.reflect, calls: today.t3 }],
     health: { coins, employed, jobs: jobs.reduce((s, j) => s + j.slots, 0), flourShortage: town.flourShortage, laws: town.laws.length, openLaws: town.laws.filter((l) => l.open).length, boredomPct: funded.length ? Math.round(bored / funded.length * 100) : 0, events: town.events.length, tickP50: ticks.length ? ticks[Math.floor(ticks.length / 2)] : 0, tickMax: ticks.length ? ticks[ticks.length - 1] : 0, store: !!store, brain: townBrain.name, msPerMinute: MS_PER_SIM_MINUTE },
@@ -308,7 +324,7 @@ app.get("/api/papers", (c) => c.json(town.papers.slice(-14).reverse()));
 app.get("/api/papers/latest", (c) => { const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "the first edition prints at midnight" }, 404); });
 app.get("/api/events", (c) => {
   const since = Number(c.req.query("since") ?? town.t - 120); const place = c.req.query("place"); const min = Number(c.req.query("min") ?? 0);
-  return c.json(town.events.filter((e) => e.t >= since && (!place || e.place === place) && e.importance >= min).slice(-500));
+  return c.json(town.events.filter((e) => e.t >= since && (!place || e.place === place) && e.importance >= min).slice(-500).map(publicEvent));
 });
 app.post("/api/board", async (c) => {
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in at the ferry office first" }, 401);
@@ -345,7 +361,7 @@ const agentWss = new WebSocketServer({ noServer: true });
 });
 wss.on("connection", (ws) => {
   clients.add(ws);
-  ws.send(JSON.stringify({ type: "hello", clock: clockOf(town), agents: [...town.agents.values()].map((a) => publicAgent(town, a)), recent: town.events.slice(-80) }));
+  ws.send(JSON.stringify({ type: "hello", clock: clockOf(town), agents: [...town.agents.values()].map((a) => publicAgent(town, a)), recent: town.events.slice(-80).map(publicEvent) }));
   ws.on("close", () => clients.delete(ws));
 });
 

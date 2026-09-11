@@ -14,6 +14,7 @@ const builder: Brain = {
   async converse() { throw new Error("no"); },
   async reflect() { return { summary: "a day", insights: [], opinions: [], intentions: [], letter_to_owner: null }; },
   async plan() { return { mood: "set", goals: ["build"], steps: [{ hour: 9, do: "build", place: "shore-1" }] }; },
+  async digest() { return { text: "a day", headline: "A day" }; },
   async writePaper() { throw new Error("no"); },
 };
 

@@ -137,6 +137,10 @@ export const Perception = z.object({
     mayor: z.boolean().optional(), convictions: z.number().int().optional(),
     /** What this person chose to keep an eye on. */
     watching: z.array(z.string()).optional(),
+    /** What they are working toward over weeks, and where each stands. */
+    projects: z.array(z.object({ title: z.string(), progress: z.string(), since_day: z.number().int() })).optional(),
+    /** What they believe, and how sure they are. Not necessarily true. */
+    believes: z.array(z.object({ about: z.string(), belief: z.string(), confidence: z.number() })).optional(),
     /** Secrets learned by going through someone's things, or read in an exposé. Heavy to carry; heavier to use. */
     knows: z.array(z.object({ who: z.string(), secret: z.string() })).optional(),
     owns: z.array(z.string()).optional(),
@@ -201,6 +205,10 @@ export const Reflection = z.object({
   self: z.object({ summary: z.string().max(400).optional(), want: z.string().max(240).optional(), fear: z.string().max(240).optional(), strangers: z.string().max(240).optional(), advice: z.string().max(240).optional() }).optional(),
   /** What you mean to keep an eye on: a few names of people, places or things. Your attention goes where you put it. */
   watch: z.array(z.string().max(60)).max(4).optional(),
+  /** The things you are working toward over weeks, in your own words, with where they stand tonight. Repeat a title to update it; mark it done when it is. */
+  projects: z.array(z.object({ title: z.string().max(80), why: z.string().max(200).optional(), progress: z.string().max(240).optional(), done: z.boolean().optional() })).max(3).optional(),
+  /** What you have come to believe about the world and the people in it, with how sure you are. A belief repeated is strengthened; one unmentioned fades. */
+  beliefs: z.array(z.object({ about: z.string().max(60), belief: z.string().max(200), confidence: z.number().min(0).max(1) })).max(4).optional(),
 });
 export type Reflection = z.infer<typeof Reflection>;
 

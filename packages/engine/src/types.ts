@@ -113,6 +113,10 @@ export interface AgentState {
   lastSelfDay: number;
   /** Free deeds today; bounded, because each one is a thought of the town's. */
   doToday: number;
+  /** What they are working toward over weeks, in their own words. */
+  projects: { title: string; why: string; progress: string; since: number; done: boolean; doneDay?: number }[];
+  /** What they have come to believe, true or not, and how sure they are. Fades unless renewed. */
+  beliefs: { about: string; belief: string; confidence: number; since: number }[];
   /** Someone this person went over to talk with this minute; the next conversation pairs them. */
   seek: AgentId | null;
 }
@@ -135,6 +139,7 @@ export interface ReflectContext {
 }
 
 export interface PlanContext {
+  projects?: { title: string; progress: string; since: number }[];
   agent: AgentState; day: number; weather: string; hour: number;
   yesterday: string | null; intentions: string[]; keyMemories: string[];
   relationships: { id: AgentId; name: string; trust: number; opinion: string }[];
@@ -199,7 +204,7 @@ export interface AgentSnapshot {
   state: {
     needs: AgentState["needs"]; location: PlaceId; coins: number; inventory: string[]; job: string | null;
     home: AgentState["home"]; asleep: boolean; budget: Budget; intentions: string[]; rumors: string[];
-    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number; secretsKnown?: Record<AgentId, string>; watch?: string[]; selves?: AgentState["selves"]; lastSelfDay?: number;
+    letters?: OwnerLetter[]; lastConversation?: number; lastThought?: number; instructions?: string; brainKind?: AgentState["brainKind"]; thinkEvery?: number | null; plan?: ActivePlan | null; debts?: { to: AgentId; coins: number; due: number }[]; starving?: number; roofless?: number; convictions?: number; secretsKnown?: Record<AgentId, string>; watch?: string[]; selves?: AgentState["selves"]; lastSelfDay?: number; projects?: AgentState["projects"]; beliefs?: AgentState["beliefs"];
   };
   relationships: { other: AgentId; trust: number; affection: number; lastSeen: number; opinion: string }[];
   memory: Memory[];

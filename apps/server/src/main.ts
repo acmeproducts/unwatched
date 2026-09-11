@@ -16,7 +16,7 @@ import type { Brain } from "@unwatched/engine";
 import { Action, Persona, type TownEvent, Passenger } from "@unwatched/protocol";
 import { MockBrain, AnthropicBrain, OpenRouterBrain, seedPersonas } from "@unwatched/cognition";
 import { TownStore, FileStore } from "@unwatched/store";
-import { publicAgent, ownerAgent, clockOf, realClock } from "./views.ts";
+import { publicAgent, ownerAgent, clockOf, realClock, setPerks } from "./views.ts";
 import { BrainRouter, newToken, OwnBrain, OwnKeyBrain } from "./brains.ts";
 import type { BrainRow, Plan, Store } from "@unwatched/store";
 import { Billing, PLANS, PACKS, COST } from "./billing.ts";
@@ -73,6 +73,7 @@ function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c o
 
 const billing = new Billing(store, log); await billing.load();
 modelsFor = (a) => (a.owner && a.brainKind === "hosted" && billing.wallet(a.owner).plan === "patron" ? PATRON_MODELS : null);
+const hasPerks = (a: AgentState) => !a.owner || billing.wallet(a.owner).plan === "resident" || billing.wallet(a.owner).plan === "patron"; setPerks(hasPerks); // the portrait and the voice come with a plan
 const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: boatTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.built" && e.payload && (e.payload as { hash?: string }).hash) { const p = e.payload as { hash: string; look: string; what: "house" | "shop" }; void looks.ensure(p.hash, p.look, p.what); } if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
 let saved: Awaited<ReturnType<NonNullable<typeof store>["loadSnapshot"]>> = null;
 try { saved = store ? await store.loadSnapshot() : null; }
@@ -309,6 +310,7 @@ app.get("/api/events/:id/voice", async (c) => {
   if (!e || !e.actors[0]) return c.json({ error: "no such letter" }, 404);
   const owner = await ownerOf(c.req.raw); if (!owner) return c.json({ error: "sign in first" }, 401);
   const a = town.agents.get(e.actors[0]); if (!a || !owns(a, owner)) return c.json({ error: "not your agent's letter" }, 403);
+  if (!hasPerks(a)) return c.json({ error: "Letters are read aloud on the Resident and Patron plans." }, 402);
   const text = String((e.payload as { text?: string } | undefined)?.text ?? e.text);
   try { const buf = await voices.read(`${TOWN_ID}-${id}`, a.persona, text); return new Response(new Uint8Array(buf), { headers: { "Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400", "X-Voice": voiceOf(a.persona.name) } }); }
   catch (err) { log(`voice for letter ${id}: ${(err as Error).message}`); return c.json({ error: (err as Error).message }, 502); }

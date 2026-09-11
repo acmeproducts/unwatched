@@ -29,7 +29,10 @@ export function portraitFor(name: string, appearance: Partial<Look> | null | und
   }
   return p;
 }
-export function Portrait({ name, appearance, age, size = 48, className = "" }: { name: string; appearance?: Partial<Look> | Record<string, unknown> | null; age: number; size?: number; className?: string }) {
+/** The face when the plan does not carry one: a silhouette, so the page keeps its shape and the difference shows. */
+function Silhouette({ size }: { size: number }) { return <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden="true" style={{ display: "block" }}><circle cx="48" cy="48" r="46" fill="var(--color-glass)" /><circle cx="48" cy="40" r="15" fill="var(--color-line)" /><path d="M20 84c3-16 14-24 28-24s25 8 28 24" fill="var(--color-line)" /></svg>; }
+export function Portrait({ name, appearance, age, size = 48, className = "", locked = false }: { name: string; appearance?: Partial<Look> | Record<string, unknown> | null; age: number; size?: number; className?: string; /** the owner's plan carries no portrait */ locked?: boolean }) {
+  if (locked) return <span className={`inline-block rounded-full overflow-hidden bg-glass shrink-0 ${className}`} style={{ width: size, height: size }} title="A portrait comes with the Resident and Patron plans"><Silhouette size={size} /></span>;
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => { let alive = true; void portraitFor(name, (appearance ?? null) as Partial<Look> | null, age).then((u) => { if (alive) setSrc(u); }).catch(() => {}); return () => { alive = false; }; }, [name, appearance, age]);
   return <span className={`inline-block rounded-full overflow-hidden bg-glass shrink-0 ${className}`} style={{ width: size, height: size }}>{src ? <img src={src} alt="" width={size} height={size} style={{ display: "block", width: size, height: size }} /> : null}</span>;

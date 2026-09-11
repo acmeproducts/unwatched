@@ -2,6 +2,9 @@ import type { Town, AgentState } from "@unwatched/engine";
 import type { TownEvent } from "@unwatched/protocol";
 
 /** What anyone may see about a person: what the town knows. */
+/** Whether an owner's plan carries the portrait and the voice: set by the server once billing is up. House citizens have both. */
+let perksOf: (a: AgentState) => boolean = () => true;
+export function setPerks(fn: (a: AgentState) => boolean): void { perksOf = fn; }
 export function publicAgent(town: Town, a: AgentState) {
   const job = a.job ? town.jobs.get(a.job)?.title ?? a.job : null;
   return {
@@ -9,7 +12,7 @@ export function publicAgent(town: Town, a: AgentState) {
     location: a.location, place: town.places.get(a.location)?.name ?? a.location, asleep: a.asleep,
     job, home: a.home?.place ?? null, arrivedDay: Math.floor(a.arrivedAt / 1440) + 1, funded: a.funded,
     ownerId: a.owner, appearance: a.appearance ?? null, carrying: a.inventory.length ? a.inventory[a.inventory.length - 1]! : null,
-    pose: poseOf(town, a), weak: a.starving >= 2, daysHungry: a.starving,
+    pose: poseOf(town, a), weak: a.starving >= 2, daysHungry: a.starving, perks: perksOf(a),
   };
 }
 

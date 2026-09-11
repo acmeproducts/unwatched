@@ -22,7 +22,7 @@ if [[ "${1:-}" == "secrets" ]]; then
   python3 - "$ID" <<'PY'
 import os, sys, yaml
 spec = yaml.safe_load(open("/tmp/ft-spec.yaml"))
-secrets = ["OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "FT_OPS_TOKEN", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_RESIDENT", "STRIPE_PRICE_PATRON", "FT_OR_MODEL_ROUTINE", "FT_OR_MODEL_STAKES", "FT_OR_MODEL_REFLECT"]
+secrets = ["OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "FT_OPS_TOKEN", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_RESIDENT", "STRIPE_PRICE_PATRON", "FT_OR_MODEL_ROUTINE", "FT_OR_MODEL_STAKES", "FT_OR_MODEL_REFLECT", "GEMINI_API_KEY", "FT_FERRY_SECRET", "RECRAFT_API_KEY"]
 for svc in spec["services"]:
     if svc["name"] != "town": continue
     envs = [e for e in svc.get("envs", []) if e["key"] not in secrets]

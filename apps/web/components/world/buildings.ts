@@ -97,7 +97,6 @@ const D: Record<string, () => Drawn> = {
     for (const [i, j] of [[0, 0], [w, 0]] as const) post(g, P, i, j, h);
     // the counter, with goods on it
     poly(g, [P(0, d, 10), P(w, d, 10), P(w, d, 20), P(0, d, 20)], WOOD); poly(g, [P(w, d, 10), P(w, 0, 10), P(w, 0, 20), P(w, d, 20)], WOOD_DARK); poly(g, [P(0, 0, 20), P(w, 0, 20), P(w, d, 20), P(0, d, 20)], 0xd6c49e);
-    for (let i = 0; i < 6; i++) { const q = P(10 + i * 10, d - 12, 20); g.circle(q[0], q[1] - 3, 3.2).fill(i % 2 ? CORAL : SAGE).stroke({ width: 1, color: KELP }); }
     for (const [i, j] of [[0, d], [w, d]] as const) post(g, P, i, j, h);
     // the canopy: a hipped roof whose front slope is striped, drawn stripe by stripe from eave to ridge
     const e = 8, rise = 12; const r1 = P(w * 0.3, d / 2, h + rise), r2 = P(w * 0.7, d / 2, h + rise);
@@ -114,7 +113,7 @@ const D: Record<string, () => Drawn> = {
     return { c: g, w: w + d };
   },
   well: () => { const g = new Graphics(); const w = 26, d = 26, h = 14; const P = box(g, w, d, h, STONE, STONE_DARK, DARK); post(g, P, 2, 2, 34); post(g, P, w - 2, w - 2, 34); poly(g, [P(-6, d + 6, 34), P(w + 6, d + 6, 34), P(w / 2, d / 2, 46)], TEAL); poly(g, [P(w + 6, d + 6, 34), P(w + 6, -6, 34), P(w / 2, d / 2, 46)], TEAL_DARK); return { c: g, w: 60 }; },
-  sawpit: () => { const g = new Graphics(); const w = 80, d = 50, h = 34; const P = proj(w, d); for (const [i, j] of [[0, 0], [w, 0], [0, d], [w, d]] as const) post(g, P, i, j, h); for (let k = 0; k < 6; k++) poly(g, [P(10, d - 8 - k * 5, k * 4), P(60, d - 8 - k * 5, k * 4), P(60, d - 8 - k * 5, k * 4 + 4), P(10, d - 8 - k * 5, k * 4 + 4)], k % 2 ? WOOD : CREAM); const s = P(70, d - 4, 2); g.moveTo(s[0] - 12, s[1] - 2).lineTo(s[0] + 14, s[1] - 24).stroke({ width: 3, color: CORAL }); g.moveTo(s[0] - 12, s[1] - 2).lineTo(s[0] + 14, s[1] - 24).stroke({ width: 1, color: KELP }); hip(g, w, d, h, 10, TEAL, TEAL_DARK, 8); return { c: g, w: w + d }; },
+  sawpit: () => { const g = new Graphics(); const w = 80, d = 50, h = 34; const P = proj(w, d); for (const [i, j] of [[0, 0], [w, 0], [0, d], [w, d]] as const) post(g, P, i, j, h); const s = P(70, d - 4, 2); g.moveTo(s[0] - 12, s[1] - 2).lineTo(s[0] + 14, s[1] - 24).stroke({ width: 3, color: CORAL }); g.moveTo(s[0] - 12, s[1] - 2).lineTo(s[0] + 14, s[1] - 24).stroke({ width: 1, color: KELP }); hip(g, w, d, h, 10, TEAL, TEAL_DARK, 8); return { c: g, w: w + d }; },
   quarry: () => { const g = new Graphics(); const w = 110, d = 70; const P = proj(w, d); for (let k = 0; k < 3; k++) { const in_ = k * 18, hh = 14; poly(g, [P(in_, d - in_, k * hh), P(w - in_, d - in_, k * hh), P(w - in_, d - in_, (k + 1) * hh), P(in_, d - in_, (k + 1) * hh)], STONE); poly(g, [P(w - in_, d - in_, k * hh), P(w - in_, in_, k * hh), P(w - in_, in_, (k + 1) * hh), P(w - in_, d - in_, (k + 1) * hh)], STONE_DARK); poly(g, [P(in_, in_, (k + 1) * hh), P(w - in_, in_, (k + 1) * hh), P(w - in_, d - in_, (k + 1) * hh), P(in_, d - in_, (k + 1) * hh)], STONE); } const c = P(20, d + 14, 0); g.roundRect(c[0] - 12, c[1] - 12, 24, 10, 2).fill(WOOD).stroke(S); g.circle(c[0] - 8, c[1], 4).fill(KELP); g.circle(c[0] + 8, c[1], 4).fill(KELP); for (let i = 0; i < 3; i++) g.roundRect(c[0] + 20 + i * 9, c[1] - 8, 8, 8, 1.5).fill(STONE).stroke(S); return { c: g, w: w + d }; },
   lighthouse: () => { const g = new Graphics(); const w = 30, d = 30, h = 96; const P = proj(w, d); poly(g, [P(-10, d + 10, 0), P(w + 10, d + 10, 0), P(w + 10, d + 10, 10), P(-10, d + 10, 10)], STONE); poly(g, [P(w + 10, d + 10, 0), P(w + 10, -10, 0), P(w + 10, -10, 10), P(w + 10, d + 10, 10)], STONE_DARK); poly(g, [P(0, d, 10), P(w, d, 10), P(w - 6, d - 6, h), P(6, d - 6, h)], CREAM); poly(g, [P(w, d, 10), P(w, 0, 10), P(w - 6, 6, h), P(w - 6, d - 6, h)], CREAM_DARK); poly(g, [P(1, d - 1, 46), P(w - 1, d - 1, 46), P(w - 3, d - 3, 62), P(3, d - 3, 62)], TEAL); poly(g, [P(w - 1, d - 1, 46), P(w - 1, 1, 46), P(w - 3, 3, 62), P(w - 3, d - 3, 62)], TEAL_DARK); door(g, P, d, 9, 16, CORAL); const t = P(w / 2, d / 2, h); g.roundRect(t[0] - 12, t[1] - 3, 24, 5, 2).fill(KELP); g.roundRect(t[0] - 8, t[1] - 18, 16, 15, 3).fill(0xffe3a3).stroke(S); g.circle(t[0], t[1] - 10, 4).fill(CORAL); g.moveTo(t[0] - 10, t[1] - 18).lineTo(t[0], t[1] - 28).lineTo(t[0] + 10, t[1] - 18).closePath().fill(TEAL).stroke(S); return { c: g, w: 80 }; },
   orchard: () => { const g = new Graphics(); const w = 100, d = 70; const P = proj(w, d); poly(g, [P(0, 0, 0), P(w, 0, 0), P(w, d, 0), P(0, d, 0)], 0xcfe0c6, false); for (const [i, j] of [[18, 18], [50, 18], [82, 18], [18, 52], [50, 52], [82, 52]] as const) { const b = P(i, j, 0); g.moveTo(b[0], b[1]).lineTo(b[0], b[1] - 12).stroke({ width: 3, color: WOOD_DARK }); treeBall(g, b[0], b[1] - 20, 11, SAGE); for (let k = 0; k < 3; k++) g.circle(b[0] - 6 + k * 6, b[1] - 22 + (k % 2) * 5, 1.8).fill(CORAL); } for (let s = 0; s < 6; s++) { const a = P(s * 20, d, 0), b = P(s * 20 + 20, d, 0); g.moveTo(a[0], a[1] - 6).lineTo(b[0], b[1] - 6).stroke({ width: 2, color: WOOD }); g.moveTo(a[0], a[1]).lineTo(a[0], a[1] - 9).stroke({ width: 2, color: WOOD_DARK }); } return { c: g, w: w + d }; },
@@ -136,4 +135,36 @@ const D: Record<string, () => Drawn> = {
 
 /** A fresh drawing of the named thing, or null if the atlas still has to stand in. */
 export function drawThing(name: string): Drawn | null { const f = D[name]; return f ? f() : null; }
+
+/**
+ * What is on the shelves, drawn onto the building: loaves, fish and apples on the market counter, the plank pile at the
+ * sawpit, logs at the pinewood, sacks at the mill. Empty shelves draw nothing, and that is the point: the street shows the economy.
+ */
+export function drawStock(sprite: string, stock: Record<string, number>): Graphics | null {
+  const g = new Graphics(); const n = (k: string, per: number, max: number) => Math.min(max, Math.ceil((stock[k] ?? 0) / per));
+  if (sprite === "stall") {
+    const w = 70, d = 44; const P = proj(w, d);
+    const rows: [string, number, (q: Pt) => void][] = [
+      ["bread", 3, (q) => { g.ellipse(q[0], q[1] - 3, 4.2, 2.6).fill(0xd9b26a).stroke({ width: 1, color: KELP }); }],
+      ["fish", 3, (q) => { g.ellipse(q[0], q[1] - 3, 4.5, 2).fill(SAGE_DARK).stroke({ width: 1, color: KELP }); g.moveTo(q[0] + 4, q[1] - 3).lineTo(q[0] + 6.5, q[1] - 5).lineTo(q[0] + 6.5, q[1] - 1).closePath().fill(SAGE_DARK).stroke({ width: 1, color: KELP }); }],
+      ["apples", 3, (q) => { g.circle(q[0], q[1] - 3, 3).fill(CORAL).stroke({ width: 1, color: KELP }); }],
+    ];
+    let any = false;
+    rows.forEach(([item, per, draw], r) => { const k = n(item, per, 6); for (let i = 0; i < k; i++) { draw(P(8 + i * 10, d - 8 - r * 9, 20)); any = true; } });
+    return any ? g : null;
+  }
+  if (sprite === "sawpit") {
+    const w = 80, d = 50; const P = proj(w, d); const layers = n("planks", 4, 7); if (!layers) return null;
+    for (let k = 0; k < layers; k++) poly(g, [P(10, d - 8 - k * 5, k * 4), P(60, d - 8 - k * 5, k * 4), P(60, d - 8 - k * 5, k * 4 + 4), P(10, d - 8 - k * 5, k * 4 + 4)], k % 2 ? WOOD : CREAM);
+    return g;
+  }
+  if (sprite === "tree-large") { // the pinewood: a log pile at its foot
+    const logs = n("timber", 3, 6); if (!logs) return null;
+    for (let i = 0; i < logs; i++) { const row = i < 3 ? 0 : 1, col = i < 3 ? i : i - 3; const x = 40 + col * 14 - row * 7, y = 6 - row * 9; g.moveTo(x - 10, y).lineTo(x + 10, y).stroke({ width: 8, color: WOOD_DARK, cap: "round" }); g.circle(x + 10, y, 4).fill(WOOD).stroke({ width: 1, color: KELP }); }
+    return g;
+  }
+  if (sprite === "mill") { const sacks = n("flour", 8, 5); if (!sacks) return null; for (let i = 0; i < sacks; i++) { const x = 30 + i * 11, y = 4 - (i % 2) * 2; g.ellipse(x, y - 6, 5, 7).fill(CREAM).stroke({ width: 1.2, color: KELP }); g.moveTo(x - 3, y - 12).lineTo(x + 3, y - 12).stroke({ width: 1.5, color: KELP }); } return g; }
+  if (sprite === "fishhouse") { const crates = n("fish", 6, 3); if (!crates) return null; for (let i = 0; i < crates; i++) { const x = 44 + i * 16, y = 8; g.rect(x - 7, y - 8, 14, 8).fill(WOOD).stroke({ width: 1.2, color: KELP }); for (let f = 0; f < 3; f++) g.ellipse(x - 4 + f * 4, y - 9, 2.2, 1.2).fill(SAGE_DARK); } return g; }
+  return null;
+}
 export const DRAWN = new Set(Object.keys(D));

@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import { Page, Label } from "@/components/ui";
 import { Citizen, lookFor, type Look, type Pose } from "@/components/world/citizen";
-import { drawThing, DRAWN } from "@/components/world/buildings";
+import { drawThing, drawStock, DRAWN } from "@/components/world/buildings";
 
 /** The citizen rig, laid out like a model sheet: every part, every pose, and one person walking the length of the harbor. */
 export default function Rig() {
@@ -41,6 +41,10 @@ export default function Rig() {
       // every building and prop, at the world's scale
       const names = [...DRAWN]; let bx = 90, by = 990, rowH = 0;
       for (const n of names) { const d = drawThing(n); if (!d) continue; const wpx = d.w * 1.1 + 30; if (bx + wpx > 1180) { bx = 90; by += rowH + 40; rowH = 0; } d.c.scale.set(1.1); d.c.position.set(bx + d.w * 0.55, by); stage.addChild(d.c); const t = new Text({ text: n, style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: 0x6f7a78 } }); t.anchor.set(0.5, 0); t.position.set(bx + d.w * 0.55, by + 6); stage.addChild(t); bx += wpx; rowH = Math.max(rowH, 150); }
+      // the shelves as the street shows them: full, and half empty
+      const SHELVES: [string, Record<string, number>][] = [["stall", { bread: 12, fish: 9, apples: 6 }], ["stall", { bread: 3, fish: 0, apples: 0 }], ["sawpit", { planks: 24, timber: 8 }], ["sawpit", { planks: 4 }], ["mill", { flour: 30, grain: 12 }], ["fishhouse", { fish: 14 }], ["tree-large", { timber: 14 }]];
+      bx = 90; by += rowH + 60; rowH = 0;
+      for (const [sprite, stock] of SHELVES) { const d = drawThing(sprite); if (!d) continue; const wpx = d.w * 1.1 + 30; if (bx + wpx > 1180) { bx = 90; by += rowH + 40; rowH = 0; } d.c.scale.set(1.1); d.c.position.set(bx + d.w * 0.55, by); stage.addChild(d.c); const st = drawStock(sprite, stock); if (st) { st.scale.set(1.1); st.position.set(bx + d.w * 0.55, by); stage.addChild(st); } const t = new Text({ text: Object.entries(stock).map(([k, v]) => `${v} ${k}`).join(" · "), style: { fontFamily: "Nunito Sans, sans-serif", fontSize: 11, fontWeight: "700", fill: 0x6f7a78 } }); t.anchor.set(0.5, 0); t.position.set(bx + d.w * 0.55, by + 6); stage.addChild(t); bx += wpx; rowH = Math.max(rowH, 150); }
       let dir = 1;
       app.ticker.add(() => {
         const t = performance.now() / 1000;
@@ -51,8 +55,8 @@ export default function Rig() {
   }, []);
   return (
     <Page>
-      <div className="flex flex-col gap-2 pt-4"><Label>The citizen rig · model sheet</Label><h1 className="display text-[32px] sm:text-[40px] font-bold">One body, drawn from parts.</h1><p className="text-[17px] text-ink2 max-w-[70ch]">Hair and hats, builds and what they carry, the six poses, one person walking the pier, twelve house citizens whose looks come from their names alone, and every building and prop on the island in the same hand.</p></div>
-      <div ref={host} className="relative w-full h-[1500px] rounded-[28px] overflow-hidden bg-sand" />
+      <div className="flex flex-col gap-2 pt-4"><Label>The citizen rig · model sheet</Label><h1 className="display text-[32px] sm:text-[40px] font-bold">One body, drawn from parts.</h1><p className="text-[17px] text-ink2 max-w-[70ch]">Hair and hats, builds and what they carry, the six poses, one person walking the pier, twelve house citizens whose looks come from their names alone, and every building and prop on the island in the same hand, with the shelves full and half empty.</p></div>
+      <div ref={host} className="relative w-full h-[2150px] rounded-[28px] overflow-hidden bg-sand" />
     </Page>
   );
 }

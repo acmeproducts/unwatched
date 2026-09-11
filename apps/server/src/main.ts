@@ -264,9 +264,10 @@ app.get("/api/agents/:id/book", async (c) => {
   return c.json({ id, name: live.persona.name, persona: live.persona, arrivedT: live.arrivedAt, leftT: null, ...life });
 });
 // looks: what a citizen built, drawn the way they described it, for everyone
-const looks = new Looks(resolve(process.env.FT_DATA_DIR ?? "out/town", "looks", TOWN_ID), store, log);
+const looks = new Looks(resolve(process.env.FT_DATA_DIR ?? "out/town", "looks", TOWN_ID), resolve(dirname(fileURLToPath(import.meta.url)), "..", "patterns"), store, log);
 for (const p of town.places.values()) if (p.look && p.sprite.startsWith("look:")) void looks.ensure(p.sprite.slice(5), p.look, p.kind === "shop" ? "shop" : "house");
-app.get("/api/looks", async (c) => c.json({ enabled: looksEnabled(), looks: await looks.list() }));
+app.get("/api/looks", async (c) => c.json({ enabled: looksEnabled(), looks: await looks.list(), patterns: looks.patternBook() }));
+app.get("/api/looks/pattern/:name", (c) => { const svg = looks.pattern(c.req.param("name")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no such pattern" }, 404); });
 app.get("/api/looks/:hash", async (c) => { const svg = await looks.get(c.req.param("hash").replace(/\.svg$/, "")); return svg ? new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } }) : c.json({ error: "no drawing yet" }, 404); });
 // voices: a letter home, read aloud in the writer's own voice, for the owner who asked
 const voices = new Voices(resolve(process.env.FT_DATA_DIR ?? "out/town", "voices", TOWN_ID));

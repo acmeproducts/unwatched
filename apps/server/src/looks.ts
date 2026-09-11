@@ -17,6 +17,24 @@ export interface LookStore { saveLook(row: { hash: string; look: string; svg: st
 
 export function looksEnabled(): boolean { return !!process.env.RECRAFT_API_KEY; }
 
+/** The pattern book: buildings drawn ahead of time, in the island's hand, for the looks people most often ask for. Each pattern is a file in apps/server/patterns and a few words that call it. */
+export const PATTERNS: { name: string; words: RegExp }[] = [
+  { name: "boathouse", words: /boat|harbou?r|pier|jetty|dock/ },
+  { name: "fishhut", words: /fish|net|hut on posts|stilt/ },
+  { name: "smokehouse", words: /smoke|cur(e|ing)|kiln/ },
+  { name: "forge", words: /forge|smith|anvil|iron|metal/ },
+  { name: "chapel", words: /chapel|church|bell|shrine|temple/ },
+  { name: "warehouse", words: /warehouse|store ?room|storage|depot|barn|granar/ },
+  { name: "granary", words: /granary|grain|silo/ },
+  { name: "tower", words: /tower|lookout|watch|lighthouse|tall/ },
+  { name: "tavern", words: /tavern|inn|bar|cafe|café|pub|drink|awning/ },
+  { name: "workshop", words: /workshop|carpent|joiner|sawy|wood|bench|studio|atelier/ },
+  { name: "bathhouse", words: /bath|spa|steam|wash/ },
+  { name: "cabin", words: /cabin|log|timber|wooden/ },
+  { name: "cottage", words: /cottage|stone|house|home|small/ },
+];
+export function patternFor(look: string, kind: "house" | "shop"): string { const l = look.toLowerCase(); return PATTERNS.find((p) => p.words.test(l))?.name ?? (kind === "shop" ? "workshop" : "cottage"); }
+
 /** The prompt that keeps every generated building in the island's hand. */
 export function lookPrompt(look: string, kind: "house" | "shop"): string {
   return `Flat vector illustration of ${look}, a small ${kind === "shop" ? "shop or workshop" : "house"} on a Mediterranean island, drawn in dimetric projection (2:1 isometric, seen from the front-right corner at a 30 degree angle), for a hand-drawn game map. Style: clean flat fills with a single thin dark outline of even weight, no gradients, no textures, no shading except a slightly darker right-facing wall; cream walls, dark teal roof, coral red for a door or a shutter, muted sage accents, wood in warm tan. Centered, the whole building visible, nothing else in the frame: no ground, no shadow, no people, no text, no background.`;
@@ -41,7 +59,10 @@ export function disciplineSvg(svg: string): string {
 
 export class Looks {
   private mem = new Map<string, string>(); private inflight = new Map<string, Promise<string | null>>();
-  constructor(private dir: string, private store: LookStore | null, private log: (l: string) => void) { mkdirSync(dir, { recursive: true }); }
+  constructor(private dir: string, private patterns: string, private store: LookStore | null, private log: (l: string) => void) { mkdirSync(dir, { recursive: true }); }
+  /** The pattern book itself, for the shelf. */
+  patternBook(): string[] { return existsSync(this.patterns) ? readdirSync(this.patterns).filter((n) => n.endsWith(".svg")).map((n) => n.slice(0, -4)) : []; }
+  pattern(name: string): string | null { const f = join(this.patterns, `${name.replace(/[^a-z-]/g, "")}.svg`); return existsSync(f) ? readFileSync(f, "utf8") : null; }
   private file(hash: string) { return join(this.dir, `${hash}.svg`); }
   /** The drawing for a look, if the island has it. */
   async get(hash: string): Promise<string | null> {
@@ -61,14 +82,17 @@ export class Looks {
     const going = this.inflight.get(hash); if (going) return going;
     const p = (async () => {
       const have = await this.get(hash); if (have) return have;
-      if (!looksEnabled()) { this.log(`no drawing for “${look}” (${hash}); set RECRAFT_API_KEY, or drop ${hash}.svg into ${this.dir}`); return null; }
-      try {
-        const svg = disciplineSvg(await this.draw(look, kind));
-        this.mem.set(hash, svg); writeFileSync(this.file(hash), svg);
-        await this.store?.saveLook({ hash, look, svg, source: MODEL }).catch((e: Error) => this.log(`look not recorded: ${e.message}`));
-        this.log(`drew “${look}” as ${hash} (${svg.length} bytes)`); return svg;
-      } catch (err) { this.log(`could not draw “${look}”: ${(err as Error).message}`); return null; }
-      finally { this.inflight.delete(hash); }
+      let svg: string | null = null; let source = MODEL;
+      if (looksEnabled()) { try { svg = disciplineSvg(await this.draw(look, kind)); } catch (err) { this.log(`could not draw “${look}”: ${(err as Error).message}`); } }
+      if (!svg) {
+        // no key, or the model failed: the nearest page of the pattern book stands in, and the exact drawing can come later
+        const name = patternFor(look, kind); const f = join(this.patterns, `${name}.svg`);
+        if (existsSync(f)) { svg = readFileSync(f, "utf8"); source = `pattern:${name}`; this.log(`“${look}” drawn from the pattern book as ${name}${looksEnabled() ? "" : " (set RECRAFT_API_KEY for an exact drawing)"}`); }
+        else { this.log(`no drawing for “${look}” (${hash}); no pattern ${name} either`); this.inflight.delete(hash); return null; }
+      } else this.log(`drew “${look}” as ${hash} (${svg.length} bytes)`);
+      this.mem.set(hash, svg); try { writeFileSync(this.file(hash), svg); } catch { /* memory is enough */ }
+      await this.store?.saveLook({ hash, look, svg, source }).catch((e: Error) => this.log(`look not recorded: ${e.message}`));
+      this.inflight.delete(hash); return svg;
     })();
     this.inflight.set(hash, p); return p;
   }

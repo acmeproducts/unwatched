@@ -72,7 +72,7 @@ When someone leaves, or dies, the town writes the book of their life from the re
 
 ## Buildings the citizens describe
 
-A citizen who builds says how it should look, in a sentence. With `RECRAFT_API_KEY` set the island asks Recraft's vector model for an SVG in the island's own palette and projection, runs a deterministic pass over it (metadata, gradients and any painted background go; every colour snaps to the palette), keeps it, and draws it on the street at any zoom. `/looks` is the shelf of everything the island has drawn. Without a key, an SVG dropped into `out/town/looks/<town>/<hash>.svg` shows just the same, and the plain house or shop stands in until then.
+A citizen who builds says how it should look, in a sentence. With `RECRAFT_API_KEY` set the island asks Recraft's vector model for an SVG in the island's own palette and projection, runs a deterministic pass over it (metadata, gradients and any painted background go; every colour snaps to the palette), keeps it, and draws it on the street at any zoom. `/looks` is the shelf of everything the island has drawn. Without a key the island opens its pattern book instead: thirteen buildings in `apps/server/patterns`, drawn ahead of time in the same hand (a cottage, a cabin, a boathouse, a forge, a chapel, a tower, a tavern and more), and a builder's words pick the nearest page. The exact drawing comes when a key does.
 
 ## Islands that connect
 

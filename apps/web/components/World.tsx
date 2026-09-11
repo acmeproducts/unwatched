@@ -7,7 +7,7 @@ import { Citizen, lookFor, aged, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
 import { drawThing, drawStock, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
-import { Lighting, WaterFilter, Weather, Clouds, type LightSource } from "./world/fx";
+import { Lighting, WaterFilter, Weather, Clouds, Sky, mix, type LightSource } from "./world/fx";
 import { Life, type Critter } from "./world/life";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
@@ -60,7 +60,7 @@ function lookSvg(hash: string): Promise<string | null> {
 
 type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean; /** down to an animal until this tick */ react?: { until: number; ax: number; ay: number }; reactAt?: number };
 
-export function World({ mineId, onSelect, view, effects = false }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema"; effects?: boolean }) {
+export function World({ mineId, onSelect, view, effects = true }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema"; effects?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const [labels, setLabels] = useState<{ id: string; name: string; x: number; y: number; mine: boolean; shown: boolean; bubble?: string }[]>([]);
   const [feed, setFeed] = useState<TownEvent[]>([]);
@@ -258,6 +258,8 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
       const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.night); night.alpha = 0; world.addChild(night);
       // the GPU's share, behind a switch so the old street and the new can be compared: night the lights cut through, and water that moves
       const lighting = new Lighting(world, W, H); const water = new WaterFilter(); let effectsOn = false;
+      const sunGrade = new Sky(W, H); world.addChildAt(sunGrade.veil, world.getChildIndex(lighting.glow)); world.addChild(sunGrade.glow, sunGrade.halo); // the cast under the night's layers, the light above them
+      sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false;
       const clouds = new Clouds(W, H); clouds.shadows.zIndex = 0.4; scene.addChild(clouds.shadows); clouds.puffs.zIndex = 220000; scene.addChild(clouds.puffs);
       const weatherFx = new Weather(W, H); weatherFx.rain.zIndex = 200000; scene.addChild(weatherFx.rain); weatherFx.snow.zIndex = 200001; scene.addChild(weatherFx.snow); weatherFx.fog.zIndex = 210000; scene.addChild(weatherFx.fog);
       const dusk = new Graphics(); dusk.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.dusk); dusk.alpha = 0; world.addChild(dusk);
@@ -458,13 +460,20 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
         perfMark("life");
         life.update({ tick, hour, rise, set, night: night.alpha / 0.42, season: forcedSeason ?? c?.season ?? "summer", weather, wind, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, moving: Math.abs(f.tx - f.x) > 1.5 || Math.abs(f.ty - f.y) > 1.5 })), effects: effectsOn });
         for (const snd of life.sounds) ambience.cue(snd.name, Math.hypot(snd.x - cam.x, snd.y - cam.y), snd.x - cam.x, snd.level ?? 1);
-        if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; rain.visible = !effectsOn; fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }
+        if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; dusk.visible = !effectsOn; rain.visible = !effectsOn; if (!effectsOn) { sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; } fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }
         if (effectsOn) {
           const up = hour > rise && hour < set; let lx: number, ly: number, ls: number;
           if (up) { const f = (hour - rise) / Math.max(1, set - rise); const ang = Math.PI * (1 - f); lx = cx - Rx * 1.05 * Math.cos(ang); ly = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(ang)) - 30; ls = 0.9; }
           else { lx = W - 220; ly = 90; ls = 0.55 * Math.max(0, (night.alpha - 0.1) / 0.32); }
           { const [ex, ey] = par(0.7); lx += ex; ly += ey; }
-          water.update({ time: tick / 60, cam: { x: cam.x, y: cam.y, zoom: cam.zoom }, sun: { x: lx, y: ly, strength: ls * (weather === "storm" ? 0.15 : weather === "rain" || weather === "fog" ? 0.35 : 1) }, color: GROUND.water, deep: GROUND.waterDeep, glint: up ? 0xffe9a8 : 0xd9e3ff, rough, night: Math.min(1, night.alpha / 0.42) });
+          // the low sun: golden either side of sunrise and sunset, blue for the half hour beyond them; cloud and rain take most of it away
+          const cover = weather === "storm" ? 1 : weather === "rain" ? 0.85 : weather === "fog" ? 0.9 : weather === "snow" ? 0.8 : weather === "wind" ? 0.2 : 0;
+          const nearRise = Math.abs(hour - rise), nearSet = Math.abs(hour - set); const phase: "rise" | "set" = nearRise < nearSet ? "rise" : "set";
+          const golden = Math.max(0, 1 - Math.min(nearRise, nearSet) / 1.1);
+          const blue = Math.max(0, 1 - Math.abs(hour - (phase === "rise" ? rise - 0.7 : set + 0.7)) / 0.7);
+          { const f = Math.max(0, Math.min(1, (hour - rise) / Math.max(1, set - rise))); const ang = Math.PI * (1 - f); const sx = cx - Rx * 1.05 * Math.cos(ang), sy = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(ang)) - 30; const [ex, ey] = par(0.7); sunGrade.update({ golden, blue, phase, sun: { x: sx + ex, y: sy + ey }, cover }); }
+          const shadeTint = mix(LIGHT.night, 0x1b2140, blue * (1 - cover));
+          water.update({ time: tick / 60, cam: { x: cam.x, y: cam.y, zoom: cam.zoom }, sun: { x: lx, y: ly, strength: ls * (weather === "storm" ? 0.15 : weather === "rain" || weather === "fog" ? 0.35 : 1) * (1 + golden * 0.5) }, color: GROUND.water, deep: GROUND.waterDeep, glint: up ? mix(0xffe9a8, phase === "rise" ? 0xffb27a : 0xff8f57, golden) : 0xd9e3ff, rough, night: Math.min(1, night.alpha / 0.42) });
           const sources: LightSource[] = [];
           if (night.alpha > 0.03) {
             for (const d of decor) if (d.sprite === "lamp") sources.push({ x: d.x, y: d.y - 24, r: 165, color: LIGHT.lamp, strength: 0.95, flicker: 0.06 });
@@ -472,9 +481,9 @@ export function World({ mineId, onSelect, view, effects = false }: { mineId: str
           }
           if (night.alpha > 0.1) sources.push({ x: W - 220, y: 90, r: 130, color: 0xdfe8ff, strength: 0.5, noHole: true }); // the moon blooms too
           sources.push(...life.lights);
-          lighting.update(night.alpha, sources, tick, flash.alpha);
+          lighting.update(night.alpha * (1 - golden * (1 - cover) * 0.55), sources, tick, flash.alpha, shadeTint); // the low sun holds the dark off a while
           weatherFx.update({ weather, wind, snowing, wet, tick, night: Math.min(1, night.alpha / 0.42), fogColor: 0xd7dfe2, rainColor: night.alpha > 0.15 ? 0xdfe8ee : 0x4b5560 });
-          clouds.update({ tick, wind, sunUp: up ? 1 - Math.min(1, night.alpha / 0.42) : 0, night: Math.min(1, night.alpha / 0.42), weather });
+          clouds.update({ tick, wind, sunUp: up ? 1 - Math.min(1, night.alpha / 0.42) : 0, night: Math.min(1, night.alpha / 0.42), weather, warm: golden * (1 - cover) });
         }
         // long shadows near sunrise and sunset
         const lowSun = Math.max(0, 1 - Math.min(Math.abs(hour - rise), Math.abs(hour - set)) / 1.5) * (night.alpha < 0.3 ? 1 : 0);

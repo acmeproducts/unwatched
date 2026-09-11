@@ -17,6 +17,9 @@ function softDisc(size = 256): Texture {
 /** A small seeded random, so every drop has its own start and speed and the rain has no pattern in it. */
 function rnd(seed: number): () => number { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
+/** Two colours, a way between them. */
+export function mix(a: number, b: number, t: number): number { t = Math.max(0, Math.min(1, t)); const ch = (sh: number) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t); return (ch(16) << 16) | (ch(8) << 8) | ch(0); }
+
 export type LightSource = { x: number; y: number; r: number; color: number; strength: number; flicker?: number; noHole?: boolean };
 
 /** A streak of rain: a thin line, bright in the middle, gone at both ends. */
@@ -46,11 +49,11 @@ export class Lighting {
     this.dark.visible = false; this.glow.visible = false;
   }
   /** amount is the night as the island reckons it, 0 by day to 0.42 in the dark; the shade goes deeper than the old flat one because the lights answer it. */
-  update(amount: number, sources: LightSource[], tick: number, flash = 0): void {
+  update(amount: number, sources: LightSource[], tick: number, flash = 0, tint = LIGHT.night): void {
     const k = Math.min(1, amount / 0.42);
     this.dark.visible = this.glow.visible = k > 0.02;
     if (!this.dark.visible) return;
-    this.shade.tint = LIGHT.night; this.shade.alpha = 0.64 * k * Math.max(0, 1 - flash * 1.4); // a bolt lights every facade for a frame
+    this.shade.tint = tint; this.shade.alpha = 0.64 * k * Math.max(0, 1 - flash * 1.4); // a bolt lights every facade for a frame
     while (this.holes.length < sources.length) { const h = new Sprite(this.disc); h.anchor.set(0.5); h.blendMode = "erase"; this.dark.addChild(h); this.holes.push(h); const w = new Sprite(this.disc); w.anchor.set(0.5); w.blendMode = "add"; this.glow.addChild(w); this.warms.push(w); const c = new Sprite(this.disc); c.anchor.set(0.5); c.blendMode = "add"; this.glow.addChild(c); this.cores.push(c); }
     for (let i = 0; i < this.holes.length; i++) {
       const s = sources[i]; const h = this.holes[i]!, w = this.warms[i]!, c = this.cores[i]!;
@@ -229,12 +232,12 @@ export class Clouds {
     }
     this.puffs.visible = false; this.shadows.visible = false;
   }
-  update(o: { tick: number; wind: number; sunUp: number; night: number; weather: string }): void {
+  update(o: { tick: number; wind: number; sunUp: number; night: number; weather: string; /** the low sun on their undersides */ warm?: number }): void {
     const { W } = this; const t = o.tick;
     const overcast = o.weather === "storm" || o.weather === "rain" || o.weather === "snow";
     const show = o.weather !== "fog"; this.puffs.visible = show; this.shadows.visible = show && o.sunUp > 0.05;
     if (!show) return;
-    const puffTint = o.weather === "storm" ? 0xb9c1c8 : overcast ? 0xdfe4e8 : 0xffffff;
+    const puffTint = o.weather === "storm" ? 0xb9c1c8 : overcast ? 0xdfe4e8 : mix(0xffffff, 0xffc4a0, o.warm ?? 0);
     for (let i = 0; i < this.seeds.length; i++) {
       const sd = this.seeds[i]!;
       const x = ((sd.x + t * sd.speed * (0.6 + o.wind * 1.6) + 400) % (W + 800)) - 400, y = sd.y + Math.sin(t / 700 + i) * 12;
@@ -245,5 +248,37 @@ export class Clouds {
         sh.position.set(x + dx + 60, y + dy + 120); sh.width = sd.w * (k === 1 ? 0.95 : 0.66); sh.height = sd.h * (k === 1 ? 1.15 : 0.85); sh.tint = 0x0a1018; sh.alpha = (overcast ? 0.05 : 0.075) * o.sunUp;
       }
     }
+  }
+}
+
+/**
+ * The hour when the sun is low: a warm cast over everything with the light coming from the sun's side of the sky,
+ * and the blue half hour either side of it. Multiply for the cast, add for the light, so the drawn colours keep
+ * their lines and only their temperature changes. Off by day and by night; the Lighting takes over after dark.
+ */
+export class Sky {
+  /** the cast, over the whole island */
+  readonly veil: Sprite;
+  /** the light itself, at the sun, and its wide halo */
+  readonly glow: Sprite; readonly halo: Sprite;
+  constructor(W: number, H: number) {
+    this.veil = new Sprite(Texture.WHITE); this.veil.position.set(-3000, -3000); this.veil.width = W + 6000; this.veil.height = H + 6000; this.veil.blendMode = "multiply"; this.veil.alpha = 0;
+    const disc = softDisc(); this.glow = new Sprite(disc); this.glow.anchor.set(0.5); this.glow.blendMode = "add"; this.glow.alpha = 0; this.halo = new Sprite(disc); this.halo.anchor.set(0.5); this.halo.blendMode = "add"; this.halo.alpha = 0;
+  }
+  /** golden and blue are 0..1; phase says which end of the day; sun is where the sun is, even below the horizon. */
+  update(o: { golden: number; blue: number; phase: "rise" | "set"; sun: { x: number; y: number }; cover: number }): void {
+    const g = o.golden * (1 - o.cover * 0.7), b = o.blue * (1 - o.cover * 0.4);
+    const rise = o.phase === "rise";
+    // the cast: peach at sunrise, amber at sunset, a cold slate in the blue hour; the two are never both strong
+    const warmCast = rise ? 0xffdcc2 : 0xffc9a4, blueCast = 0xb6c1dd;
+    const castT = g + b > 0.001 ? b / (g + b) : 0;
+    this.veil.tint = mix(warmCast, blueCast, castT); this.veil.alpha = Math.min(1, g * 0.9 + b * 0.75);
+    this.veil.visible = this.veil.alpha > 0.01;
+    // the light: at the sun, wide, warmer at sunset
+    const col = rise ? 0xffb98a : 0xff9a5c;
+    // the sun sits high behind the island, so its light has to be wide to reach the streets: a broad wash from its side of the sky
+    this.glow.position.set(o.sun.x, o.sun.y + 300); this.glow.width = this.glow.height = 4200; this.glow.tint = col; this.glow.alpha = (rise ? 0.26 : 0.32) * g;
+    this.halo.position.set(o.sun.x, o.sun.y + 600); this.halo.width = this.halo.height = 8000; this.halo.tint = col; this.halo.alpha = 0.12 * g;
+    this.glow.visible = this.halo.visible = g > 0.01;
   }
 }

@@ -14,8 +14,8 @@ export default function Town() {
   useEffect(() => { try { const v = new URLSearchParams(window.location.search).get("view"); if (v === "map" || v === "cinema") setView(v); } catch {} }, []);
   const [follow, setFollow] = useState(true);
   // ?fx=1 turns on the GPU light and water, for comparing the old street with the new on the same island
-  const [effects, setEffects] = useState(false);
-  useEffect(() => { try { if (new URLSearchParams(window.location.search).get("fx") === "1") setEffects(true); } catch {} }, []);
+  const [effects, setEffects] = useState(true); // the light, the water, the weather and the life: on, unless ?fx=0 asks for the plain drawing
+  useEffect(() => { try { if (new URLSearchParams(window.location.search).get("fx") === "0") setEffects(false); } catch {} }, []);
   const [possessed, setPossessed] = useState(false);
   const [say, setSay] = useState(""); const [busy, setBusy] = useState(false); const [note, setNote] = useState<string | null>(null);
   const [selFull, setSelFull] = useState<OwnerAgent | PublicAgent | null>(null);
@@ -34,7 +34,6 @@ export default function Town() {
         <div className="scrim absolute inset-0 rounded-[28px] pointer-events-none" data-on={possessed ? "true" : "false"} aria-hidden />
         <div className="absolute left-3 top-3 sm:left-6 sm:top-6 flex gap-2 flex-wrap pointer-events-auto">
           <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={view === "street"} onClick={() => setView("street")}>Street</Chip><Chip active={view === "map"} onClick={() => setView("map")}>Map</Chip><Chip active={view === "cinema"} onClick={() => setView("cinema")}>Follow the day</Chip></div>
-          <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={effects} onClick={() => setEffects((v) => !v)}>New light</Chip></div>
           {agent && <div className="flex gap-1 bg-shell rounded-full p-1"><Chip active={follow} onClick={() => setFollow(true)}>Follow {agent.name.split(" ")[0]}</Chip><Chip active={!follow} onClick={() => setFollow(false)}>Free camera</Chip></div>}
           {possessed && agent && <div className="flex items-center gap-2 bg-shell rounded-full px-4"><span className="w-2.5 h-2.5 rounded-full bg-coral" /><span className="font-bold text-sm">You are {agent.name.split(" ")[0]}</span></div>}
         </div>

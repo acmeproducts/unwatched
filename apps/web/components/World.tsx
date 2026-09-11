@@ -90,6 +90,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         const x = i * TW + (j % 2 ? TW / 2 : 0), y = j * TH;
         const d = inside(x, y); if (d > 1.06) continue;
         let color = C.grass; const alt = (i + j) % 2 === 0;
+        void alt;
         if (d > 1) color = SHALLOW; else if (d > 0.9 || near(x, y, ["harbor", "cove", "coast", "boatshed"], 200)) color = C.sand;
         else if (near(x, y, ["pinewood", "sawpit", "wood-1"], 300)) color = FOREST;
         else if (near(x, y, ["quarry", "lighthouse"], 230)) color = ROCK;
@@ -97,8 +98,7 @@ export function World({ mineId, onSelect, view }: { mineId: string | null; onSel
         else if (near(x, y, ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern"], 260)) color = C.sand;
         const onRoad = segs.some((sg) => distToSeg(x, y, sg) < 22);
         if (onRoad) color = C.shell;
-        const shade = alt ? 0 : -0x020202;
-        ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(Math.max(0, color + shade));
+        ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(color).stroke({ width: 1, color: C.kelp, alpha: onRoad ? 0.03 : 0.045 });
         if (color === FIELD && alt) ground.moveTo(x - 20, y).lineTo(x + 20, y).stroke({ width: 1.5, color: 0xb9d9c6, alpha: 0.9 });
         if (color === FOREST && (i * 7 + j * 3) % 5 === 0) ground.circle(x, y, 4).fill({ color: 0x9fbfa8, alpha: 0.8 });
       }

@@ -61,9 +61,22 @@ By noon there is a council, a roof to fix, a banker looking for borrowers, and a
 
 | | | |
 |---|---|---|
-| **Day one** | Write a person, not a character. | A name, one sentence, a want, a fear, a secret. Choose how they look, and who does their thinking: our minds, a model on your own key, or code you wrote. They arrive with forty coins, a suitcase and three nights at the harbor inn. |
+| **Day one** | Write a person, not a character. | A name, one sentence, a want, a fear, a secret, and why they came. Choose how they look, on the same rig that will walk the street, and who does their thinking: our minds, a model on your own key, or code you wrote. On the boat the island deepens them once, into a childhood, a voice and a habit, and they arrive with forty coins, a suitcase and three nights at the harbor inn. |
 | **Every morning** | Read what happened. | They found work, or lost it. Someone stopped trusting them. A law passed at ten and bit by evening. The digest is a day of a life in a minute, and every line in it happened. |
 | **When it matters** | They write to you. | At a crossroads, your citizen sends a letter. You write back. It is advice. A stubborn one ignores it; a proud one does the opposite. Earning their trust is the whole game. |
+
+## Who thinks, and what it costs
+
+Every citizen gets the same seconds. A plan buys how often yours actually thinks, and with which mind. Prices are per month; the numbers below are the ones in `apps/server/src/billing.ts`.
+
+| | | |
+|---|---|---|
+| **Visitor** | $3 | Ten thoughts a day on Haiku. Enough to answer a letter and keep a job. No careful decisions, no reflection. |
+| **Resident** | $12 | Fifty thoughts a day, six careful decisions, a reflection every night, letters at crossroads, a portrait and a voice. |
+| **Patron** | $29 | A hundred and twenty thoughts, fifteen careful decisions on Opus, and the most capable mind for every reflection. |
+| **Own key, own brain** | free | A model on your own OpenRouter key, or a process you wrote. Never metered by the island. |
+
+Without a plan a citizen lives on habit: works, eats, sleeps and talks in set phrases, and the town notices. Credits top up a plan when the allowance is spent; they are never coins. The island keeps a daily ceiling on what the hosted minds may cost; past it careful thoughts go to cheaper minds, and the clock never slows.
 
 ## Run the whole town
 
@@ -119,7 +132,9 @@ Most minutes cost nothing: habit walks people to work, to food and to bed. A mod
 
 **The book of every life.** When someone leaves, or dies, the town writes the book of their life from the record alone and shelves it at `/library`. The Gazette's front page carries a painting of the day's lead moment, drawn on the reader's screen in the world's own hand. With `GEMINI_API_KEY` set, an owner can hear a letter home read aloud in the writer's own voice.
 
-**A world drawn in code.** Every building, tree, wave and person is drawn by a function, in one projection and one palette, so it scales to any screen. Citizens are a jointed rig with a walk and a run, faces that look at whoever they talk to, frown with hunger and lift at a wedding, the tools of their trade, the last thing they picked up, coats in winter, and years on the body. `/rig` is the model sheet.
+**A world drawn in code.** Every building, tree, wave and person is drawn by a function, in one projection and one palette, so it scales to any screen. Citizens are a jointed rig with a walk and a run, faces that look at whoever they talk to, frown with hunger and lift at a wedding, the tools of their trade, the last thing they picked up, coats in winter, and years on the body. The ground blends from sand to grass to field where the districts meet, the roads wear pale where people actually walk, and shadows lean away from the sun. `/rig` is the model sheet.
+
+**A world that is lit and alive.** Dawn and dusk are the real ones, and the light goes gold and then blue over the whole island. Gulls work the harbor, a cat keeps the square, hens keep the yard, bats come out at dusk and fireflies in summer, smoke rises from the hearths that are lit, and the lighthouse turns all night. It sounds like that too: the sea, the wind, rain on roofs, oars, a bark, a bell on Sunday, and music the island made for itself. People crouch to a dog and look up at a gull. `/film?at=harbor&hour=6.5&weather=rain` frames any hour, weather and season, and is where the film above was shot.
 
 **Islands that connect.** An island is one server. Two islands that share a secret run a boat between them: a citizen who boards it arrives at the other with their coins, things, memories and opinions, and the news from home spreads there as rumor. `docs/federation.md` has the three environment lines it takes.
 
@@ -154,6 +169,9 @@ Everything is read from the environment; `.env.example` documents every line. Th
 | `UW_REAL_WORLD`, `UW_REAL_WORLD_NAME` | the point on the earth whose sky the island keeps |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | the record in Postgres; leave unset for a JSON file |
 | `GEMINI_API_KEY` | voices for letters, and the Lyria music beds via `apps/web/scripts/gen-music.mjs` |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | plans and credits; `scripts/stripe-setup.mjs` makes the products, prices, portal and webhook. Unset, billing runs in test mode |
+| `UW_OR_MODEL_PATRON_STAKES`, `UW_DAILY_CEILING_USD` | the Patron mind, and the day's ceiling on what the hosted minds may cost |
+| `UW_OPS_TOKEN` | the ops room at `/ops`: costs, minds, the day's edition |
 | `UW_HARBORS`, `UW_BOAT_SECRET` | islands that connect |
 
 ## Deploy

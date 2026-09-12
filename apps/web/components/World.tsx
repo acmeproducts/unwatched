@@ -10,6 +10,7 @@ import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/pa
 import { Lighting, WaterFilter, Weather, Clouds, Sky, mix, type LightSource } from "./world/fx";
 import { Life, type Critter } from "./world/life";
 import { Post } from "./world/post";
+import { Particles } from "./world/particles";
 import { drawGround, drawRoads, segmentsOf, keepOffRoads, Wear } from "./world/terrain";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
@@ -312,6 +313,8 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           meadows: [{ x: f.x - 40, y: f.y + 140, r: 220 }, { x: o.x, y: o.y + 40, r: 200 }, { x: pw.x - 60, y: pw.y + 120, r: 180 }], roosts: [{ x: lh.x, y: lh.y - 100 }, { x: ch.x, y: ch.y - 70 }],
         }, scene);
       })();
+      const particles = new Particles(scene); world.addChild(particles.glow); // embers and sparks above the night, dust and pollen in the scene
+      const lastCart = { x: 0, y: 0 }; const lifeMeadows = (() => { const f = places.get("fields"), o = places.get("orchard"), pw = places.get("pinewood"); return [f && { x: f.x - 40, y: f.y + 140, r: 220 }, o && { x: o.x, y: o.y + 40, r: 200 }, pw && { x: pw.x - 60, y: pw.y + 120, r: 180 }].filter((m): m is { x: number; y: number; r: number } => !!m); })();
       world.addChild(life.glow); lighting.dark.addChild(life.cut); // the beam cuts the shade; what glows sits above it, so the night cannot dim it
       const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
       const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
@@ -496,6 +499,11 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         cartTick();
         post.update(viewRef.current, night.alpha / 0.42, effectsOn && !nofx.has("post"), tick);
         if (nofx.size) { ground.visible = !nofx.has("ground"); scene.visible = !nofx.has("scene"); lighting.dark.visible = !nofx.has("dark"); lighting.glow.visible = !nofx.has("glow"); clouds.puffs.visible = clouds.shadows.visible = !nofx.has("clouds"); weatherFx.rain.visible = weatherFx.snow.visible = weatherFx.fog.visible = !nofx.has("weather"); if (nofx.has("sky")) sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; }
+        { const smithy = places.get("smithy"); const forced = new Set((q?.get("force") ?? "").split(",").filter(Boolean)); if (forced.has("hearths")) for (const id of Object.keys(HEARTHS)) litHearths.add(id); /* ?force=hearths,forge lights them for filming */ const cartMoving = Math.abs(carter.g.x - lastCart.x) > 0.3 || Math.abs(carter.g.y - lastCart.y) > 0.3; lastCart.x = carter.g.x; lastCart.y = carter.g.y;
+          particles.update({ renderer: app.renderer, tick, wind, night: night.alpha / 0.42, hour, season: forcedSeason ?? c?.season ?? "summer", weather, effects: effectsOn && !nofx.has("particles"),
+            hearths: [...litHearths].map((id) => { const p = places.get(id); const off = HEARTHS[id] ?? [0, 0]; return p ? { x: p.x + off[0], y: p.y + off[1] } : null; }).filter((h): h is { x: number; y: number } => !!h),
+            forge: { x: smithy ? smithy.x - 58 : 0, y: smithy ? smithy.y - 2 : 0, on: !!smithy && (forced.has("forge") || (smithy.crowd > 0 && hour >= 7 && hour < 18)) },
+            cart: { x: carter.g.x, y: carter.g.y, moving: cartMoving && carter.g.visible }, meadows: lifeMeadows }); }
         life.update({ tick, hour, rise, set, night: night.alpha / 0.42, season: forcedSeason ?? c?.season ?? "summer", weather, wind, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, moving: Math.abs(f.tx - f.x) > 1.5 || Math.abs(f.ty - f.y) > 1.5 })), effects: effectsOn });
         for (const snd of life.sounds) ambience.cue(snd.name, Math.hypot(snd.x - cam.x, snd.y - cam.y), snd.x - cam.x, snd.level ?? 1);
         if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn && !nofx.has("water") ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; dusk.visible = !effectsOn; rain.visible = !effectsOn; if (!effectsOn) { sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; } fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }

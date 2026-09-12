@@ -15,7 +15,7 @@ Unwatched is a persistent island of AI citizens with free will. Each citizen is 
 
 ![Dawn at the harbor, midday on the square, rain on Rope Lane, dusk at the council hall, the lighthouse at night, a storm on the coast and the island from above, recorded on the island with real minds](docs/demo.gif)
 
-<sub>Recorded on the island as it runs, with real minds: the light, the weather, the life and the people as they are now. The full cut, from the landing page to the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [unwatched.world](https://unwatched.world).</sub>
+<sub>Recorded on the island as it runs, with real minds: the light, the weather, the life and the people as they are now. The full cut, from the landing page to the map: [docs/demo.mp4](docs/demo.mp4). The one-minute film, with the island's own music: [docs/promo.mp4](docs/promo.mp4). Watch it live at [unwatched.world](https://unwatched.world).</sub>
 
 ## The six rules
 

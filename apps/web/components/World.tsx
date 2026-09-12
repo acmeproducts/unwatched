@@ -9,7 +9,7 @@ import { drawThing, drawStock, drawCart, drawSign, setSeason } from "./world/bui
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
 import { Lighting, WaterFilter, Weather, Clouds, Sky, mix, type LightSource } from "./world/fx";
 import { Life, type Critter } from "./world/life";
-import { drawGround, drawRoads, segmentsOf, Wear } from "./world/terrain";
+import { drawGround, drawRoads, segmentsOf, keepOffRoads, Wear } from "./world/terrain";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
 
@@ -99,7 +99,12 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
       // ?at=harbor,40,-20&zoom=1.6 parks the camera on a place for a picture; the hand still moves it
       const clean = typeof location !== "undefined" && new URLSearchParams(location.search).get("clean") === "1"; setCleanUi(clean); // ?clean=1: the island with nothing over it, for pictures
       const atParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("at") : null; const zoomParam = typeof location !== "undefined" ? Number(new URLSearchParams(location.search).get("zoom")) : NaN;
-      const parked = atParam ? (() => { const [id, dx, dy] = atParam.split(","); const p = places.get(id ?? ""); return p ? { x: p.x + (Number(dx) || 0), y: p.y + (Number(dy) || 0) } : null; })() : null;
+      const parkAt = (spec: string | null) => { if (!spec) return null; const [id, dx, dy] = spec.split(","); const p = places.get(id ?? ""); return p ? { x: p.x + (Number(dx) || 0), y: p.y + (Number(dy) || 0) } : null; };
+      const parked = parkAt(atParam);
+      // a filmed move: ?to=place,dx,dy&zoomTo=1.8&over=8&delay=1 glides the camera from `at` to `to` over that many seconds, eased both ends
+      const q = typeof location !== "undefined" ? new URLSearchParams(location.search) : null;
+      const moveTo_ = parkAt(q?.get("to") ?? null); const zoomToParam = Number(q?.get("zoomTo")); const moveOver = Number(q?.get("over")) || 8; const moveDelay = Number(q?.get("delay")) || 0.8; const moveStart = performance.now();
+      const moveP = () => { const t = Math.max(0, Math.min(1, (performance.now() - moveStart) / 1000 - moveDelay) / moveOver); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
       if (!alive) return;
       app = new Application();
       await app.init({ background: C.water, resizeTo: el, antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true });
@@ -213,7 +218,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         g.on("pointertap", () => { const here = [...agents.current.values()].filter((a) => a.location === p.id); setPlaceInfo({ id: p.id, name: p.name, district: p.district, kind: p.kind, sprite: p.sprite, owner: p.owner, site: p.site, people: here.map((a) => ({ id: a.id, name: a.name, asleep: a.asleep, job: a.job, appearance: a.appearance, age: a.age, ...(a.pose ? { pose: a.pose } : {}) })) }); });
       };
       for (const p of places.values()) drawPlace(p);
-      const decor = decorFor([...places.values()]);
+      const decor = keepOffRoads(decorFor([...places.values()]), segs);
       let trees: Container[] = [];
       const plantTrees = () => {
         for (const t of trees) t.destroy({ children: true }); trees = [];
@@ -391,7 +396,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         const talking = followed ? followed.pose === "talk" : false;
         // the cinema breathes: the zoom swells and settles over half a minute; a followed conversation draws the camera in a step
         const zoom = viewRef.current === "map" ? Math.min(Wd / (W * 1.1), Hd / (H * 1.24)) : viewRef.current === "cinema" ? 1.22 + Math.sin(tick / 1400) * 0.06 : hand ? hand.zoom : talking ? 1.16 : 1.05; // the map leaves sea around the island, so the horizon shows
-        cam.zoom += ((parked && !hand && Number.isFinite(zoomParam) ? zoomParam : zoom) - cam.zoom) * (hand ? 0.16 : 0.05);
+        const zoomAim = parked && !hand && Number.isFinite(zoomParam) ? (Number.isFinite(zoomToParam) ? zoomParam + (zoomToParam - zoomParam) * moveP() : zoomParam) : zoom; cam.zoom += (zoomAim - cam.zoom) * (hand ? 0.16 : parked ? 0.5 : 0.05);
         let fx = W / 2, fy = H / 2 + 40;
         if (hand) { hand.vx = Math.max(-22, Math.min(22, hand.vx)); hand.vy = Math.max(-22, Math.min(22, hand.vy)); hand.x = Math.max(-200, Math.min(W + 200, hand.x + hand.vx)); hand.y = Math.max(-150, Math.min(H + 150, hand.y + hand.vy)); hand.vx *= 0.86; hand.vy *= 0.86; fx = hand.x; fy = hand.y; } // the hand stays over the island and never flings it
         else if (viewRef.current === "street") { if (followed) { const lead = Math.max(-70, Math.min(70, (followed.tx - followed.x) * 0.7)); fx = followed.x + lead; fy = followed.y - 60; } else { const mk = places.get("market"); if (mk) { fx = mk.x; fy = mk.y; } } }
@@ -400,7 +405,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         if (viewRef.current === "cinema" && stagedNow) { fx = stagedNow.x; fy = stagedNow.y + 20; }
         else if (viewRef.current === "cinema") { const cn = cinema.current; if (cn && Date.now() - cn.at < 120000) { const f = cn.ids[0] ? figs.current.get(cn.ids[0]) : null; fx = f?.x ?? cn.x; fy = (f?.y ?? cn.y) - 50; } else { let best: PlaceView | null = null; for (const p of places.values()) if (!best || p.crowd > best.crowd) best = p; if (best) { fx = best.x; fy = best.y - 20; } } }
         if (viewRef.current === "cinema") { const key = stagedNow ? `s:${stagedNow.place}` : cinema.current ? `c:${cinema.current.at}` : "idle"; if (key !== lastCut) { lastCut = key; cutAt = tick; } fx += Math.sin(tick / 900) * 36; fy += Math.cos(tick / 1100) * 18; } // a slow drift while the moment plays
-        if (parked && !hand) { fx = parked.x; fy = parked.y; }
+        if (parked && !hand) { const k = moveTo_ ? moveP() : 0; fx = parked.x + (moveTo_ ? (moveTo_.x - parked.x) * k : 0); fy = parked.y + (moveTo_ ? (moveTo_.y - parked.y) * k : 0); }
         const tx = Wd / 2 - fx * cam.zoom, ty = Hd / 2 - fy * cam.zoom;
         const cutting = viewRef.current === "cinema" && tick - cutAt < 90; // a new moment is a cut, not a crawl
         const ease = hand ? 1 : viewRef.current === "cinema" ? (cutting ? 0.09 : 0.02) : 0.08; cam.x += (tx - cam.x) * ease; cam.y += (ty - cam.y) * ease;

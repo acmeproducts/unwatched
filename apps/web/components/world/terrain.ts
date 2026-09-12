@@ -128,6 +128,22 @@ export class Wear extends Container {
   step(from: string, to: string): void { const key = [from, to].sort().join("|"); if (!this.count.has(key)) return; this.count.set(key, (this.count.get(key) ?? 0) + 1); this.dirty = true; }
   redraw(): void {
     if (!this.dirty) return; this.dirty = false; const g = this.g; g.clear();
-    for (const s of this.segs) { const n = this.count.get(s.key) ?? 0; if (n <= 0) continue; const k = Math.min(1, Math.log2(1 + n) / 7); ribbon(g, s.a, s.b, 4 + 10 * k, s.cobbled ? 0xe4ddcc : 0xe8dfc8, 0.25 + 0.45 * k, 2, 3); }
+    for (const s of this.segs) { const n = this.count.get(s.key) ?? 0; if (n <= 0) continue; const k = Math.min(1, Math.log2(1 + n) / 7); ribbon(g, s.a, s.b, 4 + 9 * k, s.cobbled ? 0xe2dbca : 0xe6dcc4, 0.16 + 0.3 * k, 2, 3); }
   }
+}
+
+/** Nothing planted stands in the road: anything whose foot is within a road's width is moved sideways off it. Water and shore props are left alone. */
+export function keepOffRoads<T extends { sprite: string; x: number; y: number }>(items: T[], segs: Seg[], margin = 30): T[] {
+  const skip = /pier|rowboat|searocks|net|field|washing|fence/;
+  return items.map((it) => {
+    if (skip.test(it.sprite)) return it;
+    let best: { d: number; nx: number; ny: number } | null = null;
+    for (const s of segs) {
+      const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, L2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((it.x - s.a.x) * dx + (it.y - s.a.y) * dy) / L2));
+      const px = s.a.x + dx * t, py = s.a.y + dy * t; const ox = it.x - px, oy = it.y - py; const d = Math.hypot(ox, oy);
+      if (!best || d < best.d) { const L = Math.hypot(dx, dy) || 1; const side = ox * -dy + oy * dx >= 0 ? 1 : -1; best = { d, nx: (-dy / L) * side, ny: (dx / L) * side }; }
+    }
+    if (!best || best.d >= margin) return it;
+    return { ...it, x: it.x + best.nx * (margin - best.d + 6), y: it.y + best.ny * (margin - best.d + 6) };
+  });
 }

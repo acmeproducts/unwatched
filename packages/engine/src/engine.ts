@@ -42,6 +42,9 @@ export interface AddAgentOptions {
 
 const WEATHERS = ["clear", "clear", "clear", "rain", "rain", "wind", "fog", "storm"] as const; // "snow" only ever comes from the real sky
 
+/** Work that happens under the sky: the weather takes its share of what these places make. */
+const OUTDOOR_WORK = new Set(["fishhouse", "fields", "orchard", "quarry", "pinewood", "sawpit"]);
+
 export class Town {
   readonly rng: Rng;
   readonly brain: Brain;
@@ -295,7 +298,7 @@ export class Town {
         let act = habit(a, this.habitView());
         // whoever has come to a gathering waits for it to begin, instead of wandering off
         if (act.kind !== "sleep" && act.kind !== "use" && this.pendingGatheringAt(a.location)) act = { kind: "wait" };
-        if (a.heading && a.heading !== a.location && act.kind !== "sleep" && act.kind !== "use" && this.places.has(a.heading)) { const nx = this.path(a.location, a.heading); if (nx) act = { kind: "move", to: nx }; else a.heading = null; }
+        if (a.heading && a.heading !== a.location && act.kind !== "sleep" && act.kind !== "use" && this.places.has(a.heading) && !this.pendingGatheringAt(a.location)) { const nx = this.path(a.location, a.heading); if (nx) act = { kind: "move", to: nx }; else a.heading = null; } // a gathering about to begin here outranks wherever they were going
         if (a.heading === a.location) a.heading = null;
         const step = this.dueStep(a);
         // A plan step with a place pulls harder than habit's drift, for three hours from its time, unless hunger or night or a shift says otherwise.
@@ -696,6 +699,7 @@ export class Town {
             aMemories: retrieve(a.memory, b.persona.name, this.t, 5).map((m) => m.text),
             bMemories: retrieve(b.memory, a.persona.name, this.t, 5).map((m) => m.text),
             rumorsA: a.rumors.slice(-2),
+            known: !!(a.relationships.get(b.id) || b.relationships.get(a.id)), aToday: a.plan?.day === this.day && a.plan.goals.length ? a.plan.goals.join("; ") : null, bToday: b.plan?.day === this.day && b.plan.goals.length ? b.plan.goals.join("; ") : null,
           });
         } catch (err) { this.log(`converse failed: ${(err as Error).message}`); continue; }
         a.lastConversation = this.t; b.lastConversation = this.t;
@@ -940,12 +944,15 @@ export class Town {
   /** A paid shift makes what the place makes, out of what it needs, in the seasons it can. */
   private produce(place: Place): void {
     if (place.brokenUntil && place.brokenUntil > this.day) return;
+    // the weather is physics too: nothing comes off the sea or the land in a storm, and half of it in rain
+    const outdoors = OUTDOOR_WORK.has(place.id); const weatherCut = outdoors ? (this.weather === "storm" ? 0 : this.weather === "rain" || this.weather === "snow" ? 0.5 : 1) : 1;
+    if (weatherCut === 0) { if (!this.dry.has(place.id)) { this.dry.add(place.id); this.emit("economy.price", [], place.id, `${place.name} made nothing today: no one works ${place.id === "fishhouse" ? "the sea" : "the land"} in a storm.`, 0.45); } return; }
     for (const pr of this.pack.produce) {
       if (pr.place !== place.id) continue;
       if (pr.seasons && !pr.seasons.includes(this.season)) continue;
       if (pr.months && !pr.months.includes(this.month)) continue;
       if (pr.needs) { const have = place.stock[pr.needs.item] ?? 0; if (have < pr.needs.qty) { if (have === 0 && !this.dry.has(place.id)) { this.dry.add(place.id); this.emit("economy.price", [], place.id, `${place.name} has run out of ${pr.needs.item}; nothing was made today.`, 0.5); } continue; } place.stock[pr.needs.item] = have - pr.needs.qty; }
-      place.stock[pr.makes] = (place.stock[pr.makes] ?? 0) + pr.qty; this.dry.delete(place.id);
+      place.stock[pr.makes] = (place.stock[pr.makes] ?? 0) + Math.max(1, Math.round(pr.qty * weatherCut)); this.dry.delete(place.id);
     }
   }
   private dry = new Set<string>();

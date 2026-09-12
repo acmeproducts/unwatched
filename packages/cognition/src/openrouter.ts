@@ -42,17 +42,24 @@ export class OpenRouterBrain implements Brain {
   onFallback: ((f: { what: string; model: string; reason: string }) => void) | null = null;
   /** The models for one citizen when they differ from the town's: a Patron's careful thoughts and reflection go to the most capable mind. */
   modelsFor: ((a: AgentState) => Partial<{ routine: string; stakes: string; reflect: string }> | null) | null = null;
+  /** The island itself, in words, the same for every citizen: places, work, the calendar. Set by the server; part of the shared cached prefix. */
+  primer = "";
   private m(a: AgentState) { const o = this.modelsFor?.(a); return { routine: o?.routine ?? this.routine, stakes: o?.stakes ?? this.stakes, reflect: o?.reflect ?? this.reflectModel }; }
 
-  private async call<T>(model: string, system: string, user: string, schema: z.ZodType<T>, name: string, maxTokens: number): Promise<T | null> {
+  private async call<T>(model: string, system: { shared: string; own?: string }, user: string, schema: z.ZodType<T>, name: string, maxTokens: number): Promise<T | null> {
     // Providers behind OpenRouter accept a subset of JSON Schema: no regex patterns, no defaults, anyOf not oneOf.
     // The schema goes in the request as a strict format and in the system prompt as belt and braces.
     const jsonSchema = cleanSchema(z.toJSONSchema(schema));
     const body = {
       model,
       max_tokens: maxTokens,
-      // the rules and the persona repeat on every call; mark them cacheable so Anthropic bills the repeat at a tenth of the price
-      messages: [{ role: "system", content: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }, { type: "text", text: `Answer with a single JSON object matching this JSON schema exactly, no prose:\n${JSON.stringify(jsonSchema)}` }] }, { role: "user", content: user }],
+      // The prefix is built to cache: the world's rules, the island and the schema are the same for every citizen and every call of a kind
+      // (one block, over four thousand tokens, which is what Haiku needs before it will cache at all); the persona is the same for one
+      // citizen across all their calls (a second block). Anthropic bills a cached read at a tenth of the price.
+      messages: [{ role: "system", content: [
+        { type: "text", text: `${system.shared}${this.primer ? `\n\n${this.primer}` : ""}\n\nAnswer with a single JSON object matching this JSON schema exactly, no prose:\n${JSON.stringify(jsonSchema)}`, cache_control: { type: "ephemeral" } },
+        ...(system.own ? [{ type: "text", text: system.own, cache_control: { type: "ephemeral" } }] : []),
+      ] }, { role: "user", content: user }],
       response_format: { type: "json_schema", json_schema: { name, strict: true, schema: jsonSchema } },
     };
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -77,39 +84,39 @@ export class OpenRouterBrain implements Brain {
   }
 
   async decide(p: Perception, a: AgentState, tier: Tier): Promise<ActionProposal> {
-    const mm = this.m(a); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, `${WORLD}\n\n${personaBlock(a)}`, decidePrompt(p), ActionProposal, "action_proposal", 1024);
+    const mm = this.m(a); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, { shared: WORLD, own: personaBlock(a) }, decidePrompt(p), ActionProposal, "action_proposal", 1024);
     return out ?? this.fallback.decide(p, a, tier);
   }
   async converse(ctx: ConverseContext): Promise<Dialogue> {
-    const out = await this.call(this.routine, `${WORLD}\n\n${conversePrompt.system(ctx)}`, conversePrompt.user(ctx), Dialogue, "dialogue", 1500);
+    const out = await this.call(this.routine, { shared: WORLD, own: conversePrompt.system(ctx) }, conversePrompt.user(ctx), Dialogue, "dialogue", 1500);
     return out ?? this.fallback.converse(ctx);
   }
   async reflect(ctx: ReflectContext): Promise<Reflection> {
-    const out = await this.call(this.m(ctx.agent).reflect, `${WORLD}\n\n${personaBlock(ctx.agent)}`, reflectPrompt(ctx), Reflection, "reflection", 2000);
+    const out = await this.call(this.m(ctx.agent).reflect, { shared: WORLD, own: personaBlock(ctx.agent) }, reflectPrompt(ctx), Reflection, "reflection", 2000);
     return out ?? this.fallback.reflect(ctx);
   }
   async plan(ctx: PlanContext, tier: Tier): Promise<DayPlan> {
-    const mm = this.m(ctx.agent); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, `${WORLD}\n\n${personaBlock(ctx.agent)}`, planPrompt(ctx), DayPlan, "day_plan", 1200);
+    const mm = this.m(ctx.agent); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, { shared: WORLD, own: personaBlock(ctx.agent) }, planPrompt(ctx), DayPlan, "day_plan", 1200);
     return out ?? this.fallback.plan(ctx, tier);
   }
   async digest(ctx: DigestContext): Promise<DigestText> {
-    const out = await this.call(this.routine, digestSystem, digestPrompt(ctx), DigestText, "digest", 600);
+    const out = await this.call(this.routine, { shared: digestSystem }, digestPrompt(ctx), DigestText, "digest", 600);
     return out ?? this.fallback.digest(ctx);
   }
   async child(ctx: ChildContext): Promise<Persona> {
-    const out = await this.call(this.stakes, childSystem, childPrompt(ctx), Persona, "child", 900);
+    const out = await this.call(this.stakes, { shared: childSystem }, childPrompt(ctx), Persona, "child", 900);
     return out ?? this.fallback.child(ctx);
   }
   async writePaper(ctx: PaperContext): Promise<Paper> {
-    const out = await this.call(this.reflectModel, paperSystem, paperPrompt(ctx), Paper, "paper", 3000);
+    const out = await this.call(this.reflectModel, { shared: paperSystem }, paperPrompt(ctx), Paper, "paper", 3000);
     return out ?? this.fallback.writePaper(ctx);
   }
   async judge(ctx: JudgeContext): Promise<Judgement> {
-    const out = await this.call(this.routine, judgeSystem, judgePrompt(ctx), Judgement, "judgement", 400);
+    const out = await this.call(this.routine, { shared: judgeSystem }, judgePrompt(ctx), Judgement, "judgement", 400);
     return out ?? this.fallback.judge(ctx);
   }
   async life(ctx: LifeContext): Promise<LifeText> {
-    const out = await this.call(this.reflectModel, lifeSystem, lifePrompt(ctx), LifeText, "life", 3200);
+    const out = await this.call(this.reflectModel, { shared: lifeSystem }, lifePrompt(ctx), LifeText, "life", 3200);
     return out ?? this.fallback.life(ctx);
   }
 }

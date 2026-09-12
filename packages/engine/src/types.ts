@@ -135,6 +135,8 @@ export interface ConverseContext {
   a: AgentState; b: AgentState; place: Place; time: string; weather: string;
   aMemories: string[]; bMemories: string[];
   rumorsA: string[];
+  /** whether they have dealt with each other before, and what each wants from today */
+  known?: boolean; aToday?: string | null; bToday?: string | null;
 }
 
 export interface ReflectContext {

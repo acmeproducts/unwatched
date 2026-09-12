@@ -74,8 +74,10 @@ export function habit(a: AgentState, v: HabitView): Action {
   if (!a.job && v.hour >= 6 && v.hour < 17) {
     const open = [...v.jobs.values()].filter((j) => j.holders.length < j.slots);
     if (open.length > 0) {
-      const target = open.map((j) => j.place).find((pl) => pl === a.location) ?? open[Math.floor(a.persona.traits.ambition * open.length) % open.length]!.place;
-      if (target !== a.location) { const next = v.path(a.location, target); if (next) return { kind: "move", to: next }; }
+      // pick a place with work and keep walking to it: the list of open jobs shifts every minute as people are taken on, and a person who re-picked each minute walked in circles
+      const places = open.map((j) => j.place);
+      const target = places.includes(a.location) ? a.location : a.heading && places.includes(a.heading) ? a.heading : places[Math.floor(a.persona.traits.ambition * places.length) % places.length]!;
+      if (target !== a.location) { if (!a.heading) a.heading = target; const next = v.path(a.location, target); if (next) return { kind: "move", to: next }; } // a heading the town set (a bell, a gathering) is never overwritten
       return { kind: "wait" };
     }
   }

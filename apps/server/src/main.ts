@@ -42,6 +42,7 @@ const PATRON_MODELS = { stakes: process.env.UW_OR_MODEL_PATRON_STAKES ?? "anthro
 let modelsFor: (a: AgentState) => Partial<{ routine: string; stakes: string; reflect: string }> | null = () => null;
 const metrics = new Metrics(router, townBrain, () => clockRef(), MODELS, (a) => modelsFor(a));
 if (townBrain instanceof OpenRouterBrain) townBrain.modelsFor = (a) => modelsFor(a);
+const DAILY_CEILING_USD = Number(process.env.UW_DAILY_CEILING_USD ?? 120); // past it, careful thoughts go to the routine mind and reflections to the middle one; the clock never slows
 const brain = router; // endpoints keep talking to the router; the engine talks to the metrics wrapper
 router.onBad = (text) => metrics.hold("watch", text, "own brains");
 if (townBrain instanceof OpenRouterBrain) townBrain.onFallback = (f) => metrics.fallback(f);
@@ -72,9 +73,14 @@ const clients = new Set<WebSocket>();
 function broadcast(msg: unknown) { const s = JSON.stringify(msg); for (const c of clients) if (c.readyState === 1) c.send(s); }
 
 const billing = new Billing(store, log); await billing.load();
-modelsFor = (a) => (a.owner && a.brainKind === "hosted" && billing.wallet(a.owner).plan === "patron" ? PATRON_MODELS : null);
+modelsFor = (a) => {
+  if (DAILY_CEILING_USD > 0 && metrics.today(town.day).cost >= DAILY_CEILING_USD) return { stakes: MODELS.routine, reflect: MODELS.stakes }; // the ceiling: cheaper minds, same seconds
+  return a.owner && a.brainKind === "hosted" && billing.wallet(a.owner).plan === "patron" ? PATRON_MODELS : null;
+};
 const hasPerks = (a: AgentState) => !a.owner || billing.wallet(a.owner).plan === "resident" || billing.wallet(a.owner).plan === "patron"; setPerks(hasPerks); // the portrait and the voice come with a plan
 const town = new Town({ seed: SEED, brain: metrics, log, creditBank: billing.bank, idPrefix: TOWN_ID === "island" ? "" : TOWN_ID, name: TOWN_NAME, harbors: HARBORS.map((h) => ({ id: h.id, name: h.name })), onDepart: boatTo, onEvent: (e) => { store?.sink(e); broadcast({ type: "event", event: publicEvent(e) }); if (e.kind === "town.built" && e.payload && (e.payload as { hash?: string }).hash) { const p = e.payload as { hash: string; look: string; what: "house" | "shop" }; void looks.ensure(p.hash, p.look, p.what); } if (e.kind === "town.book" && store && e.actors[0] && e.payload) { const p = e.payload as { title: string; text: string; epitaph: string; how: "left" | "died" | "exiled"; arrivedDay: number; leftDay: number; name: string }; void store.saveLife({ agentId: e.actors[0], name: p.name, title: p.title, text: p.text, epitaph: p.epitaph, how: p.how, arrivedDay: p.arrivedDay, leftDay: p.leftDay }).catch((err: Error) => log(`could not shelve the book: ${err.message}`)); } if (e.kind === "agent.leave" && store && e.actors[0]) { void store.markLeft(e.actors[0], e.t).then(() => store!.snapshot(town)).catch((err: Error) => log(`could not record the leaving: ${err.message}`)); } } });
+// the island in words, once, for the cached prefix every citizen shares: where things are, what is sold where, who hires, and the calendar
+if (townBrain instanceof OpenRouterBrain) townBrain.primer = primerOf(town);
 let saved: Awaited<ReturnType<NonNullable<typeof store>["loadSnapshot"]>> = null;
 try { saved = store ? await store.loadSnapshot() : null; }
 catch (err) { log(`${(err as Error).message}; not starting, so the island on record is not seeded over. Apply the migrations, then start again.`); process.exit(1); }
@@ -152,6 +158,13 @@ app.use("/api/*", cors());
 const authKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const sb = process.env.SUPABASE_URL && authKey ? createClient(process.env.SUPABASE_URL, authKey, { auth: { persistSession: false } }) : null;
 /** Who is asking. A Supabase JWT when the store exists; the X-Owner header in memory-only dev mode. */
+/** The island described plainly, for the shared prefix: stable for the life of the island, so it caches. */
+function primerOf(t: Town): string {
+  const places = [...t.places.values()].filter((p) => p.kind !== "plot").map((p) => `${p.id}: ${p.name}${p.sells.length ? `, sells ${p.sells.map((s) => s.item).join(", ")}` : ""}${p.beds ? `, beds ${p.beds.price ? `${p.beds.price} coins a night` : "free"}` : ""}`);
+  const jobs = t.pack.jobs.map((j) => `${j.title} at ${j.place}, ${j.wage} coins a shift, ${j.hours[0]} to ${j.hours[1]}`);
+  const feasts = t.pack.feasts.map((f) => `${f.name} on the ${f.day}th of month ${f.month} at ${f.place}`);
+  return `The island of ${t.name}:\nPlaces: ${places.join("; ")}.\nWork: ${jobs.join("; ")}.\nThe boat comes each morning; the six o'clock cart moves grain to the mill, flour to the bakery, bread and fish and apples to the market. Sundays have no shifts, Saturday is market day, the first of the month is council day.\nFeasts: ${feasts.join("; ")}.\nPlots for sale are listed in the morning plan; the council sells them.`;
+}
 async function ownerOf(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization");
   if (sb && auth?.startsWith("Bearer ")) { const { data } = await sb.auth.getUser(auth.slice(7)); return data.user?.id ?? null; }

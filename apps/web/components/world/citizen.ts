@@ -66,6 +66,8 @@ const ellipse = (g: Graphics, x: number, y: number, rx: number, ry: number, fill
 
 export class Citizen extends Container {
   readonly look: Look;
+  /** the shadow at the feet, and the one the sun throws; redrawn by the world as the sun moves */
+  readonly shadow = new Graphics();
   private body = new Container();
   private legL = new Graphics(); private legR = new Graphics(); private shinL = new Graphics(); private shinR = new Graphics();
   private armL = new Graphics(); private armR = new Graphics(); private foreL = new Graphics(); private foreR = new Graphics();
@@ -84,6 +86,7 @@ export class Citizen extends Container {
 
   constructor(look: Look) {
     super();
+    this.addChild(this.shadow); this.castShadow(1, 1, 0);
     this.look = look;
     const wide = { Slight: 0.82, Average: 1, Sturdy: 1.22, Tall: 0.95 }[look.build];
     const tall = { Slight: 1, Average: 1, Sturdy: 1, Tall: 1.14 }[look.build];
@@ -267,6 +270,13 @@ export class Citizen extends Container {
   face(dir: -1 | 1): void { this.facing4(dir < 0 ? "left" : "right"); }
 
   /** Advance the animation. `t` is seconds. */
+  /** The sun's shadow: a pool at the feet, and a cast that leans away from the sun and stretches as it sinks (elev 1 at noon, 0 at the horizon). */
+  castShadow(elev: number, dir: number, low: number): void {
+    const g = this.shadow; g.clear(); const L = 8 + Math.pow(1 - elev, 2) * 34; const color = low > 0.05 ? 0x4a3a2a : 0x14161a; const a = 0.14 + low * 0.06;
+    g.moveTo(-7, 2).lineTo(7, 2).lineTo(7 + dir * L, 2 - L * 0.22).lineTo(-7 + dir * L, 2 - L * 0.22).closePath().fill({ color, alpha: a * 0.8 });
+    g.ellipse(dir * L, 2 - L * 0.22, 7, 3).fill({ color, alpha: a * 0.8 });
+    g.ellipse(0, 2, 11, 4.2).fill({ color, alpha: a });
+  }
   update(t: number): void {
     const k = t * 2 * Math.PI + this.phase;
     const k0 = this.years < 16 ? 0.62 + (this.years / 16) * 0.3 : this.years >= 70 ? 0.94 : 1; this.body.scale.set(this.facingMode === "left" ? -k0 : k0, k0); this.body.rotation = 0; this.body.position.set(0, 0); this.body.alpha = 1; this.torso.scale.y = 1;

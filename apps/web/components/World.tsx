@@ -314,9 +314,10 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         }, scene);
       })();
       const particles = new Particles(scene); world.addChild(particles.glow); // embers and sparks above the night, dust and pollen in the scene
-      const lastCart = { x: 0, y: 0 }; const lifeMeadows = (() => { const f = places.get("fields"), o = places.get("orchard"), pw = places.get("pinewood"); return [f && { x: f.x - 40, y: f.y + 140, r: 220 }, o && { x: o.x, y: o.y + 40, r: 200 }, pw && { x: pw.x - 60, y: pw.y + 120, r: 180 }].filter((m): m is { x: number; y: number; r: number } => !!m); })();
+      const sunNow = { elev: 1, dir: 1, low: 0 }; const lastCart = { x: 0, y: 0 }; const lifeMeadows = (() => { const f = places.get("fields"), o = places.get("orchard"), pw = places.get("pinewood"); return [f && { x: f.x - 40, y: f.y + 140, r: 220 }, o && { x: o.x, y: o.y + 40, r: 200 }, pw && { x: pw.x - 60, y: pw.y + 120, r: 180 }].filter((m): m is { x: number; y: number; r: number } => !!m); })();
       world.addChild(life.glow); lighting.dark.addChild(life.cut); // the beam cuts the shade; what glows sits above it, so the night cannot dim it
       const sky = new Graphics(); sky.alpha = 0; world.addChild(sky); // stars and the moon over the water, after the night shade so they stay bright
+      const falling = new Map<number, { x: number; y: number }>();
       const STARS = Array.from({ length: 160 }, (_, i) => ({ x: ((i * 7919) % (W + 1600)) - 800, y: ((i * 104729) % (H + 1200)) - 600, r: i % 7 === 0 ? 4.5 : 2.6, tw: (i * 31) % 17 }));
       const moonPhase = () => { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000; return (days / 29.530588) % 1; }; // 0 new, 0.5 full
       const windows = new Graphics(); windows.zIndex = 160000; scene.addChild(windows);
@@ -330,7 +331,6 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         let f = figs.current.get(a.id);
         if (!f) {
           const g = new Container();
-          const sh = new Graphics(); sh.ellipse(0, 1, 13, 5).fill({ color: C.kelp, alpha: 0.12 }); g.addChild(sh);
           const rig = new Citizen(aged(lookFor(a.name, a.appearance as Partial<Look> | null), a.age)); rig.scale.set(0.82); rig.age(a.age); rig.trade(a.job); rig.hold(a.carrying ?? null); g.addChild(rig);
           g.eventMode = "static"; g.cursor = "pointer"; g.hitArea = { contains: (x: number, y: number) => x > -18 && x < 18 && y > -66 && y < 0 } as never;
           g.on("pointertap", () => onSelect(agents.current.get(a.id) ?? null));
@@ -533,7 +533,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         }
         // long shadows near sunrise and sunset
         const lowSun = Math.max(0, 1 - Math.min(Math.abs(hour - rise), Math.abs(hour - set)) / 1.5) * (night.alpha < 0.3 ? 1 : 0);
-        if (tick % 10 === 0) { const f = Math.max(0, Math.min(1, (hour - rise) / Math.max(1, set - rise))); const up = hour > rise && hour < set; redrawShadows(up ? Math.sin(Math.PI * f) : 0.55, up ? (f < 0.5 ? -1 : 1) : 1, lowSun); }
+        if (tick % 10 === 0) { const f = Math.max(0, Math.min(1, (hour - rise) / Math.max(1, set - rise))); const up = hour > rise && hour < set; sunNow.elev = up ? Math.sin(Math.PI * f) : 0.55; sunNow.dir = up ? (f < 0.5 ? -1 : 1) : 1; sunNow.low = lowSun; redrawShadows(sunNow.elev, sunNow.dir, sunNow.low); for (const fg of figs.current.values()) fg.rig.castShadow(sunNow.elev, sunNow.dir, sunNow.low); }
         // the sun: up in the east over the far islands, over the top at noon, down in the west; on the sea beneath it, its light
         if (tick % 4 === 0) { celestial.clear(); const up = hour > rise && hour < set; if (up) { const f = (hour - rise) / Math.max(1, set - rise); const ang = Math.PI * (1 - f); const sx = cx - Rx * 1.05 * Math.cos(ang), sy = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(ang)) - 30; const warm = f < 0.12 || f > 0.88; celestial.circle(sx, sy, 34).fill({ color: warm ? 0xf4b183 : 0xfff0b0, alpha: 0.95 }); celestial.circle(sx, sy, 60).fill({ color: warm ? 0xf4b183 : 0xfff0b0, alpha: 0.12 }); for (let i = 0; i < 6; i++) { const yy = sy + 70 + i * 30; if (inside(sx, yy) < 1.1) break; celestial.moveTo(sx - 16 + Math.sin(tick / 30 + i) * 6, yy).lineTo(sx + 16 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: 0xfff0b0, alpha: 0.28 - i * 0.04, cap: "round" }); } } }
         // the sky over the water: stars come out with the dark, the moon keeps the calendar's phase, both lie on the sea
@@ -541,9 +541,15 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         if (tick % 4 === 0 && sky.alpha > 0.02) {
           sky.clear();
           for (const st of STARS) { if (inside(st.x, st.y) < 1.1) continue; const tw = 0.5 + 0.5 * Math.sin(tick / 20 + st.tw); sky.circle(st.x, st.y, st.r).fill({ color: LIGHT.star, alpha: 0.35 + 0.5 * tw }); }
-          const ph = moonPhase(); const mx = W - 220, my = 90; const full = (1 - Math.cos(ph * Math.PI * 2)) / 2; // 0 new, 1 full
+          const ph = moonPhase(); const full = (1 - Math.cos(ph * Math.PI * 2)) / 2; // 0 new, 1 full
+          // the moon crosses the night the way the sun crosses the day, rising where the sun set
+          const nightLen = 24 - set + rise; const nf = hour >= set ? (hour - set) / nightLen : (hour + 24 - set) / nightLen; const mang = Math.PI * (1 - Math.max(0, Math.min(1, nf)));
+          const mx = cx + Rx * 1.05 * Math.cos(mang), my = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(mang)) - 40;
+          sky.circle(mx, my, 70).fill({ color: LIGHT.lamp, alpha: 0.05 * full }); sky.circle(mx, my, 44).fill({ color: LIGHT.lamp, alpha: 0.07 * full });
+          if (tick % 1400 === 0 && ((tick / 1400) % 3 === 0)) falling.set(tick, { x: 200 + ((tick * 7919) % (W - 400)), y: -500 + ((tick * 104729) % 300) });
+          for (const [t0, st] of falling) { const age = (tick - t0) / 28; if (age > 1) { falling.delete(t0); continue; } const x = st.x + age * 260, y = st.y + age * 90; sky.moveTo(x - 60 * (1 - age), y - 20 * (1 - age)).lineTo(x, y).stroke({ width: 2, color: LIGHT.star, alpha: 0.9 * (1 - age), cap: "round" }); }
           sky.circle(mx, my, 28).fill(LIGHT.lamp); if (full < 0.98) sky.circle(mx + (ph < 0.5 ? -1 : 1) * 58 * full, my, 29).fill({ color: 0x1b2a30, alpha: 0.94 }); // the earth's shadow slides off as the moon fills
-          for (let i = 0; i < 9; i++) { const yy = my + 60 + i * 34; sky.moveTo(mx - 14 - (i % 3) * 8 + Math.sin(tick / 30 + i) * 6, yy).lineTo(mx + 14 + (i % 2) * 10 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: LIGHT.lamp, alpha: 0.35 - i * 0.03, cap: "round" }); }
+          for (let i = 0; i < 9; i++) { const yy = my + 60 + i * 34; if (inside(mx, yy) < 1.1) break; sky.moveTo(mx - 14 - (i % 3) * 8 + Math.sin(tick / 30 + i) * 6, yy).lineTo(mx + 14 + (i % 2) * 10 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: LIGHT.lamp, alpha: 0.35 - i * 0.03, cap: "round" }); }
           // the quay's lamps on the water
           for (const d of decor) if (d.sprite === "lamp" && inside(d.x, d.y + 120) > 0.96) for (let i = 0; i < 4; i++) { const yy = d.y + 70 + i * 22; sky.moveTo(d.x - 8 + Math.sin(tick / 25 + i) * 4, yy).lineTo(d.x + 8 + Math.sin(tick / 25 + i) * 4, yy).stroke({ width: 2, color: LIGHT.lamp, alpha: 0.35 - i * 0.07, cap: "round" }); }
         } else if (sky.alpha <= 0.02 && tick % 60 === 0) sky.clear();

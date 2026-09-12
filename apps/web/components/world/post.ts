@@ -8,7 +8,7 @@ import { AdvancedBloomFilter, TiltShiftFilter } from "pixi-filters";
 export type View = "street" | "map" | "cinema";
 
 export class Post {
-  private tilt = new TiltShiftFilter({ blur: 10, gradientBlur: 1000 });
+  private tilt = new TiltShiftFilter({ blur: 7, gradientBlur: 900 });
   private bloom = new AdvancedBloomFilter({ threshold: 0.9, bloomScale: 0.55, brightness: 1, blur: 9, quality: 4 });
   private grain = new NoiseFilter({ noise: 0.045 });
   private frame = new Container();
@@ -25,7 +25,7 @@ export class Post {
     const grad = new FillGradient({ type: "radial", center: { x: 0.5, y: 0.5 }, innerRadius: 0, outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.5, colorStops: [{ offset: 0, color: "rgba(20,22,26,0)" }, { offset: 0.55, color: "rgba(20,22,26,0)" }, { offset: 1, color: "rgba(20,22,26,0.6)" }] });
     g.rect(w / 2 - r, h / 2 - r, r * 2, r * 2).fill(grad);
     const b = this.bars; b.clear(); const bar = Math.round(h * 0.09); b.rect(0, 0, w, bar).rect(0, h - bar, w, bar).fill(0x0b0c0e);
-    this.tilt.start = { x: 0, y: h * 0.4 }; this.tilt.end = { x: w, y: h * 0.62 };
+    this.tilt.start = { x: 0, y: h * 0.3 }; this.tilt.end = { x: w, y: h * 0.72 };
   }
   /** Called every tick with the view, how deep the night is (0..1) and whether effects are on. */
   update(view: View, night: number, effects: boolean, seed: number): void {

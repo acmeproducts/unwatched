@@ -99,30 +99,51 @@ uniform float uTime;
 uniform vec3 uSun;      // where the light in the sky is, in world units, and how strong
 uniform vec3 uColor;    // the water by day
 uniform vec3 uDeep;     // the trough of a wave
+uniform vec3 uAbyss;    // the open sea, far from any shore
+uniform vec3 uShallow;  // the turquoise over the sand
 uniform vec3 uGlint;    // the colour the light leaves on the water
 uniform float uRough;   // 0 calm, 1 storm
 uniform float uNight;   // 0 day, 1 full night
 uniform float uZoom;    // the camera's zoom, so fine detail fades on the map
+uniform vec4 uIsland;   // the island: centre and radii, so the sea knows how far it is from the shore
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p) { return noise(p) * 0.55 + noise(p * 2.1 + 3.7) * 0.3 + noise(p * 4.3 + 9.1) * 0.15; }
+// 1 at the shore, less inside, more out to sea; the same curve the island is drawn with
+float shore(vec2 w) { vec2 q = (w - uIsland.xy) / uIsland.zw; float a = atan(q.y, q.x); float wob = 1.0 + 0.14 * sin(a * 3.0 + 0.7) + 0.08 * cos(a * 5.0 + 2.0); return length(q) / wob; }
 void main(void) {
   vec4 src = texture(uTexture, vTextureCoord);
   if (src.a < 0.01) { finalColor = src; return; }
   vec2 p = vWorld * 0.011;
   float t = uTime;
+  float d = shore(vWorld);
+  float depth = smoothstep(1.02, 1.75, d);          // 0 over the sand, 1 in open water
+  float bank = 1.0 - smoothstep(1.0, 1.14, d);      // the shallows, brightest right at the shore
+  // the swell: two long waves and a grain of noise, slower and longer out at sea
   float w = sin(p.x * 2.2 + t * 0.5 + sin(p.y * 1.4 + t * 0.3)) * 0.5
           + sin(p.y * 3.1 - t * 0.4 + p.x * 0.9) * 0.3
-          + (noise(p * 4.0 + vec2(t * 0.12, -t * 0.09)) - 0.5) * 0.6;
+          + (fbm(p * 3.0 + vec2(t * 0.1, -t * 0.08)) - 0.5) * 0.7;
   float h = clamp(w * 0.5 + 0.5, 0.0, 1.0);
-  vec3 col = mix(mix(uColor, uDeep, 0.35), uColor, smoothstep(0.2, 0.85, h)); // the drawn colour, breathing a little
+  vec3 base = mix(uColor, uAbyss, depth * 0.85);
+  vec3 col = mix(mix(base, uDeep, 0.45 * (1.0 - depth * 0.5)), base, smoothstep(0.2, 0.85, h));
+  // the shallows: turquoise over the sand, with light dancing on the bottom
+  float caustic = pow(fbm(p * 7.0 + vec2(t * 0.25, t * 0.18)), 2.2) * bank;
+  col = mix(col, uShallow, bank * 0.75);
+  col += vec3(0.20, 0.22, 0.18) * caustic * (1.0 - uNight * 0.8);
+  // foam: a broken line where the swell meets the sand, wider and whiter in a blow
+  float edge = 1.0 - smoothstep(1.0, 1.035 + uRough * 0.03, d);
+  float broken = smoothstep(0.35, 0.75, fbm(vec2(atan(vWorld.y - uIsland.y, vWorld.x - uIsland.x) * 14.0, d * 40.0) + vec2(t * 0.35, -t * 0.6)));
+  float foam = edge * broken * (0.55 + 0.45 * sin(t * 0.9 + d * 90.0));
   float crest = smoothstep(0.86, 0.98, h) * uRough * 0.9;
-  col += vec3(crest) * 0.4;
-  vec2 d = vWorld - uSun.xy;
-  float below = step(0.0, d.y);
-  float streak = exp(-abs(d.x) * 0.0045) * exp(-d.y * 0.0007) * below;
-  float sparkle = pow(noise(p * 24.0 + vec2(t * 1.4, -t * 0.9)), 7.0) * clamp(uZoom, 0.15, 1.0);
-  col += uGlint * streak * uSun.z * (0.22 + sparkle * 1.6);
-  col = mix(col, col * vec3(0.30, 0.36, 0.50) + uGlint * streak * uSun.z * 0.15, uNight);
+  col = mix(col, vec3(0.96, 0.95, 0.9), clamp(foam * 0.85 + crest * 0.4, 0.0, 1.0));
+  // the light on the water: a path toward the sun, and sparkles stretched along the swell
+  vec2 dv = vWorld - uSun.xy;
+  float below = step(0.0, dv.y);
+  float streak = exp(-abs(dv.x) * 0.0042) * exp(-dv.y * 0.0007) * below;
+  float sparkle = pow(noise(vec2(p.x * 9.0, p.y * 26.0) + vec2(t * 1.3, -t * 0.8)), 14.0) * clamp(uZoom, 0.15, 1.0);   // short dashes, the way light lies on a swell
+  float glitter = pow(noise(vec2(p.x * 16.0, p.y * 44.0) + vec2(-t * 0.9, t * 1.1)), 20.0) * depth * clamp(uZoom, 0.2, 1.0);
+  col += uGlint * min(0.6, streak * uSun.z * (0.22 + sparkle * 0.9) + glitter * uSun.z * (0.03 + streak * 0.45));
+  col = mix(col, col * vec3(0.30, 0.36, 0.52) + uGlint * streak * uSun.z * 0.15, uNight);
   finalColor = vec4(col, 1.0) * src.a;
 }`;
 
@@ -138,6 +159,9 @@ export class WaterFilter extends Filter {
           uSun: { value: new Float32Array([0, 0, 0]), type: "vec3<f32>" },
           uColor: { value: new Float32Array([0.56, 0.75, 0.76]), type: "vec3<f32>" },
           uDeep: { value: new Float32Array([0.36, 0.58, 0.62]), type: "vec3<f32>" },
+          uAbyss: { value: new Float32Array([0.27, 0.52, 0.62]), type: "vec3<f32>" },
+          uShallow: { value: new Float32Array([0.66, 0.86, 0.85]), type: "vec3<f32>" },
+          uIsland: { value: new Float32Array([0, 0, 1, 1]), type: "vec4<f32>" },
           uGlint: { value: new Float32Array([1.0, 0.93, 0.72]), type: "vec3<f32>" },
           uRough: { value: 0, type: "f32" },
           uNight: { value: 0, type: "f32" },
@@ -150,8 +174,10 @@ export class WaterFilter extends Filter {
     const u = (this.resources as { waterUniforms: { uniforms: Record<string, number | Float32Array> } }).waterUniforms.uniforms;
     if (typeof v === "number") u[name] = v; else (u[name] as Float32Array).set(v);
   }
-  update(o: { time: number; cam: { x: number; y: number; zoom: number }; sun: { x: number; y: number; strength: number }; color: number; deep: number; glint: number; rough: number; night: number }): void {
-    this.set("uTime", o.time); this.set("uCam", [o.cam.x, o.cam.y, o.cam.zoom]); this.set("uSun", [o.sun.x, o.sun.y, o.sun.strength]);
+  /** The island the sea surrounds: centre and radii of its outline, so the shader knows shore from open water. */
+  island(cx: number, cy: number, rx: number, ry: number): void { this.set("uIsland", [cx, cy, rx, ry]); }
+  update(o: { time: number; cam: { x: number; y: number; zoom: number }; sun: { x: number; y: number; strength: number }; color: number; deep: number; abyss?: number; shallow?: number; glint: number; rough: number; night: number }): void {
+    this.set("uTime", o.time); if (o.abyss !== undefined) this.set("uAbyss", rgb(o.abyss)); if (o.shallow !== undefined) this.set("uShallow", rgb(o.shallow)); this.set("uCam", [o.cam.x, o.cam.y, o.cam.zoom]); this.set("uSun", [o.sun.x, o.sun.y, o.sun.strength]);
     this.set("uColor", rgb(o.color)); this.set("uDeep", rgb(o.deep)); this.set("uGlint", rgb(o.glint)); this.set("uRough", o.rough); this.set("uNight", o.night); this.set("uZoom", o.cam.zoom);
   }
 }

@@ -48,10 +48,11 @@ function ribbon(g: Graphics, a: Pt, b: Pt, width: number, color: number, alpha =
 }
 
 export function drawGround(o: TerrainOptions, season: string): Graphics {
-  const { W, H, inside, outline, places, oldTown } = o; const g = new Graphics();
+  const { W, H, cy, inside, outline, places, oldTown } = o; const g = new Graphics();
   const poly = (pts: [number, number][]) => { g.moveTo(pts[0]![0], pts[0]![1]); for (const [x, y] of pts.slice(1)) g.lineTo(x, y); g.closePath(); return g; };
-  // the sea's edge: shallows, then wet sand, then sand
-  poly(outline(1.09)).fill(GROUND.shallow);
+  // the sea's edge: the island's shadow on the water, a see-through shallows ring over the sea's own light, then wet sand and sand
+  const shadowRing = outline(1.0).map(([x, y]) => [x + 8, y + 24] as [number, number]); poly(shadowRing).fill({ color: KELP, alpha: 0.16 });
+  poly(outline(1.09)).fill({ color: GROUND.shallow, alpha: 0.42 });
   poly(outline(1.0)).fill(GROUND.wetSand);
   poly(outline(0.975)).fill(GROUND.sand);
   // how much of each ground is at a point: smooth, so kinds fade into each other over sixty pixels
@@ -101,6 +102,31 @@ export function drawGround(o: TerrainOptions, season: string): Graphics {
   for (let k = 0; k < wrack.length; k += 2) { const n = noise(k / 7, 3.3); if (n < 0.45) continue; const a = wrack[k]!, b = wrack[(k + 2) % wrack.length]!; g.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 2, color: 0x9a9c7a, alpha: 0.35 + (n - 0.45) * 0.6, cap: "round" }); }
   const rocksAt = outline(0.993);
   for (let k = 0; k < rocksAt.length; k += 5) { const n = noise(k / 4 + 11, 7.1); if (n < 0.72) continue; const [x, y] = rocksAt[k]!; const s = 4 + n * 6; g.ellipse(x, y, s, s * 0.55).fill(GROUND.rock).stroke({ width: 1, color: KELP, alpha: 0.5 }); g.ellipse(x - s * 0.3, y - s * 0.2, s * 0.5, s * 0.25).fill({ color: 0xffffff, alpha: 0.25 }); }
+  // the shore has height: where it is not a beach, rock drops from the land's edge to the water on the side that faces us.
+  // The lip wanders, the face is broken into stones of uneven width and tone with a few strata and cracks, and the odd block has fallen to the foot.
+  const beachy = (x: number, y: number) => zones[0]!.ids.some((p) => Math.hypot(p.x - x, (p.y - 30 - y) * 1.6) < 300);
+  const rim = outline(0.985);
+  const lipAt = (k: number) => { const pt = rim[((k % rim.length) + rim.length) % rim.length]!; return [pt[0], pt[1] - 2 + (noise(k / 2.2, 4.4) - 0.5) * 8] as [number, number]; };
+  const hAt = (k: number) => 12 + noise(k / 6, 2.2) * 18 + (noise(k / 1.9, 8.8) - 0.5) * 5;
+  let seed = 0;
+  for (let k = 0; k < rim.length; k++) {
+    const a = lipAt(k), b = lipAt(k + 1); const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    const facing = my > cy + 40; if (!facing || beachy(mx, my)) continue;
+    const hA = hAt(k), hB = hAt(k + 1);
+    // stones of uneven width across the stretch; tone from the noise, so neighbours differ but nothing repeats
+    let t0 = 0; while (t0 < 1) {
+      seed++; const wdt = 0.18 + hash2(seed, 3) * 0.5; const t1 = Math.min(1, t0 + wdt);
+      const x0 = a[0] + (b[0] - a[0]) * t0, y0 = a[1] + (b[1] - a[1]) * t0, x1 = a[0] + (b[0] - a[0]) * t1, y1 = a[1] + (b[1] - a[1]) * t1;
+      const h0 = hA + (hB - hA) * t0, h1 = hA + (hB - hA) * t1; const tone = -0.36 + noise(seed / 1.3, 6.1) * 0.26;
+      g.moveTo(x0, y0).lineTo(x1, y1).lineTo(x1, y1 + h1).lineTo(x0, y0 + h0).closePath().fill(shade(GROUND.rock, tone));
+      if (hash2(seed, 9) > 0.62) g.moveTo(x0, y0 + 1).lineTo(x0 + (hash2(seed, 5) - 0.5) * 4, y0 + h0 - 1).stroke({ width: 1, color: KELP, alpha: 0.22 }); // a crack between stones
+      if (hash2(seed, 13) > 0.5) { const sy = 0.3 + hash2(seed, 17) * 0.5; g.moveTo(x0 + 1, y0 + h0 * sy).lineTo(x1 - 1, y1 + h1 * sy).stroke({ width: 1, color: KELP, alpha: 0.14 }); } // a stratum
+      t0 = t1;
+    }
+    g.moveTo(a[0], a[1] + hA).lineTo(b[0], b[1] + hB).stroke({ width: 1.6, color: KELP, alpha: 0.5 }); // the foot, dark against the water
+    g.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: 1.6, color: shade(GROUND.rock, 0.14), alpha: 0.95 }); // the lip catches the light
+    if (noise(k / 1.7, 11.3) > 0.8) { const r = 3 + noise(k, 1.1) * 3; g.ellipse(mx + 4, my + Math.max(hA, hB) + 2, r, r * 0.55).fill(GROUND.rock).stroke({ width: 1, color: KELP, alpha: 0.5 }); }
+  }
   // where people stand: bare earth at every door and at the junctions
   for (const p of places.values()) { if (p.kind === "plot" || p.kind === "wild") continue; const dr = doorOf(p); g.ellipse(dr.x, dr.y, 62, 24).fill({ color: GROUND.earth, alpha: 0.35 }); g.ellipse(dr.x, dr.y, 40, 15).fill({ color: GROUND.earth, alpha: 0.35 }); }
   return g;

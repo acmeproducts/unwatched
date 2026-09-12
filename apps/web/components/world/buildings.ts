@@ -29,12 +29,21 @@ function gable(g: Graphics, w: number, d: number, h: number, rise: number, color
   poly(g, [P(-eave, d + eave, h), P(w + eave, d + eave, h), P(w + eave, d / 2, h + rise), P(-eave, d / 2, h + rise)], color);      // front slope
   poly(g, [P(w + eave, d + eave, h), P(w + eave, -eave, h), P(w + eave, d / 2, h + rise)], dark);                                  // right gable end
   poly(g, [P(-eave, -eave, h), P(w + eave, -eave, h), P(w + eave, d / 2, h + rise), P(-eave, d / 2, h + rise)], dark, false);         // back slope, hidden mostly
+  lightOn(g, P, w, d, h, [P(-eave, d / 2, h + rise), P(w + eave, d / 2, h + rise), P(w + eave, d / 2 + (d / 2 + eave) * 0.3, h + rise * 0.7), P(-eave, d / 2 + (d / 2 + eave) * 0.3, h + rise * 0.7)]);
+}
+/** The day's light on a roof and the shade it leaves: a pale band below the ridge, a dark band on the walls under the eaves, and the right face a shade cooler. */
+function lightOn(g: Graphics, P: ReturnType<typeof proj>, w: number, d: number, h: number, ridgeBand: Pt[]) {
+  g.moveTo(ridgeBand[0]![0], ridgeBand[0]![1]); for (const p of ridgeBand.slice(1)) g.lineTo(p[0], p[1]); g.closePath().fill({ color: 0xffffff, alpha: 0.14 });
+  const under = 7;
+  g.moveTo(...P(0, d, h)).lineTo(...P(w, d, h)).lineTo(...P(w, d, h - under)).lineTo(...P(0, d, h - under)).closePath().fill({ color: KELP, alpha: 0.13 });
+  g.moveTo(...P(w, d, h)).lineTo(...P(w, 0, h)).lineTo(...P(w, 0, h - under)).lineTo(...P(w, d, h - under)).closePath().fill({ color: KELP, alpha: 0.2 });
 }
 /** A hipped roof: four slopes meeting at a ridge. */
 function hip(g: Graphics, w: number, d: number, h: number, rise: number, color = TEAL, dark = TEAL_DARK, eave = 6) {
   const P = proj(w, d); const r1 = P(w * 0.3, d / 2, h + rise), r2 = P(w * 0.7, d / 2, h + rise);
   poly(g, [P(-eave, d + eave, h), P(w + eave, d + eave, h), r2, r1], color);
   poly(g, [P(w + eave, d + eave, h), P(w + eave, -eave, h), r2], dark);
+  lightOn(g, P, w, d, h, [r1, r2, P(w * 0.7 + (w * 0.3 + eave) * 0.3, d / 2 + (d / 2 + eave) * 0.3, h + rise * 0.7), P(w * 0.3 - (w * 0.3 + eave) * 0.3, d / 2 + (d / 2 + eave) * 0.3, h + rise * 0.7)]);
 }
 /** A door on the left face at position t along it, and windows. */
 function door(g: Graphics, P: ReturnType<typeof proj>, d: number, i: number, h = 20, color = SAGE) { poly(g, [P(i, d, 0), P(i + 12, d, 0), P(i + 12, d, h), P(i, d, h)], color); g.circle(P(i + 10, d, h / 2)[0], P(i + 10, d, h / 2)[1], 1.2).fill(KELP); }
@@ -44,7 +53,13 @@ function chimney(g: Graphics, P: ReturnType<typeof proj>, i: number, j: number, 
 function awning(g: Graphics, P: ReturnType<typeof proj>, d: number, i0: number, i1: number, k: number, out = 14) { const n = Math.max(2, Math.round((i1 - i0) / 10)); for (let s = 0; s < n; s++) { const a = i0 + ((i1 - i0) * s) / n, b = i0 + ((i1 - i0) * (s + 1)) / n; poly(g, [P(a, d, k), P(b, d, k), P(b, d + out, k - 6), P(a, d + out, k - 6)], s % 2 ? CREAM : SAGE); } }
 function sign(g: Graphics, P: ReturnType<typeof proj>, d: number, i: number, k: number, color = CORAL) { const a = P(i, d, k); g.moveTo(a[0], a[1]).lineTo(a[0] + 10, a[1] + 2).stroke(S); g.roundRect(a[0] + 8, a[1] + 1, 10, 8, 2).fill(color).stroke(S); }
 function post(g: Graphics, P: ReturnType<typeof proj>, i: number, j: number, h: number) { const b = P(i, j, 0), t = P(i, j, h); g.moveTo(b[0], b[1]).lineTo(t[0], t[1]).stroke({ width: 3.5, color: WOOD_DARK }); g.moveTo(b[0], b[1]).lineTo(t[0], t[1]).stroke({ width: 1.2, color: KELP, alpha: 0.5 }); }
-function treeBall(g: Graphics, x: number, y: number, r: number, color: number) { g.circle(x, y, r).fill(color).stroke(S); }
+const shadeHex = (c: number, k: number) => { const f = 1 + k; const ch = (sh: number) => Math.max(0, Math.min(255, Math.round(((c >> sh) & 255) * f))); return (ch(16) << 16) | (ch(8) << 8) | ch(0); };
+/** A canopy ball with depth: a darker underside toward the ground, and a lit crescent on the sun's side (upper left, where the island's light comes from by day). */
+function treeBall(g: Graphics, x: number, y: number, r: number, color: number) {
+  g.circle(x, y, r).fill(color).stroke(S);
+  g.moveTo(x - r * 0.92, y + r * 0.38).quadraticCurveTo(x, y + r * 1.02, x + r * 0.92, y + r * 0.38).quadraticCurveTo(x, y + r * 0.55, x - r * 0.92, y + r * 0.38).fill({ color: shadeHex(color, -0.22), alpha: 0.85 });
+  g.moveTo(x - r * 0.72, y - r * 0.28).quadraticCurveTo(x - r * 0.35, y - r * 0.95, x + r * 0.3, y - r * 0.82).quadraticCurveTo(x - r * 0.2, y - r * 0.72, x - r * 0.72, y - r * 0.28).fill({ color: shadeHex(color, 0.16), alpha: 0.9 });
+}
 
 /** The foliage follows the calendar. Set once per season; the world redraws its trees after. */
 export type Season = "winter" | "spring" | "summer" | "autumn";

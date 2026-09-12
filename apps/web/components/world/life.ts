@@ -58,12 +58,12 @@ export class Life {
   private bugs: { x: number; y: number; ph: number; speed: number; color: number; zone: number }[] = [];
   private flies: { x: number; y: number; ph: number; f: number; zone: number }[] = [];
   private bats: { ph: number; roost: number; r: number }[] = [];
-  private boatX: number; private boatY: number; private boatOut = false;
+  private boatX: number; private boatY: number; private boatOut = false; private wake: { x: number; y: number; t: number }[] = []; readonly wakeG = new Graphics();
   private beam = 0;
 
   constructor(private readonly P: LifePlaces, scene: Container) {
     this.air.zIndex = 185000; scene.addChild(this.air);
-    this.boat.zIndex = 0.7; scene.addChild(this.boat);
+    this.boat.zIndex = 0.7; scene.addChild(this.boat); this.wakeG.zIndex = 0.65; scene.addChild(this.wakeG);
     this.flag.zIndex = P.flag.y + 1; scene.addChild(this.flag);
     this.glow.blendMode = "add"; this.cut.blendMode = "erase";
     const r = rnd(4242);
@@ -100,6 +100,9 @@ export class Life {
     { const goOut = day && o.hour > o.rise + 0.3 && o.hour < o.set - 1.4 && !storm && !cold; const to = goOut ? P.spot : P.moor;
       const dx = to.x - this.boatX, dy = to.y - this.boatY, d = Math.hypot(dx, dy); const moving = d > 1.5; if (moving) { const st = Math.min(d, 1.3); this.boatX += (dx / d) * st; this.boatY += (dy / d) * st; }
       this.boatOut = goOut; if (moving && tick % 75 === 0) this.sounds.push({ name: "oars", x: this.boatX, y: this.boatY, level: 0.8 });
+      // the wake: a trail of rings that widen and fade behind the hull, and two lines of foam off the bow while she moves
+      if (moving && tick % 7 === 0) { this.wake.push({ x: this.boatX, y: this.boatY + 3, t: tick }); if (this.wake.length > 18) this.wake.shift(); }
+      if (tick % 2 === 0) { const wg = this.wakeG; wg.clear(); for (const r of this.wake) { const age = (tick - r.t) / 130; if (age > 1) continue; wg.ellipse(r.x, r.y, 6 + age * 26, 2.5 + age * 8).stroke({ width: 1.5, color: 0xf7f6f3, alpha: 0.5 * (1 - age) }); } if (moving) { const dir = dx < 0 ? -1 : 1; wg.moveTo(this.boatX + dir * 16, this.boatY + 2).lineTo(this.boatX - dir * 14, this.boatY + 9).stroke({ width: 2, color: 0xf7f6f3, alpha: 0.35 }); wg.moveTo(this.boatX + dir * 16, this.boatY + 2).lineTo(this.boatX - dir * 12, this.boatY - 4).stroke({ width: 1.5, color: 0xf7f6f3, alpha: 0.25 }); } }
       if (tick % 2 === 0) { const b = this.boat; b.clear(); const bob = Math.sin(tick / 38) * 1.4, dir = dx < 0 ? -1 : 1; b.position.set(this.boatX, this.boatY + bob); b.rotation = Math.sin(tick / 52) * 0.02;
         b.moveTo(-18, -4).lineTo(18, -4).lineTo(13, 4).lineTo(-13, 4).closePath().fill(WOOD_DARK).stroke({ width: 1.2, color: KELP, alpha: 0.8 }); b.moveTo(-16, -5).lineTo(16, -5).stroke({ width: 1.5, color: CREAM, alpha: 0.6 });
         b.moveTo(2, -4).lineTo(2, -34).stroke({ width: 1.6, color: KELP });

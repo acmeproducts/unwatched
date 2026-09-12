@@ -258,6 +258,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
       const night = new Graphics(); night.rect(-3000, -3000, W + 6000, H + 6000).fill(LIGHT.night); night.alpha = 0; world.addChild(night);
       // the GPU's share, behind a switch so the old street and the new can be compared: night the lights cut through, and water that moves
       const lighting = new Lighting(world, W, H); const water = new WaterFilter(); let effectsOn = false;
+      water.island(cx, cy, Rx, Ry);
       const lightArea = new Rectangle(); lighting.dark.filterArea = lightArea; lighting.glow.filterArea = lightArea; // the layers are world-sized; the filter only needs the screen, or retina fills a texture many times larger every frame
       const post = new Post(app); // the picture after the world: the map as a miniature, the night blooming, the cinema's grain and bars
       const sunGrade = new Sky(W, H); world.addChildAt(sunGrade.veil, world.getChildIndex(lighting.glow)); world.addChild(sunGrade.glow, sunGrade.halo); // the cast under the night's layers, the light above them
@@ -494,7 +495,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         perfMark("life");
         cartTick();
         post.update(viewRef.current, night.alpha / 0.42, effectsOn && !nofx.has("post"), tick);
-        if (nofx.size) { lighting.dark.visible = !nofx.has("dark"); lighting.glow.visible = !nofx.has("glow"); clouds.puffs.visible = clouds.shadows.visible = !nofx.has("clouds"); weatherFx.rain.visible = weatherFx.snow.visible = weatherFx.fog.visible = !nofx.has("weather"); if (nofx.has("sky")) sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; }
+        if (nofx.size) { ground.visible = !nofx.has("ground"); scene.visible = !nofx.has("scene"); lighting.dark.visible = !nofx.has("dark"); lighting.glow.visible = !nofx.has("glow"); clouds.puffs.visible = clouds.shadows.visible = !nofx.has("clouds"); weatherFx.rain.visible = weatherFx.snow.visible = weatherFx.fog.visible = !nofx.has("weather"); if (nofx.has("sky")) sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; }
         life.update({ tick, hour, rise, set, night: night.alpha / 0.42, season: forcedSeason ?? c?.season ?? "summer", weather, wind, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, moving: Math.abs(f.tx - f.x) > 1.5 || Math.abs(f.ty - f.y) > 1.5 })), effects: effectsOn });
         for (const snd of life.sounds) ambience.cue(snd.name, Math.hypot(snd.x - cam.x, snd.y - cam.y), snd.x - cam.x, snd.level ?? 1);
         if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn && !nofx.has("water") ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; dusk.visible = !effectsOn; rain.visible = !effectsOn; if (!effectsOn) { sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; } fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }

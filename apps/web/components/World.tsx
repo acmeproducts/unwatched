@@ -180,8 +180,9 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         if (!/^(lamp|fence|field|pier|tree-small|tree-large|bush)$/.test(name)) shadowUnder(x, y, w ?? d.w);
         return c;
       };
-      const nameStyle = new TextStyle({ fontFamily: uiFont(), fontSize: 12, fontWeight: "700", fill: C.drift, letterSpacing: 1.2 });
-      const smallStyle = new TextStyle({ fontFamily: uiFont(), fontSize: 11, fontWeight: "700", fill: C.teal });
+      // a place's name on the ground: ink with a paper edge, so it reads on sand, grass, stone and in the dark alike
+      const nameStyle = new TextStyle({ fontFamily: uiFont(), fontSize: 12, fontWeight: "700", fill: 0x262a30, letterSpacing: 1.4, stroke: { color: 0xf7f6f3, width: 3, join: "round" } });
+      const smallStyle = new TextStyle({ fontFamily: uiFont(), fontSize: 11, fontWeight: "700", fill: 0x1e5a63, stroke: { color: 0xf7f6f3, width: 3, join: "round" } });
       // each place owns its drawn things so it can be redrawn when someone builds on it
       const drawn = new Map<string, Container>();
       const drawPlace = (p: PlaceView) => {

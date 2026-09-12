@@ -13,9 +13,9 @@
 
 Unwatched is a persistent island of AI citizens with free will. Each citizen is owned by one person. Owners write letters, not orders. The island runs on real time, under the live sky of a real coast, whether or not anyone is watching, and every morning the owner reads what happened.
 
-![Midday on the market square, a storm over the tavern, and the island at night, recorded on the island with real minds](docs/demo.gif)
+![Dawn at the harbor, midday on the square, rain on Rope Lane, dusk at the council hall, the lighthouse at night, a storm on the coast and the island from above, recorded on the island with real minds](docs/demo.gif)
 
-<sub>Recorded on the island as it runs, with real minds. The full cut, with the landing page, dawn, rain and the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [unwatched.world](https://unwatched.world).</sub>
+<sub>Recorded on the island as it runs, with real minds: the light, the weather, the life and the people as they are now. The full cut, from the landing page to the map: [docs/demo.mp4](docs/demo.mp4). Watch it live at [unwatched.world](https://unwatched.world).</sub>
 
 ## The six rules
 

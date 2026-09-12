@@ -58,7 +58,7 @@ function lookSvg(hash: string): Promise<string | null> {
   return p;
 }
 
-type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean; /** down to an animal until this tick */ react?: { until: number; ax: number; ay: number }; reactAt?: number };
+type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; /** the place with their bed, if they have one */ home: string | null; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean; /** down to an animal until this tick */ react?: { until: number; ax: number; ay: number }; reactAt?: number };
 
 export function World({ mineId, onSelect, view, effects = true }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema"; effects?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
@@ -309,9 +309,9 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           scene.addChild(g);
           const seat = seatOf.current.get(a.location) ?? 0; seatOf.current.set(a.location, (seat + 1) % 10);
           const sp = spot(a.location, seat);
-          f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1, weak: !!a.weak, bench: false };
+          f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, home: a.home ?? null, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1, weak: !!a.weak, bench: false };
           figs.current.set(a.id, f);
-        } else { f.asleep = a.asleep; f.weak = !!a.weak; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); f.rig.trade(a.job); f.rig.hold(a.carrying ?? null); f.rig.age(a.age); if (a.location !== f.place) moveTo(a.id, a.location); }
+        } else { f.asleep = a.asleep; f.home = a.home ?? null; f.weak = !!a.weak; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); f.rig.trade(a.job); f.rig.hold(a.carrying ?? null); f.rig.age(a.age); if (a.location !== f.place) moveTo(a.id, a.location); }
         // someone idle where there is a bench takes it
         if (!f.asleep && f.pose === "idle" && !f.bench) { const b = benchAt(f.place); if (b && !takenBenches.has(b.key)) { takenBenches.add(b.key); f.bench = true; f.tx = b.x; f.ty = b.y; } }
         return f;
@@ -526,6 +526,9 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           if (dist > 0.01) { f.x += (dx / dist) * step; f.y += (dy / dist) * step; }
           if (f.boarding) { f.tx = boat.position.x + 12; f.ty = boat.position.y - 2; if (dist < 4) { scene.removeChild(f.g); f.g.position.set(-20 + aboard.length * 16, -14); f.g.scale.set(0.9); f.rig.setPose("idle"); f.rig.face(-1); boat.addChild(f.g); aboard.push(f.g); figs.current.delete(f.id); continue; } }
           f.g.position.set(f.x, f.y);
+          // asleep in a bed of their own, or at the inn or the boat shed, they are indoors and out of sight; asleep anywhere else they sleep rough, in the open, for everyone to see
+          const indoors = f.asleep && !moving && (f.home === f.place || f.place === "inn" || f.place === "boatshed");
+          f.g.visible = !indoors; if (indoors) continue;
           if (moving) f.facing = dx < 0 ? -1 : 1;
           const b = bubbles.current.get(f.id); if (b && b.until < now) bubbles.current.delete(f.id);
           // which way they face: toward you or away when the walk is mostly down or up the map, else side on

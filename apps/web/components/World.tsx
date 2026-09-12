@@ -9,6 +9,7 @@ import { drawThing, drawStock, drawCart, drawSign, setSeason } from "./world/bui
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
 import { Lighting, WaterFilter, Weather, Clouds, Sky, mix, type LightSource } from "./world/fx";
 import { Life, type Critter } from "./world/life";
+import { drawGround, drawRoads, segmentsOf, Wear } from "./world/terrain";
 import { Interior, type InteriorPerson } from "./Interior";
 import { Portrait } from "./Portrait";
 
@@ -122,41 +123,14 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
       const ISLETS: [number, number, number, number][] = [[cx + Rx * 0.95, cy - Ry * 1.1, 190, 34], [cx - Rx * 0.9, cy - Ry * 1.12, 150, 28], [cx - Rx * 1.1, cy + Ry * 0.75, 200, 36], [cx + Rx * 1.12, cy + Ry * 0.6, 130, 26], [cx + Rx * 0.35, cy - Ry * 1.2, 110, 22]];
       for (const [ix, iy, iw, ih] of ISLETS) { horizon.ellipse(ix, iy + 2, iw * 1.12, ih * 0.7).fill({ color: C.shallow, alpha: 0.9 }); horizon.moveTo(ix - iw, iy).quadraticCurveTo(ix - iw * 0.5, iy - ih, ix - iw * 0.1, iy - ih * 0.6).quadraticCurveTo(ix + iw * 0.3, iy - ih * 1.1, ix + iw, iy).closePath().fill(0xa9bfb8); horizon.moveTo(ix - iw * 0.6, iy - 2).quadraticCurveTo(ix - iw * 0.2, iy - ih * 0.8, ix + iw * 0.2, iy - 4).stroke({ width: 1.2, color: C.kelp, alpha: 0.18 }); }
       const celestial = new Graphics(); world.addChild(celestial);
-      const ground = new Graphics();
-      poly(ground, outline(1.09)).fill(C.shallow);
-      poly(ground, outline(1.0)).fill(C.wetSand);
-      poly(ground, outline(0.975)).fill(C.sand);
       const gather = (p: PlaceView) => ({ x: p.x - 110, y: p.y + 40, w: 220 });
-      const near = (x: number, y: number, ids: string[], radius: number) => ids.some((id) => { const p = places.get(id); return !!p && Math.hypot(p.x - x, (p.y - 30 - y) * 1.6) < radius; });
       const OLD_TOWN = ["market", "lane", "council", "chapel", "bakery", "smithy", "tavern", "chandlery"];
-      const segs: { ax: number; ay: number; bx: number; by: number; cobbled: boolean }[] = []; const roads = new Set<string>();
-      for (const p of places.values()) for (const e of p.exits) { const q = places.get(e); if (!q) continue; const k = [p.id, q.id].sort().join("|"); if (roads.has(k)) continue; roads.add(k); const A = gather(p), B = gather(q); segs.push({ ax: A.x + A.w / 2, ay: A.y, bx: B.x + B.w / 2, by: B.y, cobbled: OLD_TOWN.includes(p.id) && OLD_TOWN.includes(q.id) }); }
-      const TW = 64, TH = 32; const FOREST = GROUND.forest, ROCK = GROUND.rock, FIELD = GROUND.field;
-      const shade = (color: number, k: number) => { const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255; const f = 1 + k; return (Math.min(255, Math.round(r * f)) << 16) | (Math.min(255, Math.round(g * f)) << 8) | Math.min(255, Math.round(b * f)); };
-      const hash = (i: number, j: number) => ((i * 73856093) ^ (j * 19349663)) >>> 0;
-      // the ground is isometric tiles with no grid lines: three lightnesses of each ground, so it reads as texture, not as a grid
-      for (let j = -12; j < (H / TH) * 2 + 12; j++) for (let i = -6; i < W / TW + 6; i++) {
-        const x = i * TW + (j % 2 ? TW / 2 : 0), y = j * (TH / 2);
-        const d = inside(x, y); if (d > 0.965) continue;
-        let color = C.grass; let kind = "grass";
-        if (d > 0.9 || near(x, y, ["harbor", "cove", "coast", "boatshed"], 200)) { color = C.sand; kind = "sand"; }
-        else if (near(x, y, ["pinewood", "sawpit", "wood-1"], 300)) { color = FOREST; kind = "forest"; }
-        else if (near(x, y, ["quarry", "lighthouse"], 230)) { color = ROCK; kind = "rock"; }
-        else if (near(x, y, ["fields", "orchard"], 240)) { color = FIELD; kind = "field"; }
-        else if (near(x, y, OLD_TOWN, 260)) { color = C.cobble; kind = "cobble"; }
-        const h = hash(i, j); const patch = hash(i >> 1, j >> 2); const tone = shade(color, ((patch % 3) - 1) * 0.014);
-        ground.moveTo(x, y - TH / 2).lineTo(x + TW / 2, y).lineTo(x, y + TH / 2).lineTo(x - TW / 2, y).closePath().fill(tone);
-        if (kind === "field" && (i + j) % 2 === 0) ground.moveTo(x - 22, y - 2).lineTo(x + 22, y - 2).stroke({ width: 1.5, color: 0xb2c6a3, alpha: 0.9 });
-        if (kind === "forest" && h % 5 === 0) ground.circle(x + (h % 11) - 5, y + (h % 7) - 3, 4).fill({ color: 0x9fbfa8, alpha: 0.8 });
-        if (kind === "cobble") for (let k = 0; k < 3; k++) { const hh = hash(i + k * 17, j + k * 31); ground.ellipse(x - 18 + (hh % 36), y - 8 + ((hh >> 8) % 16), 3.2, 2).fill({ color: C.kelp, alpha: 0.07 }); }
-        if (kind === "grass" && h % 9 === 0) { const gx = x - 10 + (h % 20), gy = y - 4 + ((h >> 6) % 8); ground.moveTo(gx, gy).lineTo(gx + 2, gy - 6).moveTo(gx + 4, gy).lineTo(gx + 5, gy - 5).stroke({ width: 1.2, color: 0xa9c4a4, alpha: 0.9 }); }
-        if (kind === "rock" && h % 7 === 0) ground.ellipse(x - 8 + (h % 16), y, 6, 3).fill({ color: C.drift, alpha: 0.18 });
-      }
-      // roads: packed earth between places, cobbles in the old town, drawn as one ribbon each with a darker edge
-      for (const sg of segs) { ground.moveTo(sg.ax, sg.ay).lineTo(sg.bx, sg.by).stroke({ width: 32, color: sg.cobbled ? 0xd3cbb8 : C.earthEdge, cap: "round", join: "round" }); }
-      for (const sg of segs) { ground.moveTo(sg.ax, sg.ay).lineTo(sg.bx, sg.by).stroke({ width: 26, color: sg.cobbled ? C.cobble : C.earth, cap: "round", join: "round" }); }
-      for (const sg of segs) { if (sg.cobbled) continue; const dx = sg.bx - sg.ax, dy = sg.by - sg.ay, L = Math.hypot(dx, dy) || 1; const nx = -dy / L * 5, ny = dx / L * 5; for (const sgn of [-1, 1]) ground.moveTo(sg.ax + nx * sgn, sg.ay + ny * sgn).lineTo(sg.bx + nx * sgn, sg.by + ny * sgn).stroke({ width: 1.5, color: C.earthEdge, alpha: 0.5 }); }
-      world.addChild(ground);
+      const seasonNow = forcedSeason ?? clockRef.current?.season ?? townView.season ?? "summer";
+      // the ground: kinds blended where they meet, tufts and stones and flowers, contours on the hill, a wrack line on the shore
+      const ground = drawGround({ W, H, cx, cy, inside, outline, places, oldTown: OLD_TOWN }, seasonNow); world.addChild(ground);
+      // roads: an edge, a centre, cobbles in courses in the old town; and over them the wear, pale where feet actually go
+      const segs = segmentsOf(places, OLD_TOWN); world.addChild(drawRoads(segs));
+      const wear = new Wear(segs, (sg) => { const [a, b] = sg.key.split("|"); const hub = (id?: string) => id === "market" || id === "harbor" || id === "lane"; return (hub(a) ? 30 : 0) + (hub(b) ? 30 : 0) + (sg.cobbled ? 20 : 6); }); world.addChild(wear);
       // the water's edge, alive: foam that breathes along the shore, whitecaps in wind and storm, rings where the rain hits
       const shoreLine = outline(1.012), shoreOut = outline(1.05); const foam = new Graphics(); world.addChild(foam);
       const seaLife = new Graphics(); world.addChild(seaLife);
@@ -171,8 +145,17 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
       // everything standing on the ground is drawn in code, in one projection, at its natural size; props may be scaled
       const shadows = new Graphics(); shadows.zIndex = 0.5; scene.addChild(shadows);
       const shadowSpecs: { x: number; y: number; w: number }[] = [];
-      // shadows sit under things at noon and stretch away from a low sun: west in the morning, east in the evening, and warmer
-      const redrawShadows = (stretch: number, dir: number) => { shadows.clear(); for (const sp of shadowSpecs) shadows.ellipse(sp.x + sp.w * 0.12 + dir * stretch * sp.w * 0.35, sp.y + 4, sp.w * 0.5 * (1 + stretch * 0.9), Math.max(6, sp.w * 0.16)).fill({ color: stretch > 0.05 ? LIGHT.lowSunShadow : C.kelp, alpha: 0.09 + stretch * 0.05 }); };
+      // shadows sit under things at noon and lean away from the sun: long to the west in the morning, long to the east in the evening, warm when the sun is low.
+      // Each is a pool at the foot and a cast from the walls, so buildings and trees read as standing in one light.
+      const redrawShadows = (elev: number, dir: number, low: number) => {
+        shadows.clear(); const L = 0.12 + Math.pow(1 - elev, 2) * 0.9; const color = low > 0.05 ? LIGHT.lowSunShadow : C.kelp; const a = 0.08 + low * 0.05;
+        for (const sp of shadowSpecs) {
+          const rx = sp.w * 0.5, ry = Math.max(6, sp.w * 0.16), bx = sp.x + sp.w * 0.12, by = sp.y + 4; const len = sp.w * L * 0.7;
+          shadows.moveTo(bx - rx * 0.75, by).lineTo(bx + rx * 0.75, by).lineTo(bx + rx * 0.75 + dir * len, by - len * 0.22).lineTo(bx - rx * 0.75 + dir * len, by - len * 0.22).closePath().fill({ color, alpha: a * 0.8 });
+          shadows.ellipse(bx + dir * len, by - len * 0.22, rx * 0.75, ry * 0.8).fill({ color, alpha: a * 0.8 });
+          shadows.ellipse(bx, by, rx, ry).fill({ color, alpha: a });
+        }
+      };
       const shadowUnder = (x: number, y: number, w: number) => { if (w < 30) return; shadowSpecs.push({ x, y, w }); shadows.ellipse(x + w * 0.12, y + 4, w * 0.5, Math.max(6, w * 0.16)).fill({ color: C.kelp, alpha: 0.09 }); };
       const put = (name: string, x: number, y: number, w?: number, flip = false) => {
         const d = drawThing(name); if (!d) return null;
@@ -349,7 +332,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         if (!f.asleep && f.pose === "idle" && !f.bench) { const b = benchAt(f.place); if (b && !takenBenches.has(b.key)) { takenBenches.add(b.key); f.bench = true; f.tx = b.x; f.ty = b.y; } }
         return f;
       };
-      const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; if (f.bench) { f.bench = false; for (const k of takenBenches) { const b = decor[Number(k.split(":")[0])]; if (b && Math.abs(b.x + Number(k.split(":")[1]) - f.tx) < 1 && Math.abs(b.y + 4 - f.ty) < 1) takenBenches.delete(k); } } const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
+      const moveTo = (id: string, place: string) => { const f = figs.current.get(id); if (!f) return; if (f.bench) { f.bench = false; for (const k of takenBenches) { const b = decor[Number(k.split(":")[0])]; if (b && Math.abs(b.x + Number(k.split(":")[1]) - f.tx) < 1 && Math.abs(b.y + 4 - f.ty) < 1) takenBenches.delete(k); } } const seat = seatOf.current.get(place) ?? 0; seatOf.current.set(place, (seat + 1) % 10); const sp = spot(place, seat); if (f.place && f.place !== place) wear.step(f.place, place); f.tx = sp.x; f.ty = sp.y; f.place = place; const a = agents.current.get(id); if (a) { a.location = place; a.place = places.get(place)?.name ?? place; } };
       const refreshPlaces = async () => { try { const t = (await (await fetch(`${API}/api/town`, { cache: "no-store" })).json()) as TownView; for (const p of t.places) { const old = places.get(p.id); places.set(p.id, p); if (!old || old.kind !== p.kind || old.name !== p.name || JSON.stringify(old.site) !== JSON.stringify(p.site) || JSON.stringify(old.stock) !== JSON.stringify(p.stock)) drawPlace(p); } } catch {} };
 
       poll = setInterval(() => { void fetch(`${API}/api/agents`, { cache: "no-store" }).then((r) => r.json()).then((list: PublicAgent[]) => { for (const a of list) ensure(a); }).catch(() => {}); void refreshPlaces(); }, 30000);
@@ -482,6 +465,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           prints_.clear(); for (const pr of prints) { const ageT = (tick - pr.at) / 900; if (ageT > 1) continue; prints_.ellipse(pr.x, pr.y, 3, 1.6).fill({ color: C.kelp, alpha: 0.18 * (1 - ageT) * snowiness }); }
         }
         if (tick % 60 === 0 && c && setSeason(forcedSeason ?? c.season)) { plantTrees(); }
+        if (tick % 120 === 0) wear.redraw();
         if (tick % 60 === 0) ground.tint = SEASON_CAST[forcedSeason ?? c?.season ?? "summer"] ?? 0xffffff;
         // the short season: the fields turn to lavender
         if (tick % 60 === 0) { const bloom = !!c?.inSeason?.includes("lavender"); if (bloom !== lavender.visible) { lavender.visible = bloom; } }
@@ -529,7 +513,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         }
         // long shadows near sunrise and sunset
         const lowSun = Math.max(0, 1 - Math.min(Math.abs(hour - rise), Math.abs(hour - set)) / 1.5) * (night.alpha < 0.3 ? 1 : 0);
-        if (tick % 10 === 0) redrawShadows(lowSun, hour < 12 ? -1 : 1);
+        if (tick % 10 === 0) { const f = Math.max(0, Math.min(1, (hour - rise) / Math.max(1, set - rise))); const up = hour > rise && hour < set; redrawShadows(up ? Math.sin(Math.PI * f) : 0.55, up ? (f < 0.5 ? -1 : 1) : 1, lowSun); }
         // the sun: up in the east over the far islands, over the top at noon, down in the west; on the sea beneath it, its light
         if (tick % 4 === 0) { celestial.clear(); const up = hour > rise && hour < set; if (up) { const f = (hour - rise) / Math.max(1, set - rise); const ang = Math.PI * (1 - f); const sx = cx - Rx * 1.05 * Math.cos(ang), sy = cy - Ry * 1.05 - Ry * 0.16 * Math.abs(Math.sin(ang)) - 30; const warm = f < 0.12 || f > 0.88; celestial.circle(sx, sy, 34).fill({ color: warm ? 0xf4b183 : 0xfff0b0, alpha: 0.95 }); celestial.circle(sx, sy, 60).fill({ color: warm ? 0xf4b183 : 0xfff0b0, alpha: 0.12 }); for (let i = 0; i < 6; i++) { const yy = sy + 70 + i * 30; if (inside(sx, yy) < 1.1) break; celestial.moveTo(sx - 16 + Math.sin(tick / 30 + i) * 6, yy).lineTo(sx + 16 + Math.sin(tick / 30 + i) * 6, yy).stroke({ width: 2.5, color: 0xfff0b0, alpha: 0.28 - i * 0.04, cap: "round" }); } } }
         // the sky over the water: stars come out with the dark, the moon keeps the calendar's phase, both lie on the sea

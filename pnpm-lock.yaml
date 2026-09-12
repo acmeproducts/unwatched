@@ -48,6 +48,12 @@ importers:
 
   apps/server:
     dependencies:
+      '@hono/node-server':
+        specifier: ^2.1.0
+        version: 2.1.1(hono@4.13.7)
+      '@supabase/supabase-js':
+        specifier: ^2.60.0
+        version: 2.116.0
       '@unwatched/cognition':
         specifier: workspace:*
         version: link:../../packages/cognition
@@ -60,12 +66,6 @@ importers:
       '@unwatched/store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@hono/node-server':
-        specifier: ^2.1.0
-        version: 2.1.1(hono@4.13.7)
-      '@supabase/supabase-js':
-        specifier: ^2.60.0
-        version: 2.116.0
       hono:
         specifier: ^4.13.0
         version: 4.13.7
@@ -94,18 +94,21 @@ importers:
 
   apps/web:
     dependencies:
-      '@unwatched/protocol':
-        specifier: workspace:*
-        version: link:../../packages/protocol
       '@supabase/ssr':
         specifier: ^0.12.0
         version: 0.12.7(@supabase/supabase-js@2.116.0)
       '@supabase/supabase-js':
         specifier: ^2.60.0
         version: 2.116.0
+      '@unwatched/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       next:
         specifier: ^16.3.0
         version: 16.3.4(@types/node@22.20.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      pixi-filters:
+        specifier: ^6.1.5
+        version: 6.1.5(pixi.js@8.20.1)
       pixi.js:
         specifier: ^8.20.0
         version: 8.20.1
@@ -222,15 +225,15 @@ importers:
 
   packages/store:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.60.0
+        version: 2.116.0
       '@unwatched/engine':
         specifier: workspace:*
         version: link:../engine
       '@unwatched/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@supabase/supabase-js':
-        specifier: ^2.60.0
-        version: 2.116.0
     devDependencies:
       '@types/node':
         specifier: ^22.15.0
@@ -1020,6 +1023,9 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
+  '@types/gradient-parser@0.1.5':
+    resolution: {integrity: sha512-r7K3NkJz3A95WkVVmjs0NcchhHstC2C/VIYNX4JC6tieviUNo774FFeOHjThr3Vw/WCeMP9kAT77MKbIRlO/4w==}
+
   '@types/node@22.20.2':
     resolution: {integrity: sha512-xlvWf4Vs9n1PEVYwP1n4vvG07M6y8WgvJ2t0vbrWTmijsIHp1cS+uJ2kMIRdY3nHZK0nCYKrPeD171+SzF4/zw==}
 
@@ -1431,6 +1437,11 @@ packages:
   picomatch@4.0.7:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
+
+  pixi-filters@6.1.5:
+    resolution: {integrity: sha512-Ewb/J+kxAbaNN+0/ATJbglAJG+skGJfh7BIDP3ILIDdD6wWk1p0pGa25pVf1T8hGBOQSUNVAmwwJBwkj+cyLLA==}
+    peerDependencies:
+      pixi.js: '>=8.0.0-0'
 
   pixi.js@8.20.1:
     resolution: {integrity: sha512-akLVBMLvQbaEViqsmVraK0Njer1q4Q4lm4iNKuzvBiFrV8q+6/+HluJN3sWIwO663IBeQtUUS/CaXFJZs6ffXQ==}
@@ -2203,6 +2214,8 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
+  '@types/gradient-parser@0.1.5': {}
+
   '@types/node@22.20.2':
     dependencies:
       undici-types: 6.21.0
@@ -2565,6 +2578,11 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  pixi-filters@6.1.5(pixi.js@8.20.1):
+    dependencies:
+      '@types/gradient-parser': 0.1.5
+      pixi.js: 8.20.1
 
   pixi.js@8.20.1:
     dependencies:

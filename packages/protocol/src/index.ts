@@ -28,8 +28,17 @@ export const Persona = z.object({
     honesty: z.number().min(0).max(1),
     ambition: z.number().min(0).max(1),
   }),
+  /** The depth a person has beyond the sheet: how they talk, a habit, a skill, a flaw, why they came. Written once by the town's mind when missing. */
+  voice: z.array(z.string().max(160)).max(3).optional().describe("Two or three lines the way this person actually talks"),
+  habit: z.string().max(160).optional().describe("A tic or a habit others notice"),
+  skill: z.string().max(120).optional().describe("One thing they are genuinely good at"),
+  flaw: z.string().max(160).optional().describe("The thing that costs them"),
+  cameBecause: z.string().max(200).optional().describe("Why they came to the island, in a sentence"),
 });
 export type Persona = z.infer<typeof Persona>;
+/** What the town's mind answers when asked to deepen a person. */
+export const PersonaDepth = z.object({ voice: z.array(z.string().max(160)).min(2).max(3), habit: z.string().max(160), skill: z.string().max(120), flaw: z.string().max(160), cameBecause: z.string().max(200) });
+export type PersonaDepth = z.infer<typeof PersonaDepth>;
 
 /** The action kinds the town can carry out. Nothing else exists. */
 export const ActionKind = z.enum([

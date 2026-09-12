@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement } from "@unwatched/protocol";
+import { ActionProposal, Dialogue, Paper, Reflection, type Perception, DayPlan, DigestText, Persona, LifeText, Judgement, PersonaDepth } from "@unwatched/protocol";
 import type { AgentState, Brain, ConverseContext, PaperContext, ReflectContext, Tier, PlanContext, DigestContext, ChildContext, LifeContext, JudgeContext } from "@unwatched/engine";
 import { MockBrain } from "./mock.ts";
-import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, judgeSystem, judgePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt } from "./prompts.ts";
+import { WORLD, personaBlock, decidePrompt, conversePrompt, reflectPrompt, paperSystem, paperPrompt, lifeSystem, lifePrompt, judgeSystem, judgePrompt, planPrompt, digestSystem, digestPrompt, childSystem, childPrompt, depthSystem, depthPrompt } from "./prompts.ts";
 
 export interface OpenRouterBrainOptions {
   apiKey?: string;
@@ -49,7 +49,7 @@ export class OpenRouterBrain implements Brain {
   private async call<T>(model: string, system: { shared: string; own?: string }, user: string, schema: z.ZodType<T>, name: string, maxTokens: number): Promise<T | null> {
     // Providers behind OpenRouter accept a subset of JSON Schema: no regex patterns, no defaults, anyOf not oneOf.
     // The schema goes in the request as a strict format and in the system prompt as belt and braces.
-    const jsonSchema = cleanSchema(z.toJSONSchema(schema));
+    const jsonSchema = wantsStrict(model) ? strictSchema(cleanSchema(z.toJSONSchema(schema))) : cleanSchema(z.toJSONSchema(schema));
     const body = {
       model,
       max_tokens: maxTokens,
@@ -69,12 +69,12 @@ export class OpenRouterBrain implements Brain {
         body: JSON.stringify(body),
       });
       if (res.status === 429 || res.status >= 500) { this.log(`openrouter ${res.status}; ${attempt === 0 ? "retrying" : "falling back"}`); if (attempt === 1) this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); await new Promise((r) => setTimeout(r, 1500)); continue; }
-      if (!res.ok) { const msg = (await res.text()).slice(0, 200); this.log(`openrouter ${res.status}: ${msg}`); this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); return null; }
+      if (!res.ok) { const msg = (await res.text()).slice(0, 600); this.log(`openrouter ${res.status}: ${msg}`); this.onFallback?.({ what: name, model, reason: `openrouter ${res.status}` }); return null; }
       const data = await res.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
       this.spent.calls++; this.spent.prompt += data.usage?.prompt_tokens ?? 0; this.spent.completion += data.usage?.completion_tokens ?? 0; this.cached += data.usage?.prompt_tokens_details?.cached_tokens ?? 0;
       const text = data.choices?.[0]?.message?.content ?? "";
       try {
-        const parsed = schema.safeParse(JSON.parse(text.trim().replace(/^```json\s*|```$/g, "")));
+        const raw = JSON.parse(text.trim().replace(/^```json\s*|```$/g, "")); const parsed = schema.safeParse(wantsStrict(model) ? stripNulls(raw) : raw);
         if (parsed.success) return parsed.data;
         this.log(`schema mismatch from ${model}: ${parsed.error.issues[0]?.message ?? "?"} at ${parsed.error.issues[0]?.path.join(".") || "root"}; got ${text.slice(0, 160)}`);
         if (attempt === 1) this.onFallback?.({ what: name, model, reason: `schema: ${parsed.error.issues[0]?.message ?? "?"}` });
@@ -99,6 +99,8 @@ export class OpenRouterBrain implements Brain {
     const mm = this.m(ctx.agent); const out = await this.call(tier >= 2 ? mm.stakes : mm.routine, { shared: WORLD, own: personaBlock(ctx.agent) }, planPrompt(ctx), DayPlan, "day_plan", 1200);
     return out ?? this.fallback.plan(ctx, tier);
   }
+  /** The depth a person has beyond the sheet, written once by the strongest mind and kept with them. */
+  async enrich(p: Persona, island: string): Promise<PersonaDepth | null> { return this.call(this.reflectModel, { shared: depthSystem }, depthPrompt(p, island), PersonaDepth, "persona_depth", 900); }
   async digest(ctx: DigestContext): Promise<DigestText> {
     const out = await this.call(this.stakes, { shared: digestSystem }, digestPrompt(ctx), DigestText, "digest", 700); // the owner's reading is the product: the middle mind writes it
     return out ?? this.fallback.digest(ctx);
@@ -133,3 +135,27 @@ function cleanSchema(x: unknown): unknown {
   }
   return x;
 }
+/**
+ * OpenAI's strict mode wants every property listed as required, every object closed, and no bounds: an optional field becomes
+ * nullable and required, and the nulls are stripped again before the answer meets the zod schema (see stripNulls).
+ */
+function strictSchema(x: unknown): unknown {
+  if (Array.isArray(x)) return x.map(strictSchema);
+  if (x && typeof x === "object") {
+    const src = x as Record<string, unknown>; const o: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(src)) { if (["minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "exclusiveMinimum", "exclusiveMaximum", "format"].includes(k)) continue; o[k] = strictSchema(v); }
+    if (o.type === "object" && o.properties && typeof o.properties === "object") {
+      const props = o.properties as Record<string, unknown>; const required = new Set((o.required as string[] | undefined) ?? []);
+      for (const name of Object.keys(props)) if (!required.has(name)) props[name] = { anyOf: [props[name], { type: "null" }] };
+      o.required = Object.keys(props); o.additionalProperties = false;
+    }
+    return o;
+  }
+  return x;
+}
+function stripNulls(x: unknown): unknown {
+  if (Array.isArray(x)) return x.map(stripNulls);
+  if (x && typeof x === "object") { const o: Record<string, unknown> = {}; for (const [k, v] of Object.entries(x as Record<string, unknown>)) if (v !== null) o[k] = stripNulls(v); return o; }
+  return x;
+}
+const wantsStrict = (model: string) => model.startsWith("openai/") || model.startsWith("~openai/");

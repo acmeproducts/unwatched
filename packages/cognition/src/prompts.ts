@@ -35,7 +35,7 @@ You fear: ${p.fear}
 A secret nobody on the island knows: ${p.secret}
 With strangers you are: ${p.strangers}
 When advised you: ${p.advice}
-Temperament (0 to 1): warmth ${p.traits.warmth.toFixed(2)}, pride ${p.traits.pride.toFixed(2)}, caution ${p.traits.caution.toFixed(2)}, honesty ${p.traits.honesty.toFixed(2)}, ambition ${p.traits.ambition.toFixed(2)}.
+Temperament (0 to 1): warmth ${p.traits.warmth.toFixed(2)}, pride ${p.traits.pride.toFixed(2)}, caution ${p.traits.caution.toFixed(2)}, honesty ${p.traits.honesty.toFixed(2)}, ambition ${p.traits.ambition.toFixed(2)}.${p.cameBecause ? `\nWhy you came: ${p.cameBecause}` : ""}${p.skill ? `\nWhat you are good at: ${p.skill}` : ""}${p.flaw ? `\nWhat costs you: ${p.flaw}` : ""}${p.habit ? `\nA habit others notice: ${p.habit}` : ""}${p.voice?.length ? `\nThe way you talk, for example: ${p.voice.map((v) => `"${v}"`).join(" ")}` : ""}
 You came to the island on day ${Math.floor(a.arrivedAt / 1440) + 1}.`;
 }
 
@@ -123,6 +123,10 @@ ${ctx.intentions.length ? `What they mean to do next: ${ctx.intentions.join("; "
 What they want: ${ctx.agent.persona.want} What they fear: ${ctx.agent.persona.fear}`;
 }
 
+export const depthSystem = `You give a person depth for Unwatched, a small island harbor town where citizens live real days. From a short sheet about them, write what a good novelist would know and the sheet does not: two or three lines the way this person actually talks (plain, in first person, each a different mood, no exclamation marks, no quotation marks inside), a habit others notice, one thing they are genuinely good at, the flaw that costs them, and why they came to the island in one sentence. Everything must fit the sheet and contradict nothing in it. Specific, ordinary, human; nothing quaint or performed. Answer with JSON only.`;
+export function depthPrompt(p: { name: string; age: number; origin: string; summary: string; want: string; fear: string; secret: string; strangers: string; advice: string; traits: Record<string, number> }, island: string): string {
+  return `${p.name}, ${p.age}, from ${p.origin}. ${p.summary}\nWants: ${p.want}\nFears: ${p.fear}\nA secret nobody knows: ${p.secret}\nWith strangers: ${p.strangers}\nWhen advised: ${p.advice}\nTemperament: ${Object.entries(p.traits).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(", ")}.\nThe island: ${island}`;
+}
 export const childSystem = `You name and describe a child born on the island of Unwatched, who will grow up there and step into the town as a young adult. Write the person they will be at sixteen: shaped by their parents, not a copy of either. A first name that fits the family and the island, the family name of one parent. One sentence of who they are, a want, a fear, a secret nobody will know, how they treat strangers, how they take advice, and five temperament numbers between 0 and 1. Set age to 16. Set origin to "born on the island". Answer with JSON only.`;
 export function childPrompt(ctx: ChildContext): string {
   return `Born on day ${ctx.day} at ${ctx.home}.${ctx.siblings.length ? ` Older siblings: ${ctx.siblings.join(", ")}.` : ""}

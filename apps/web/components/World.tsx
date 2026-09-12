@@ -58,7 +58,7 @@ function lookSvg(hash: string): Promise<string | null> {
   return p;
 }
 
-type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; /** the place with their bed, if they have one */ home: string | null; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean; /** down to an animal until this tick */ react?: { until: number; ax: number; ay: number }; reactAt?: number };
+type Fig = { id: string; g: Container; rig: Citizen; x: number; y: number; tx: number; ty: number; place: string; asleep: boolean; /** the place with their bed, if they have one */ home: string | null; mine: boolean; name: string; pose: Pose; facing: 1 | -1; weak: boolean; bench: boolean; boarding?: boolean; /** down to an animal until this tick */ react?: { until: number; ax: number; ay: number }; reactAt?: number; /** a short thing they are doing, from the record: a letter read, a meal, a greeting, an argument */ moment?: { pose: Pose; until: number; mood?: { anger?: number; surprise?: number; joy?: number } } };
 
 export function World({ mineId, onSelect, view, effects = true }: { mineId: string | null; onSelect: (a: PublicAgent | null) => void; view: "street" | "map" | "cinema"; effects?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
@@ -311,7 +311,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           const sp = spot(a.location, seat);
           f = { id: a.id, g, rig, x: sp.x, y: sp.y, tx: sp.x, ty: sp.y, place: a.location, asleep: a.asleep, home: a.home ?? null, mine: a.id === mineId, name: a.name, pose: a.pose ?? (a.asleep ? "sleep" : "idle"), facing: 1, weak: !!a.weak, bench: false };
           figs.current.set(a.id, f);
-        } else { f.asleep = a.asleep; f.home = a.home ?? null; f.weak = !!a.weak; f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); f.rig.trade(a.job); f.rig.hold(a.carrying ?? null); f.rig.age(a.age); if (a.location !== f.place) moveTo(a.id, a.location); }
+        } else { f.asleep = a.asleep; f.home = a.home ?? null; f.weak = !!a.weak; f.rig.wear({ broke: !!a.broke, roof: !!a.roof }); f.pose = a.pose ?? (a.asleep ? "sleep" : "idle"); f.rig.trade(a.job); f.rig.hold(a.carrying ?? null); f.rig.age(a.age); if (a.location !== f.place) moveTo(a.id, a.location); }
         // someone idle where there is a bench takes it
         if (!f.asleep && f.pose === "idle" && !f.bench) { const b = benchAt(f.place); if (b && !takenBenches.has(b.key)) { takenBenches.add(b.key); f.bench = true; f.tx = b.x; f.ty = b.y; } }
         return f;
@@ -336,7 +336,13 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           // whoever leaves walks to the boat and rides away on it; the deck carries them until the boat is out of sight
           if (e.kind === "agent.leave") { const f = figs.current.get(e.actors[0]!); if (f) { f.boarding = true; f.bench = false; f.asleep = false; f.tx = boat.position.x + 12; f.ty = boat.position.y - 2; } }
           if (e.kind === "agent.say") { const q = /“([^”]+)”/.exec(e.text)?.[1]; if (q) bubbles.current.set(e.actors[0]!, { text: q, until: Date.now() + 7000 }); }
-          if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); }
+          if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); for (const id of e.actors) { const f = figs.current.get(id); if (f) f.moment = { pose: "greet", until: Date.now() + 1800, mood: { joy: 0.6 } }; } }
+          // the moments the record names: a letter written home, a meal or a drink bought at the inn or the tavern, a charge argued before the council, a fire
+          if (e.kind === "agent.letter") { const f = figs.current.get(e.actors[0]!); if (f) f.moment = { pose: "write", until: Date.now() + 12000 }; }
+          if (e.kind === "agent.trade" && /bought (soup|bread|fish|apples|drink|wine|beer)/.test(e.text)) { const f = figs.current.get(e.actors[0]!); if (f && (f.place === "inn" || f.place === "tavern")) f.moment = { pose: /drink|wine|beer/.test(e.text) ? "drink" : "eat", until: Date.now() + 10000 }; }
+          if (e.kind === "town.verdict") for (const id of e.actors) { const f = figs.current.get(id); if (f) f.moment = { pose: "argue", until: Date.now() + 8000, mood: { anger: 0.8 } }; }
+          if (e.kind === "town.fire" && e.place) for (const f of figs.current.values()) if (f.place === e.place || places.get(f.place)?.district === places.get(e.place)?.district) f.moment = { pose: "idle", until: Date.now() + 5000, mood: { surprise: 1 } };
+          if (e.kind === "agent.fired") { const f = figs.current.get(e.actors[0]!); if (f) f.moment = { pose: "idle", until: Date.now() + 6000, mood: { anger: 0.5 } }; }
           if (e.kind === "boat.dock") { if (/docked/.test(e.text)) { boat.position.x = awayX; boatTarget = dockX; ambience.horn(); } }
           if (e.kind === "boat.depart") boatTarget = awayX;
           if (e.kind === "agent.arrive") { void fetch(`${API}/api/agents/${e.actors[0]}`).then((r) => r.json()).then((a: PublicAgent) => { if (a?.id) { const f = ensure(a); f.x = boat.position.x + 40; f.y = boat.position.y - 10; f.g.position.set(f.x, f.y); } }); }
@@ -545,10 +551,12 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
             }
             for (const fl of life.flushes) if (tick - fl.at < 3 && Math.hypot(fl.x - f.x, fl.y - f.y) < 160) f.rig.glance(-0.26, (fl.x - f.x) * f.facing); // gulls going up turn heads
           }
-          f.rig.setPose(f.asleep ? "sleep" : running ? "run" : moving ? "walk" : petting ? "crouch" : b ? "talk" : f.bench ? "sit" : f.pose);
+          if (f.moment && (Date.now() > f.moment.until || moving || f.asleep)) f.moment = undefined;
+          const moment = f.moment;
+          f.rig.setPose(f.asleep ? "sleep" : running ? "run" : moving ? "walk" : petting ? "crouch" : moment && moment.pose !== "idle" ? moment.pose : b ? "talk" : f.bench ? "sit" : f.pose);
           // the face: hunger shows, a wedding or a feast lifts it, a funeral lowers it; the eyes go to whoever they are talking to
           const inStage = !!stagedNow && f.place === stagedNow.place; const ag = agents.current.get(f.id);
-          f.rig.mood({ hunger: Math.min(1, (ag?.daysHungry ?? 0) / 3), joy: inStage && (stagedNow.kind === "wedding" || stagedNow.kind === "feast") ? 0.8 : 0, grief: inStage && stagedNow.kind === "funeral" ? 0.8 : 0 });
+          f.rig.mood({ hunger: Math.min(1, (ag?.daysHungry ?? 0) / 3), joy: inStage && (stagedNow.kind === "wedding" || stagedNow.kind === "feast") ? 0.8 : (moment?.mood?.joy ?? 0), grief: inStage && stagedNow.kind === "funeral" ? 0.8 : 0, anger: moment?.mood?.anger ?? 0, surprise: moment?.mood?.surprise ?? 0, tired: f.weak ? 0.6 : 0 });
           if (b || f.rig["pose" as keyof typeof f.rig] === "talk") { let best: Fig | null = null, bd = 90; for (const o of figs.current.values()) { if (o === f) continue; const d = Math.hypot(o.x - f.x, o.y - f.y); if (d < bd) { bd = d; best = o; } } f.rig.lookAt(best ? (best.x - f.x) * (f.facing) : 0); } else if (petting && f.react) f.rig.lookAt((f.react.ax - f.x) * f.facing); else if (animal && (animal.kind === "hen" ? animalD < 90 : animalD < 70) && !(animal.kind === "dog" && animal.state === "follow" && tick % 400 > 120)) f.rig.lookAt((animal.x - f.x) * f.facing); else f.rig.lookAt(0);
           f.rig.update(secs);
           f.rig.weather({ rain: wet && !snowing && !f.asleep, cold: (winter || snowing) && !f.asleep });

@@ -48,7 +48,7 @@ export default function Board() {
       if (t) setDest({ id: t.id, name: t.name });
     }).catch(() => {});
   }, []);
-  const [p, setP] = useState({ name: "", age: "34", origin: "the mainland", summary: "", want: "", fear: "", secret: "", strangers: "Wary at first, loyal after.", advice: "Reads it twice. Rarely follows it." });
+  const [p, setP] = useState({ name: "", age: "34", origin: "the mainland", summary: "", want: "", fear: "", secret: "", strangers: "Wary at first, loyal after.", advice: "Reads it twice. Rarely follows it.", cameBecause: "", voice: "" });
   const [traits, setTraits] = useState({ warmth: 0.5, pride: 0.5, caution: 0.5, honesty: 0.6, ambition: 0.5 });
   const [look, setLook] = useState<Partial<Look>>({ build: "Average", hair: "Bob", hat: "None", carrying: "Suitcase", top: "Teal", bottom: "Sage", coral: "Suitcase", skin: 1 });
   const [previewPose, setPreviewPose] = useState<"idle" | "walk" | "sit">("idle");
@@ -71,7 +71,7 @@ export default function Board() {
   async function board() {
     setBusy(true); setErr(null);
     try {
-      const res = await api<{ id: string; away?: boolean; island?: string; url?: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits }, appearance: look, brain, town: dest.id }) });
+      const res = await api<{ id: string; away?: boolean; island?: string; url?: string }>("/api/board", { method: "POST", body: JSON.stringify({ persona: { ...p, age: Number(p.age) || 30, traits, cameBecause: p.cameBecause.trim() || undefined, voice: p.voice.trim() ? [p.voice.trim()] : undefined }, appearance: look, brain, town: dest.id }) });
       if (res.away) { setAway({ island: res.island ?? dest.name, url: res.url ?? "" }); setBusy(false); return; }
       rememberAgent(res.id); try { localStorage.removeItem("ft.draft"); } catch {}
       if (instructions.trim()) await api(`/api/agents/${res.id}/instructions`, { method: "PUT", body: JSON.stringify({ text: instructions.trim() }) }); // a note on the door, read every morning; not a letter
@@ -119,6 +119,7 @@ export default function Board() {
               {F("They want", p.want, set("want"), "A place of her own with a door that locks.")}{F("They fear", p.fear, set("fear"), "Owing anyone anything.")}
               <div className="col-span-2">{F("A secret nobody on the island knows", p.secret, set("secret"), "She left the last ship the night before it sank.")}</div>
               {F("How they treat strangers", p.strangers, set("strangers"))}{F("How they take advice", p.advice, set("advice"))}
+              {F("Why they came, optional", p.cameBecause, set("cameBecause"), "Her brother wrote that there was work at the mill.")}{F("A line the way they talk, optional", p.voice, set("voice"), "I don't borrow. Ask me again in a month.")}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">{(Object.keys(traits) as (keyof typeof traits)[]).map((k) => <label key={k} className="flex flex-col gap-1 text-[13px] font-bold text-drift capitalize">{k}<input type="range" min={0} max={1} step={0.05} value={traits[k]} onChange={(e) => setTraits({ ...traits, [k]: Number(e.target.value) })} className="accent-teal" /></label>)}</div>
             {(children.growing.length > 0 || children.grown.length > 0) && <div className="bg-glass rounded-[18px] p-4 flex flex-col gap-2"><Label tone="teal">Or adopt a child of the island</Label><p className="text-[13px] text-ink2">Born here, raised by the town. Adopting means you write to them; they decide the rest. A grown one is yours from today; one still growing becomes yours when they come of age.</p>

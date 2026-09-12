@@ -151,6 +151,9 @@ async function hourly() {
 void loop();
 
 // ---- HTTP ----
+// depth for everyone who has none yet: written once by the town's mind, three at a time, and kept in the record
+void deepenAll();
+
 const app = new Hono();
 app.use("/api/*", cors());
 
@@ -164,6 +167,17 @@ function primerOf(t: Town): string {
   const jobs = t.pack.jobs.map((j) => `${j.title} at ${j.place}, ${j.wage} coins a shift, ${j.hours[0]} to ${j.hours[1]}`);
   const feasts = t.pack.feasts.map((f) => `${f.name} on the ${f.day}th of month ${f.month} at ${f.place}`);
   return `The island of ${t.name}:\nPlaces: ${places.join("; ")}.\nWork: ${jobs.join("; ")}.\nThe boat comes each morning; the six o'clock cart moves grain to the mill, flour to the bakery, bread and fish and apples to the market. Sundays have no shifts, Saturday is market day, the first of the month is council day.\nFeasts: ${feasts.join("; ")}.\nPlots for sale are listed in the morning plan; the council sells them.`;
+}
+/** A person's depth, written once: how they talk, a habit, a skill, a flaw, why they came. The mock mind gives none, and that is fine. */
+async function deepen(a: AgentState): Promise<void> {
+  if (!(townBrain instanceof OpenRouterBrain) || a.persona.habit) return;
+  try { const d = await townBrain.enrich(a.persona, TOWN_NAME); if (d) { const own = a.persona.voice ?? []; a.persona = { ...a.persona, habit: d.habit, skill: d.skill, flaw: d.flaw, cameBecause: a.persona.cameBecause || d.cameBecause, voice: [...own, ...d.voice].slice(0, 3) }; log(`depth for ${a.persona.name}: ${d.habit}`); } }
+  catch (err) { log(`depth failed for ${a.persona.name}: ${(err as Error).message}`); }
+}
+async function deepenAll(): Promise<void> {
+  const todo = [...town.agents.values()].filter((a) => !a.persona.habit); if (!todo.length) return;
+  for (let i = 0; i < todo.length; i += 3) await Promise.all(todo.slice(i, i + 3).map(deepen));
+  if (store) await store.snapshot(town);
 }
 async function ownerOf(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization");
@@ -206,7 +220,7 @@ app.post("/api/boat/arrive", async (c) => {
   if (!BOAT_SECRET || c.req.header("x-boat") !== BOAT_SECRET) return c.json({ error: "this harbor takes no boats from there" }, 403);
   if (!town.boatRunning) return c.json({ error: town.boatHeld ? "the boat is held" : "no crossing in this storm" }, 503);
   const body = Passenger.safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json({ error: body.error.issues[0]?.message ?? "bad manifest" }, 400);
-  const a = town.arrive(body.data); billing.applyPlan(a);
+  const a = town.arrive(body.data); billing.applyPlan(a); void deepen(a); // the depth comes in their first minutes, not before they board
   if (store) await store.snapshot(town);
   return c.json({ ok: true, id: a.id, island: TOWN_NAME });
 });
@@ -499,7 +513,7 @@ app.post("/api/board", async (c) => {
   }
   if (!town.boatRunning) return c.json({ error: town.boatHeld ? "the boat is held at the mainland; try again later" : "no boat crosses in a storm; try again when it clears" }, 503);
   const a = town.addAgent({ persona: body.data.persona, owner, funded: true });
-  a.appearance = body.data.appearance ?? null; billing.applyPlan(a);
+  a.appearance = body.data.appearance ?? null; billing.applyPlan(a); void deepen(a); // their depth arrives in their first minutes ashore
   if (store) await store.snapshot(town);
   return c.json({ id: a.id, arrived: town.clock() });
 });

@@ -11,6 +11,7 @@ const S = { width: 1.5, color: KELP, join: "round" as const };
 
 type Pt = [number, number];
 /** Project grid coordinates so that the front corner (w, d, 0) lands on the origin. */
+const STRAW = 0xe3d3a2; // straw, sacks and rope
 const proj = (w: number, d: number) => (i: number, j: number, k: number): Pt => [(i - j) - (w - d), (i + j) / 2 - (w + d) / 2 - k];
 const poly = (g: Graphics, pts: Pt[], fill: number, stroke = true) => { g.moveTo(pts[0]![0], pts[0]![1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.closePath().fill(fill); if (stroke) g.stroke(S); };
 
@@ -150,6 +151,31 @@ export function drawThing(name: string): Drawn | null { const f = D[name]; retur
  * What is on the shelves, drawn onto the building: loaves, fish and apples on the market counter, the plank pile at the
  * sawpit, logs at the pinewood, sacks at the mill. Empty shelves draw nothing, and that is the point: the street shows the economy.
  */
+/** The six o'clock cart: two wheels, a bed, two handles; what it carries is drawn on the bed by kind. */
+export function drawCart(load: { item: string; qty: number } | null): Container {
+  const c = new Container(); const g = new Graphics();
+  g.roundRect(-22, -14, 44, 12, 2).fill(WOOD).stroke({ width: 1.6, color: KELP }); g.moveTo(-22, -8).lineTo(-36, -4).moveTo(-22, -12).lineTo(-36, -8).stroke({ width: 3, color: WOOD_DARK, cap: "round" });
+  const wheel = (x: number) => { g.circle(x, 0, 8).fill(CREAM).stroke({ width: 1.8, color: KELP }); g.circle(x, 0, 2).fill(KELP); for (let i = 0; i < 4; i++) g.moveTo(x, 0).lineTo(x + Math.cos(i * Math.PI / 2) * 7, Math.sin(i * Math.PI / 2) * 7).stroke({ width: 1, color: KELP }); };
+  wheel(-10); wheel(12); c.addChild(g);
+  if (load && load.qty > 0) {
+    const l = new Graphics(); const n = Math.min(5, Math.max(1, Math.ceil(load.qty / 2)));
+    for (let i = 0; i < n; i++) { const x = -16 + i * 8, y = -18 - (i % 2) * 3;
+      if (/grain|flour|sack/.test(load.item)) { l.ellipse(x, y, 5, 6).fill(load.item === "flour" ? CREAM : STRAW).stroke({ width: 1.2, color: KELP }); l.moveTo(x - 3, y - 5).lineTo(x + 3, y - 5).stroke({ width: 1.4, color: KELP }); }
+      else if (/bread/.test(load.item)) l.ellipse(x, y + 2, 5, 3).fill(0xd9b26a).stroke({ width: 1, color: KELP });
+      else if (/apple/.test(load.item)) { if (i === 0) l.rect(-18, -22, 30, 8).fill(WOOD).stroke({ width: 1.2, color: KELP }); l.circle(x + 1, -23, 3).fill(CORAL).stroke({ width: 1, color: KELP }); }
+      else if (/fish/.test(load.item)) { if (i === 0) l.rect(-18, -22, 30, 8).fill(WOOD).stroke({ width: 1.2, color: KELP }); l.ellipse(x + 1, -23, 4, 2).fill(SAGE_DARK).stroke({ width: 1, color: KELP }); }
+      else if (/timber|plank|wood/.test(load.item)) l.moveTo(-20, y - 2).lineTo(20, y - 2).stroke({ width: 5, color: WOOD_DARK, cap: "round" });
+      else l.rect(x - 4, y - 4, 8, 8).fill(WOOD).stroke({ width: 1.2, color: KELP });
+    }
+    c.addChild(l);
+  }
+  return c;
+}
+/** A board on the door when the shelf is empty. */
+export function drawSign(text: string): Graphics {
+  const g = new Graphics(); g.roundRect(-22, -30, 44, 14, 2).fill(CREAM).stroke({ width: 1.4, color: KELP }); g.moveTo(-22, -24).lineTo(-28, -18).moveTo(22, -24).lineTo(28, -18).stroke({ width: 1.2, color: KELP });
+  void text; return g;
+}
 export function drawStock(sprite: string, stock: Record<string, number>): Graphics | null {
   const g = new Graphics(); const n = (k: string, per: number, max: number) => Math.min(max, Math.ceil((stock[k] ?? 0) / per));
   if (sprite === "stall") {
@@ -174,6 +200,11 @@ export function drawStock(sprite: string, stock: Record<string, number>): Graphi
     return g;
   }
   if (sprite === "mill") { const sacks = n("flour", 8, 5); if (!sacks) return null; for (let i = 0; i < sacks; i++) { const x = 30 + i * 11, y = 4 - (i % 2) * 2; g.ellipse(x, y - 6, 5, 7).fill(CREAM).stroke({ width: 1.2, color: KELP }); g.moveTo(x - 3, y - 12).lineTo(x + 3, y - 12).stroke({ width: 1.5, color: KELP }); } return g; }
+  if (sprite === "bakery") { const loaves = n("bread", 3, 6); if (!loaves) return null; g.rect(-62, -6, 42, 4).fill(WOOD).stroke({ width: 1, color: KELP }); for (let i = 0; i < loaves; i++) g.ellipse(-56 + i * 7, -9, 3.6, 2.4).fill(0xd9b26a).stroke({ width: 1, color: KELP }); return g; }
+  if (sprite === "orchard") { const crates = n("apples", 6, 4); if (!crates) return null; for (let i = 0; i < crates; i++) { const x = -70 + i * 18, y = 10; g.rect(x - 7, y - 8, 14, 8).fill(WOOD).stroke({ width: 1.2, color: KELP }); for (let f = 0; f < 3; f++) g.circle(x - 4 + f * 4, y - 9, 2.2).fill(CORAL); } return g; }
+  if (sprite === "field") { const sacks = n("grain", 15, 5); if (!sacks) return null; for (let i = 0; i < sacks; i++) { const x = 60 + i * 13, y = 26 - (i % 2) * 3; g.ellipse(x, y - 6, 5, 7).fill(STRAW).stroke({ width: 1.2, color: KELP }); g.moveTo(x - 3, y - 12).lineTo(x + 3, y - 12).stroke({ width: 1.5, color: KELP }); } return g; }
+  if (sprite === "chandlery") { const coils = n("rope", 2, 3); if (!coils) return null; for (let i = 0; i < coils; i++) { const x = 46 + i * 12; g.circle(x, 4, 5).stroke({ width: 3, color: STRAW }); g.circle(x, 4, 5).stroke({ width: 1, color: KELP }); } return g; }
+  if (sprite === "quarry") { const blocks = n("stone", 3, 5); if (!blocks) return null; for (let i = 0; i < blocks; i++) { const row = i < 3 ? 0 : 1, col = i < 3 ? i : i - 3; g.rect(50 + col * 14 - row * 7, 6 - row * 9 - 8, 12, 8).fill(STONE).stroke({ width: 1.2, color: KELP }); } return g; }
   if (sprite === "fishhouse") { const crates = n("fish", 6, 3); if (!crates) return null; for (let i = 0; i < crates; i++) { const x = 44 + i * 16, y = 8; g.rect(x - 7, y - 8, 14, 8).fill(WOOD).stroke({ width: 1.2, color: KELP }); for (let f = 0; f < 3; f++) g.ellipse(x - 4 + f * 4, y - 9, 2.2, 1.2).fill(SAGE_DARK); } return g; }
   return null;
 }

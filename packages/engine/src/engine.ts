@@ -966,9 +966,14 @@ export class Town {
   private cart(): void {
     for (const line of this.pack.supply) {
       const from = this.places.get(line.from), to = this.places.get(line.to); if (!from || !to) continue;
-      const have = from.stock[line.item] ?? 0; const room = line.upTo !== undefined ? Math.max(0, line.upTo - (to.stock[line.item] ?? 0)) : line.qty; const want = Math.min(line.qty, have, room); if (want <= 0) continue;
+      // the leg is on the record whether or not anything moves, so the street can show an empty cart where a link has failed
+      const route: PlaceId[] = [from.id]; for (let cur = from.id, i = 0; cur !== to.id && i < 12; i++) { const nx = this.path(cur, to.id); if (!nx) break; route.push(nx); cur = nx; }
+      const leg = (qty: number, why: string | null) => this.emit("cart.leg", [], to.id, qty > 0 ? `The cart brought ${qty} ${line.item} from ${from.name} to ${to.name}.` : `The cart came to ${to.name} with no ${line.item}: ${why}.`, 0.05, { from: from.id, to: to.id, item: line.item, qty, route, ...(why ? { why } : {}) });
+      const have = from.stock[line.item] ?? 0; const room = line.upTo !== undefined ? Math.max(0, line.upTo - (to.stock[line.item] ?? 0)) : line.qty; const want = Math.min(line.qty, have, room);
+      if (want <= 0) { if (have <= 0) leg(0, `${from.name} had none`); continue; }
       const cost = want * line.price; const buyer = to.owner ? this.agents.get(to.owner) : null; const purse = buyer ? buyer.coins : to.treasury;
-      const can = Math.min(want, Math.floor(purse / line.price)); if (can <= 0) continue;
+      const can = Math.min(want, Math.floor(purse / line.price)); if (can <= 0) { leg(0, `${to.name} could not pay`); continue; }
+      leg(can, null);
       from.stock[line.item] = have - can; to.stock[line.item] = (to.stock[line.item] ?? 0) + can;
       const paid = can * line.price; if (buyer) buyer.coins -= paid; else to.treasury -= paid;
       const seller = from.owner ? this.agents.get(from.owner) : null; if (seller) seller.coins += paid; else from.treasury += paid;

@@ -5,7 +5,7 @@ import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { API, WS, type PublicAgent, type TownEvent, type Clock } from "@/lib/api";
 import { Citizen, lookFor, aged, type Look, type Pose } from "./world/citizen";
 import { Ambience } from "./world/ambience";
-import { drawThing, drawStock, setSeason } from "./world/buildings";
+import { drawThing, drawStock, drawCart, drawSign, setSeason } from "./world/buildings";
 import { GROUND, LIGHT, CREAM, SAGE, TEAL, KELP, CORAL, DRIFT } from "./world/palette";
 import { Lighting, WaterFilter, Weather, Clouds, Sky, mix, type LightSource } from "./world/fx";
 import { Life, type Critter } from "./world/life";
@@ -190,21 +190,26 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         const local = (name: string, w?: number) => { const d = drawThing(name); const s = d ? put(name, p.x, p.y, w) : null; if (s) { scene.removeChild(s); s.position.set(0, 0); s.zIndex = 0; g.addChild(s); } return s; };
         if (p.kind === "plot" && !p.site) {
           // pegged-out land: a dashed rectangle and four stakes
-          const r = new Graphics(); for (let i = 0; i < 4; i++) { const x0 = -80 + (i % 2) * 160, y0 = -60 + Math.floor(i / 2) * 70; r.rect(x0 - 3, y0 - 14, 6, 14).fill(C.drift); }
-          for (let x = -80; x < 80; x += 16) r.moveTo(x, -60).lineTo(x + 8, -60).moveTo(x, 10).lineTo(x + 8, 10).stroke({ width: 2, color: C.drift });
-          for (let y = -60; y < 10; y += 16) r.moveTo(-80, y).lineTo(-80, y + 8).moveTo(80, y).lineTo(80, y + 8).stroke({ width: 2, color: C.drift });
-          r.rect(-80, -60, 160, 70).fill({ color: C.sage, alpha: 0.35 }); g.addChild(r);
+          const r = new Graphics(); r.rect(-80, -60, 160, 70).fill({ color: C.sage, alpha: 0.3 });
+          r.moveTo(-80, -60).lineTo(80, -60).lineTo(80, 10).lineTo(-80, 10).closePath().stroke({ width: 1.2, color: 0xc9b58f }); // a rope between the stakes
+          for (let i = 0; i < 4; i++) { const x0 = -80 + (i % 2) * 160, y0 = -60 + Math.floor(i / 2) * 70; r.roundRect(x0 - 2.5, y0 - 14, 5, 15, 2).fill(0xc9b58f).stroke({ width: 1, color: C.kelp }); }
+          if (p.owner) { r.roundRect(-16, -22, 32, 10, 2).fill(C.shell).stroke({ width: 1.2, color: C.kelp }); r.moveTo(0, -12).lineTo(0, 0).stroke({ width: 2, color: 0xc9b58f }); } // bought: a board on a post
+          g.addChild(r);
         } else if (p.site) {
           // a site: timber frame, a crates pile, and how many mornings are done
           const r = new Graphics(); const done = Math.min(1, p.site.done / Math.max(1, p.site.of));
-          r.rect(-70, -70, 140, 70).fill({ color: C.sand, alpha: 0.9 });
-          for (let x = -70; x <= 70; x += 35) r.moveTo(x, 0).lineTo(x, -70).stroke({ width: 5, color: 0xc9b58f });
-          r.moveTo(-70, -70).lineTo(70, -70).stroke({ width: 6, color: 0xc9b58f });
-          // walls go up a plank per morning worked
-          const planks = Math.round(done * 8); for (let k = 0; k < planks; k++) r.rect(-68, -8 - k * 8, 136, 7).fill(0xf7f5ee).stroke({ width: 1.2, color: C.kelp });
-          if (p.site.what === "house") r.moveTo(-76, -70).lineTo(0, -120).lineTo(76, -70).stroke({ width: 6, color: 0xc9b58f });
-          if (done >= 0.8) r.moveTo(-76, -70).lineTo(0, -120).lineTo(76, -70).closePath().fill(C.teal);
-          g.addChild(r); const c = local("crates", 60); if (c) c.position.set(95, 4);
+          r.rect(-70, -70, 140, 70).fill({ color: C.sand, alpha: 0.9 }); // the cleared ground
+          // walls rise a course per morning worked, in the island's stone, with the door left open
+          const courses = Math.round(done * 8); for (let k = 0; k < courses; k++) { r.rect(-64, -8 - k * 8, 128, 7).fill(k % 2 ? 0xf7f5ee : 0xefebe0).stroke({ width: 1.2, color: C.kelp }); if (k < 3) r.rect(-8, -8 - k * 8, 16, 7).fill({ color: C.sand, alpha: 0.9 }); }
+          // scaffold: poles, ledgers, braces, a ladder against it
+          for (const x of [-72, -24, 24, 72]) r.moveTo(x, 4).lineTo(x, -78).stroke({ width: 4, color: 0xc9b58f, cap: "round" });
+          for (const y of [-40, -76]) r.moveTo(-72, y).lineTo(72, y).stroke({ width: 3, color: 0xc9b58f });
+          r.moveTo(-72, -40).lineTo(-24, -76).moveTo(24, -40).lineTo(72, -76).stroke({ width: 2, color: 0xc9b58f, alpha: 0.8 });
+          r.moveTo(80, 6).lineTo(96, -72).moveTo(88, 6).lineTo(104, -72).stroke({ width: 2.5, color: 0xa3906d }); for (let k = 0; k < 7; k++) { const t = k / 7; r.moveTo(80 + 16 * t, 6 - 78 * t).lineTo(88 + 16 * t, 6 - 78 * t).stroke({ width: 2, color: 0xa3906d }); }
+          if (done >= 0.8) { r.moveTo(-76, -70).lineTo(0, p.site.what === "house" ? -120 : -100).lineTo(76, -70).closePath().fill(C.teal).stroke({ width: 1.4, color: C.kelp }); } // the roof goes on last
+          g.addChild(r);
+          // the plank pile and the sand heap by the site
+          const pile = new Graphics(); for (let k = 0; k < 4; k++) pile.rect(-118, -6 - k * 5, 40, 4).fill(k % 2 ? 0xc4b08c : 0xd6c49e).stroke({ width: 1, color: C.kelp }); pile.ellipse(-90, 6, 14, 5).fill({ color: C.sand, alpha: 0.9 }).stroke({ width: 1, color: C.kelp, alpha: 0.4 }); g.addChild(pile);
           const t = new Text({ text: `${p.site.name} · ${p.site.done} of ${p.site.of}`, style: smallStyle }); t.anchor.set(0.5, 0); t.position.set(0, 6); g.addChild(t);
         } else if (p.sprite.startsWith("look:")) {
           // a building someone described: the plain kind stands in until the island's drawing of it arrives
@@ -213,6 +218,10 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         } else {
           local(p.sprite);
           if (p.stock) { const st = drawStock(p.sprite, p.stock); if (st) { st.zIndex = 1; g.addChild(st); } }
+          // the shelf is bare: a board leans by the door until the cart or the work fills it again
+          if (p.stock && (p.kind === "shop" || p.kind === "workplace" || p.kind === "market") && Object.values(p.stock).every((v) => v <= 0)) { const sg = drawSign("nothing left"); sg.position.set(-46, 26); sg.zIndex = 2; g.addChild(sg); const st = new Text({ text: "nothing left", style: { ...smallStyle, fontSize: 7 } }); st.anchor.set(0.5, 0.5); st.position.set(-46, 3); st.zIndex = 3; g.addChild(st); }
+          // owned: the owner's name on a board by the door
+          if (p.owner && p.kind !== "plot") { const nb = new Graphics(); nb.roundRect(-30, -12, 60, 11, 2).fill(C.shell).stroke({ width: 1.2, color: C.kelp }); nb.position.set(48, -6); nb.zIndex = 2; g.addChild(nb); const nt = new Text({ text: p.owner.split(" ").slice(-1)[0]!.toUpperCase(), style: { ...smallStyle, fontSize: 7 } }); nt.anchor.set(0.5, 0.5); nt.position.set(48, -12.5); nt.zIndex = 3; g.addChild(nt); }
         }
         const t = new Text({ text: p.name.replace(/^the /, "").replace(/^an? /, "").toUpperCase(), style: nameStyle }); t.anchor.set(0.5, 0); t.position.set(0, p.site ? 22 : 6); t.zIndex = 100000; g.addChild(t);
         g.position.set(p.x, p.y);
@@ -268,6 +277,29 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
       const prints_ = new Graphics(); prints_.zIndex = 0.7; scene.addChild(prints_); const prints: { x: number; y: number; at: number }[] = [];
       const moths = new Graphics(); moths.zIndex = 150001; scene.addChild(moths);
       // the small life: it needs to know where the posts, the benches, the yard and the trees are
+      // the six o'clock cart: a carter pulling a cart along the roads, leg by leg as the record names them; empty where a link has failed
+      const roadTo = (from: string, to: string): string[] => { if (from === to) return [from]; const prev = new Map<string, string | null>([[from, null]]); const q = [from]; while (q.length) { const cur = q.shift()!; for (const nx of places.get(cur)?.exits ?? []) if (!prev.has(nx)) { prev.set(nx, cur); q.push(nx); } } if (!prev.has(to)) return [from, to]; const out: string[] = []; for (let cur: string | null = to; cur; cur = prev.get(cur) ?? null) out.unshift(cur); return out; };
+      const carter = { g: new Container(), rig: new Citizen(lookFor("the carter", { build: "Sturdy", hair: "Short dark", hat: "Wide brim", carrying: "Nothing", top: "Sand", bottom: "Kelp", coral: "None" })), cart: new Container() as Container, queue: [] as { from: string; to: string; item: string; qty: number; route: string[] }[], path: [] as { x: number; y: number }[], at: null as string | null, load: null as { item: string; qty: number } | null, x: 0, y: 0, busy: false, pause: 0 };
+      carter.rig.scale.set(0.9); carter.rig.setPose("walk"); carter.g.addChild(carter.cart); carter.g.addChild(carter.rig); carter.rig.position.set(26, 0); carter.cart.position.set(-14, 0); carter.g.visible = false; scene.addChild(carter.g);
+      const setLoad = (load: { item: string; qty: number } | null) => { carter.load = load; carter.cart.removeChildren().forEach((ch) => ch.destroy({ children: true })); carter.cart.addChild(drawCart(load)); };
+      setLoad(null);
+      const cartTick = () => {
+        const c = carter;
+        if (c.pause > 0) { c.pause--; return; }
+        if (!c.path.length) {
+          const leg = c.queue[0]; if (!leg) { if (c.busy) { c.busy = false; c.g.visible = false; } return; }
+          if (!c.busy) { c.busy = true; c.at = leg.from; const p0 = places.get(leg.from); if (p0) { c.x = p0.x; c.y = p0.y + 30; } c.g.visible = true; }
+          if (c.at !== leg.from) { c.path = roadTo(c.at ?? leg.from, leg.from).slice(1).map((id) => { const p = places.get(id)!; return { x: p.x, y: p.y + 30 }; }); c.at = leg.from; setLoad(null); return; } // go and fetch it, empty
+          if (!c.load) { setLoad({ item: leg.item, qty: leg.qty }); c.pause = 40; return; } // loading
+          c.path = (leg.route.length > 1 ? leg.route : roadTo(leg.from, leg.to)).slice(1).map((id) => { const p = places.get(id)!; return { x: p.x, y: p.y + 30 }; }); c.at = leg.to;
+          if (!c.path.length) { c.queue.shift(); setLoad(null); void refreshPlaces(); }
+          return;
+        }
+        const t = c.path[0]!; const dx = t.x - c.x, dy = t.y - c.y, d = Math.hypot(dx, dy); const st = Math.min(d, 2.2);
+        if (d > 0.5) { c.x += (dx / d) * st; c.y += (dy / d) * st; const face = dx < 0 ? -1 : 1; c.rig.face(face); c.g.scale.x = 1; c.rig.position.set(26 * face, 0); c.cart.position.set(-14 * face, 0); c.cart.scale.x = face; }
+        else { c.path.shift(); if (!c.path.length) { const leg = c.queue[0]; if (leg && c.at === leg.to && c.load) { c.queue.shift(); setLoad(null); c.pause = 40; void refreshPlaces(); } } }
+        c.g.position.set(c.x, c.y); c.g.zIndex = c.y; c.rig.update(Date.now() / 1000);
+      };
       const life = (() => {
         const pier = decor.find((d) => d.sprite === "pier"); const rocks = decor.filter((d) => d.sprite === "searocks"); const crates = decor.filter((d) => d.sprite === "crates"); const benches = decor.filter((d) => d.sprite === "bench");
         const perches: { x: number; y: number; dir: 1 | -1 }[] = [];
@@ -339,6 +371,8 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
           if (e.kind === "conversation") { const lines = (e.payload?.lines as { speaker: string; text: string }[] | undefined) ?? []; lines.forEach((l, i) => setTimeout(() => bubbles.current.set(l.speaker, { text: l.text, until: Date.now() + 5500 }), i * 2600)); for (const id of e.actors) { const f = figs.current.get(id); if (f) f.moment = { pose: "greet", until: Date.now() + 1800, mood: { joy: 0.6 } }; } }
           // the moments the record names: a letter written home, a meal or a drink bought at the inn or the tavern, a charge argued before the council, a fire
           if (e.kind === "agent.letter") { const f = figs.current.get(e.actors[0]!); if (f) f.moment = { pose: "write", until: Date.now() + 12000 }; }
+          if (e.kind === "cart.leg") { const pay = (e.payload ?? {}) as { from?: string; to?: string; item?: string; qty?: number; route?: string[] }; if (pay.from && pay.to && pay.item) carter.queue.push({ from: pay.from, to: pay.to, item: pay.item, qty: pay.qty ?? 0, route: pay.route ?? [] }); }
+          if (e.kind === "economy.price") void refreshPlaces();
           if (e.kind === "agent.trade" && /bought (soup|bread|fish|apples|drink|wine|beer)/.test(e.text)) { const f = figs.current.get(e.actors[0]!); if (f && (f.place === "inn" || f.place === "tavern")) f.moment = { pose: /drink|wine|beer/.test(e.text) ? "drink" : "eat", until: Date.now() + 10000 }; }
           if (e.kind === "town.verdict") for (const id of e.actors) { const f = figs.current.get(id); if (f) f.moment = { pose: "argue", until: Date.now() + 8000, mood: { anger: 0.8 } }; }
           if (e.kind === "town.fire" && e.place) for (const f of figs.current.values()) if (f.place === e.place || places.get(f.place)?.district === places.get(e.place)?.district) f.moment = { pose: "idle", until: Date.now() + 5000, mood: { surprise: 1 } };
@@ -464,6 +498,7 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         const duskAmt = Math.abs(hour - rise) < 1 ? 0.16 * (1 - Math.abs(hour - rise)) : Math.abs(hour - set) < 1 ? 0.2 * (1 - Math.abs(hour - set)) : 0;
         night.alpha += (nightAmt - night.alpha) * 0.05; dusk.alpha += (duskAmt - dusk.alpha) * 0.05;
         perfMark("life");
+        cartTick();
         life.update({ tick, hour, rise, set, night: night.alpha / 0.42, season: forcedSeason ?? c?.season ?? "summer", weather, wind, people: [...figs.current.values()].map((f) => ({ x: f.x, y: f.y, moving: Math.abs(f.tx - f.x) > 1.5 || Math.abs(f.ty - f.y) > 1.5 })), effects: effectsOn });
         for (const snd of life.sounds) ambience.cue(snd.name, Math.hypot(snd.x - cam.x, snd.y - cam.y), snd.x - cam.x, snd.level ?? 1);
         if (effectsRef.current !== effectsOn) { effectsOn = effectsRef.current; sea.filters = effectsOn ? [water] : null; ripples.visible = !effectsOn; lamps.visible = !effectsOn; night.visible = !effectsOn; dusk.visible = !effectsOn; rain.visible = !effectsOn; if (!effectsOn) { sunGrade.veil.visible = sunGrade.glow.visible = sunGrade.halo.visible = false; } fog.visible = !effectsOn; if (!effectsOn) { lighting.dark.visible = false; lighting.glow.visible = false; weatherFx.rain.visible = false; weatherFx.snow.visible = false; weatherFx.fog.visible = false; clouds.puffs.visible = false; clouds.shadows.visible = false; } }

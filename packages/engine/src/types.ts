@@ -175,11 +175,19 @@ export interface LifeContext {
   name: string; persona: Persona; how: "left" | "died" | "exiled"; note: string;
   arrivedDay: number; day: number; coins: number; job: string | null; home: string | null;
   events: string[]; memories: string[]; people: { name: string; trust: number; opinion: string }[]; letters: number; children: string[];
+  /** their own voice: a few of the letters they sent home, and the last thing they thought; what they owned at the end */
+  lettersHome: string[]; lastThought: string | null; owned: string[]; convictions: number;
 }
 export interface PaperContext {
   edition: number; date: string; weather: string;
   events: { text: string; importance: number; actors: string[] }[];
   laws: string[]; population: number; arrivals: number; departures: number;
+  /** yesterday's front page, so a story that moved is followed and one that did not is not repeated */
+  yesterday: { headline: string; deck: string; briefs: string[] } | null;
+  /** the shelf at the market and what things cost; the boat, the cargo, who came and went; what tomorrow holds */
+  market: { item: string; price: number | null; stock: number }[]; harbor: string[]; came: string[]; went: string[]; tomorrow: string; mayor: string | null;
+  /** what citizens wrote for others to read today: exposés, notices of their own */
+  writings: string[];
 }
 
 /** What the engine needs from any mind. Hosted, own-key, and own-brain all implement this. */

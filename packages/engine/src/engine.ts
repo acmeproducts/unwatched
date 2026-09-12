@@ -126,6 +126,9 @@ export class Town {
   weekdayOverride: number | null = null; dayOfMonthOverride: number | null = null; monthOverride: number | null = null;
   /** The month, 1 to 12: the real one when the island keeps our time, else twelve months of thirty days from the island's first day. */
   get month(): number { return this.monthOverride ?? (Math.floor(((this.day - 1) % 360) / 30) + 1); }
+  /** The calendar for any day, as the island keeps it: twelve months of thirty days, weeks of seven. */
+  monthOf(day: number): number { return Math.floor(((day - 1) % 360) / 30) + 1; }
+  dayOfMonthOf(day: number): number { return ((day - 1) % 30) + 1; }
   /** What is in season this month: crops with a short window. */
   inSeason(): string[] { return [...new Set(this.pack.produce.filter((pr) => pr.months?.includes(this.month)).map((pr) => pr.makes))]; }
   /** Today's feast, if the island keeps one today. */
@@ -260,7 +263,10 @@ export class Town {
     const events = this.events.filter((e) => e.actors.includes(a.id) && e.importance >= 0.35 && e.kind !== "agent.reflect" && e.kind !== "agent.move").sort((x, y) => y.importance - x.importance).slice(0, 40).sort((x, y) => x.t - y.t).map((e) => `day ${e.day}: ${e.text}`);
     const memories = [...a.memory].filter((m) => m.kind === "reflect" || m.importance >= 0.7).sort((x, y) => y.importance - x.importance).slice(0, 16).sort((x, y) => x.t - y.t).map((m) => m.text);
     const people = [...a.relationships.entries()].map(([id, r]) => ({ name: this.agents.get(id)?.persona.name ?? id, trust: r.trust, opinion: r.opinion ?? "" })).sort((x, y) => Math.abs(y.trust - 0.3) - Math.abs(x.trust - 0.3)).slice(0, 8);
-    const ctx: LifeContext = { name: a.persona.name, persona: a.persona, how, note, arrivedDay, day: this.day, coins: a.coins, job: a.job ? (this.jobs.get(a.job)?.title ?? null) : null, home: a.home ? (this.places.get(a.home.place)?.name ?? null) : null, events, memories, people, letters: a.letters.length, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => c.name) };
+    const lettersHome = this.events.filter((e) => e.kind === "agent.letter" && e.actors[0] === a.id).map((e) => String(e.payload?.text ?? "")).filter(Boolean).slice(-4);
+    const lastThought = [...a.memory].reverse().find((m) => m.kind === "reflect")?.text ?? null;
+    const owned = [...this.places.values()].filter((p) => p.owner === a.id).map((p) => p.name);
+    const ctx: LifeContext = { name: a.persona.name, persona: a.persona, how, note, arrivedDay, day: this.day, coins: a.coins, job: a.job ? (this.jobs.get(a.job)?.title ?? null) : null, home: a.home ? (this.places.get(a.home.place)?.name ?? null) : null, events, memories, people, letters: a.letters.length, children: this.children.filter((c) => c.parents.includes(a.id)).map((c) => c.name), lettersHome, lastThought, owned, convictions: a.convictions };
     try {
       const life = await this.brain.life(ctx);
       this.emit("town.book", [a.id], "hall", `The town wrote the book of ${a.persona.name}: “${life.title}”.`, 0.5, { title: life.title, text: life.text, epitaph: life.epitaph, how, arrivedDay, leftDay: this.day, name: a.persona.name });
@@ -1146,14 +1152,28 @@ export class Town {
 
   actOfGod(text: string): void { this.emit("town.notice", [], undefined, text, 0.6); }
 
+  /** The ops room may ask for an edition out of hours; the record it prints from is the same. */
+  async printNow(): Promise<void> { await this.printPaper(); }
   private async printPaper(): Promise<void> {
     if (this.brain.name === "none" || this.paused) return;
     const dayStart = (this.day - 1) * MINUTES_PER_DAY;
-    const raw = this.events.filter((e) => e.t >= dayStart && e.importance >= 0.3 && e.kind !== "agent.reflect" && e.kind !== "agent.letter" && e.kind !== "town.book")
-      .sort((x, y) => y.importance - x.importance).slice(0, 14);
+    // the paper prints what was done or said where others could see it: never a private thought, a plan, a letter home, or what one person privately thinks of another
+    const PRIVATE = new Set(["agent.reflect", "agent.letter", "town.book", "relation.change", "agent.plan", "agent.wake", "agent.sleep", "action.rejected", "agent.self"]);
+    const raw = this.events.filter((e) => e.t >= dayStart && e.importance >= 0.3 && !PRIVATE.has(e.kind))
+      .sort((x, y) => y.importance - x.importance).slice(0, 16);
     const evs = raw.map((e) => ({ text: e.text, importance: e.importance, actors: e.actors.map((id) => this.agents.get(id)?.persona.name ?? id) }));
+    const last = this.papers[this.papers.length - 1] ?? null;
+    const market = this.places.get("market"); const shelf = market ? market.sells.map((s) => ({ item: s.item, price: this.price(market, s.item), stock: market.stock[s.item] ?? 0 })) : [];
+    const harbor = this.events.filter((e) => e.t >= dayStart && (e.kind === "boat.dock" || e.kind === "boat.cargo" || e.kind === "boat.news")).map((e) => e.text);
+    const came = this.events.filter((e) => e.t >= dayStart && e.kind === "agent.arrive").map((e) => this.agents.get(e.actors[0] ?? "")?.persona.name ?? "").filter(Boolean);
+    const went = this.events.filter((e) => e.t >= dayStart && e.kind === "agent.leave").map((e) => e.text);
+    const tomorrowDay = this.day + 1; const feast = this.pack.feasts.find((f) => f.month === this.monthOf(tomorrowDay) && f.day === this.dayOfMonthOf(tomorrowDay));
+    const gatherings = this.gatherings.filter((g) => !g.held && g.day === tomorrowDay).map((g) => `${this.describeGathering(g)} at ${this.places.get(g.place)?.name ?? g.place}, ${g.hour}:00`);
+    const tomorrow = [`${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][(tomorrowDay - 1) % 7]}${(tomorrowDay - 1) % 7 === 0 ? ", no shifts" : (tomorrowDay - 1) % 7 === 6 ? ", market day" : ""}`, ...(this.dayOfMonthOf(tomorrowDay) === 1 ? ["council day"] : []), ...(feast ? [`${feast.name} at ${this.places.get(feast.place)?.name ?? feast.place}`] : []), ...gatherings].join("; ");
+    const writings = this.events.filter((e) => e.t >= dayStart && e.kind === "town.expose").map((e) => e.text);
     try {
-      const paper = await this.brain.writePaper({ edition: this.day, date: `Day ${this.day}`, weather: this.weather, events: evs, laws: this.laws.filter((l) => l.open).map((l) => l.text), population: this.agents.size, arrivals: this.arrivalsToday, departures: this.departuresToday });
+      const paper = await this.brain.writePaper({ edition: this.day, date: `Day ${this.day}`, weather: this.weather, events: evs, laws: this.laws.filter((l) => l.open).map((l) => l.text), population: this.agents.size, arrivals: this.arrivalsToday, departures: this.departuresToday,
+        yesterday: last ? { headline: last.lead.headline, deck: last.lead.deck, briefs: last.briefs.map((b) => b.headline) } : null, market: shelf, harbor, came, went, tomorrow, mayor: this.mayor ? (this.agents.get(this.mayor)?.persona.name ?? null) : null, writings });
       // the front-page picture: the most important moment that happened somewhere, as the record has it
       const lead = raw.find((e) => e.place && this.places.has(e.place) && !/ talked at /.test(e.text)) ?? raw.find((e) => e.place && this.places.has(e.place));
       const at = lead ? this.places.get(lead.place!)! : this.places.get("harbor");

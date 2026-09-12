@@ -440,6 +440,7 @@ app.get("/api/ops", (c) => {
     holds: metrics.holds.slice(0, 20), ownBrains: brains,
   });
 });
+app.post("/api/ops/paper", async (c) => { if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401); await town.printNow(); const p = town.papers[town.papers.length - 1]; return p ? c.json(p) : c.json({ error: "no edition came" }, 500); });
 app.post("/api/ops/switch", async (c) => {
   if (!opsOk(c.req.raw)) return c.json({ error: "ops token required" }, 401);
   const body = z.object({ which: z.enum(["pause", "economy", "boat", "snapshot"]), on: z.boolean().optional() }).safeParse(await c.req.json()); if (!body.success) return c.json({ error: "no such switch" }, 400);

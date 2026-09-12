@@ -250,9 +250,13 @@ export const Paper = z.object({
   edition: z.number().int(),
   date: z.string(),
   weather: z.string(),
-  lead: z.object({ headline: z.string().max(120), deck: z.string().max(240), body: z.string().max(2000) }),
-  briefs: z.array(z.object({ headline: z.string().max(120), body: z.string().max(700) })).max(4),
+  lead: z.object({ headline: z.string().max(120), deck: z.string().max(240), body: z.string().max(2600) }),
+  briefs: z.array(z.object({ headline: z.string().max(120), body: z.string().max(1200) })).max(4),
   notices: z.array(z.string().max(240)).max(6),
+  /** The standing columns: the shelf and its prices, the boat and who came and went, and what tomorrow holds. */
+  market: z.string().max(420).optional(),
+  harbor: z.string().max(420).optional(),
+  tomorrow: z.string().max(240).optional(),
   scene: PaperScene.optional(),
   /** The day's seal: a hash of every event of the day, chained to the day before. Anyone with the record can recompute it. */
   seal: z.object({ day: z.number().int(), hash: z.string(), prev: z.string(), events: z.number().int() }).optional(),
@@ -260,7 +264,7 @@ export const Paper = z.object({
 export type Paper = z.infer<typeof Paper>;
 
 /** The written life: what the town says of someone once they have left it, for good or on the boat. */
-export const LifeText = z.object({ title: z.string().max(90), text: z.string().max(2800), epitaph: z.string().max(140) });
+export const LifeText = z.object({ title: z.string().max(90), text: z.string().max(4400), epitaph: z.string().max(140) });
 export type LifeText = z.infer<typeof LifeText>;
 
 export const OPTIONS_DEFAULT: ActionKind[] = ["move", "say", "give", "take", "use", "work", "apply", "quit", "trade", "propose", "vote", "write", "message_owner", "sleep", "wait", "do"];

@@ -595,7 +595,8 @@ export function World({ mineId, onSelect, view, effects = true }: { mineId: stri
         {labels.map((l) => (
           <div key={l.id} className="absolute flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-full" style={{ left: l.x, top: l.y }}>
             {l.bubble && <div className="bg-glass px-3 py-2 italic text-[13px] max-w-[260px] leading-[1.3] pointer-events-auto shadow-none" style={{ borderRadius: "16px 16px 16px 4px" }}>“{l.bubble}”</div>}
-            <div className={`crossfade display text-[13px] italic tracking-tight ${l.mine ? "text-coral font-bold" : "text-kelp"}`} style={{ opacity: l.shown ? 1 : 0, textShadow: "0 0 6px rgba(247,245,238,0.95), 0 0 2px rgba(247,245,238,1)" }}>{l.name.split(" ")[0]}{l.mine ? " · you" : ""}</div>
+            {/* a name tag: ink on the drawn ground whatever the theme, since the street is always sand; yours in the signal colour */}
+            <div className="crossfade display text-[12px] font-semibold leading-none whitespace-nowrap rounded-[6px] px-1.5 py-[3px]" style={{ opacity: l.shown ? 1 : 0, background: l.mine ? "#E4572E" : "rgba(20,22,26,0.82)", color: "#F7F6F3", letterSpacing: "0.01em" }}>{l.name.split(" ")[0]}{l.mine ? " · you" : ""}</div>
           </div>
         ))}
       </div>

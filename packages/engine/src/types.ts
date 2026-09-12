@@ -101,6 +101,8 @@ export interface AgentState {
   plan: ActivePlan | null;
   /** A word from the world for the next thought only: someone is here and something is at stake. Never persisted. */
   hint: string | null;
+  /** something just happened that whoever sent them would want to hear; cleared by the next thought */
+  crossroads: string | null; ownerLetterDay: number;
   /** Coins owed to others, with the sim minute they are due. Repaying is giving. */
   debts: { to: AgentId; coins: number; due: number }[];
   /** Where they are walking to, when it is more than one road away. Habit takes the next road each minute until they arrive. */
@@ -158,6 +160,8 @@ export interface DigestContext {
   agent: AgentState; name: string; day: number; daysAway: number;
   events: string[]; plan: { mood: string; goals: string[] } | null; letter: string | null; people: { name: string; trust: number; opinion: string }[];
   coins: number; job: string | null; home: string | null;
+  /** their own words, from the last reflection, and what they mean to do next */
+  reflection: string | null; intentions: string[];
 }
 
 /** What the town's mind is told when a child is born: who the parents are, what shaped them. It answers with who the child will be. */

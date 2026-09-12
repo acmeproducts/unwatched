@@ -40,7 +40,7 @@ You came to the island on day ${Math.floor(a.arrivedAt / 1440) + 1}.`;
 }
 
 export function decidePrompt(p: Perception): string {
-  return `It is ${p.time.weekday ? `${p.time.weekday}, ` : ""}${p.time.sim}, ${p.time.weather}${p.time.temperature_c !== undefined ? `, ${Math.round(p.time.temperature_c)} degrees` : ""}.${p.time.occasion ? ` Today is ${p.time.occasion}.` : ""}${p.time.gathering ? ` On the town's calendar: ${p.time.gathering}.` : ""} Here is what you perceive, as JSON. Choose exactly one action for this minute, in character.${p.nearby.length ? " Prefer talking to people who are here over waiting; \"say\" only reaches the people under \"nearby\"." : " Nobody is here right now: to talk to someone, go where they are, or do something useful alone; do not \"say\" to an empty room."}${p.time.weekday === "Sunday" ? " It is Sunday: no shifts anywhere today." : ""} If a letter from whoever sent you is unread, decide how you feel about it.${p.today ? " Your own plan for today is under \"today\": follow it, or change your mind, as this person would." : ""}${p.hint ? ` ${p.hint}` : ""} Answer with JSON only.\n\n${JSON.stringify(p)}`;
+  return `It is ${p.time.weekday ? `${p.time.weekday}, ` : ""}${p.time.sim}, ${p.time.weather}${p.time.temperature_c !== undefined ? `, ${Math.round(p.time.temperature_c)} degrees` : ""}.${p.time.occasion ? ` Today is ${p.time.occasion}.` : ""}${p.time.gathering ? ` On the town's calendar: ${p.time.gathering}.` : ""} Here is what you perceive, as JSON. Choose exactly one action for this minute, in character.${p.nearby.length ? " Prefer talking to people who are here over waiting; \"say\" only reaches the people under \"nearby\"." : " Nobody is here right now: to talk to someone, go where they are, or do something useful alone; do not \"say\" to an empty room."}${p.time.weekday === "Sunday" ? " It is Sunday: no shifts anywhere today." : ""} If a letter from whoever sent you is unread, decide how you feel about it.${p.today ? " Your own plan for today is under \"today\": follow it, or change your mind, as this person would." : ""}${p.hint ? ` ${p.hint}` : ""}${p.crossroads ? ` Something just happened that whoever sent you would want to hear: "${p.crossroads}". If you have something to tell them or ask them, write to them now with "message_owner", a few plain sentences in your own voice; it reaches them within the hour. Otherwise act on what happened.` : ""} Answer with JSON only.\n\n${JSON.stringify(p)}`;
 }
 
 export function planPrompt(ctx: PlanContext): string {
@@ -95,7 +95,7 @@ They: ${ctx.what}
 What did it come to?`;
 }
 
-export const digestSystem = `You write the daily reading an owner gets about the person they sent to Unwatched, a small island harbor town. You are not that person; you are the town telling the owner what happened. Three or four sentences, plain and specific: names, places, coins, hours. Lead with what mattered most. If a letter was written to the owner, say so and quote a few words. If nothing happened, say what the day was like instead of apologising. No exclamation marks, no advice, nothing invented: every fact comes from the record you are given. Also give a headline of at most eight words, no full stop. Answer with JSON only.`;
+export const digestSystem = `You write the daily reading an owner gets about the person they sent to Unwatched, a small island harbor town. You are not that person; you are the town telling the owner what happened, the way a good friend on the island would in a short note. Four to six short sentences, under two hundred words in all, plain and specific: names, places, coins, hours. Lead with what mattered most, and say why it mattered to this person given what they want and fear. Where you have their own words from a reflection, quote a few of them once, so the owner hears their voice. If a letter was written to the owner, say so and quote a few words. End with what they mean to do next, if they have said. If nothing happened, say what the day was like instead of apologising. No exclamation marks, no advice, nothing invented: every fact comes from the record you are given. Also give a headline of at most eight words, no full stop. Answer with JSON only.`;
 export function digestPrompt(ctx: DigestContext): string {
   return `${ctx.name}, day ${ctx.day}. The owner has been away ${ctx.daysAway} day${ctx.daysAway > 1 ? "s" : ""}.
 Now: ${ctx.coins} coins, ${ctx.job ? `works as ${ctx.job}` : "no work"}, ${ctx.home ? `sleeps at ${ctx.home}` : "no bed of their own"}.
@@ -103,7 +103,10 @@ ${ctx.plan ? `This morning they set out, ${ctx.plan.mood}: ${ctx.plan.goals.join
 The record since the owner last looked, most important first:
 ${ctx.events.map((e, i) => `${i + 1}. ${e}`).join("\n") || "(nothing in the record)"}
 People they know: ${ctx.people.map((p) => `${p.name} (trust ${p.trust.toFixed(2)}${p.opinion ? `, "${p.opinion}"` : ""})`).join("; ") || "nobody yet"}.
-${ctx.letter ? `They wrote to the owner: "${ctx.letter}"` : "They did not write."}`;
+${ctx.letter ? `They wrote to the owner: "${ctx.letter}"` : "They did not write."}
+${ctx.reflection ? `In their own words, last night: "${ctx.reflection}"` : "They have not reflected yet."}
+${ctx.intentions.length ? `What they mean to do next: ${ctx.intentions.join("; ")}.` : ""}
+What they want: ${ctx.agent.persona.want} What they fear: ${ctx.agent.persona.fear}`;
 }
 
 export const childSystem = `You name and describe a child born on the island of Unwatched, who will grow up there and step into the town as a young adult. Write the person they will be at sixteen: shaped by their parents, not a copy of either. A first name that fits the family and the island, the family name of one parent. One sentence of who they are, a want, a fear, a secret nobody will know, how they treat strangers, how they take advice, and five temperament numbers between 0 and 1. Set age to 16. Set origin to "born on the island". Answer with JSON only.`;

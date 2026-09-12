@@ -100,7 +100,7 @@ export class OpenRouterBrain implements Brain {
     return out ?? this.fallback.plan(ctx, tier);
   }
   async digest(ctx: DigestContext): Promise<DigestText> {
-    const out = await this.call(this.routine, { shared: digestSystem }, digestPrompt(ctx), DigestText, "digest", 600);
+    const out = await this.call(this.stakes, { shared: digestSystem }, digestPrompt(ctx), DigestText, "digest", 700); // the owner's reading is the product: the middle mind writes it
     return out ?? this.fallback.digest(ctx);
   }
   async child(ctx: ChildContext): Promise<Persona> {

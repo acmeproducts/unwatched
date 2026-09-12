@@ -124,7 +124,7 @@ export const Passenger = z.object({
 });
 export type Passenger = z.infer<typeof Passenger>;
 
-export const DigestText = z.object({ text: z.string().max(900), headline: z.string().max(90) });
+export const DigestText = z.object({ text: z.string().max(1400), headline: z.string().max(90) });
 export type DigestText = z.infer<typeof DigestText>;
 
 export const Perception = z.object({
@@ -177,6 +177,8 @@ export const Perception = z.object({
   recent: z.array(z.string()),
   owner_letters: z.array(z.object({ id: z.number().int(), text: z.string() })),
   hint: z.string().optional(),
+  /** Something just happened that whoever sent them would want to hear about; the minute to write home, if they will. */
+  crossroads: z.string().optional(),
   today: z.object({ mood: z.string(), goals: z.array(z.string()), steps: z.array(z.object({ hour: z.number().int(), do: z.string(), place: PlaceId.nullable(), done: z.boolean() })) }).nullable(),
   options: z.array(ActionKind),
   deadline_ms: z.number().int(),

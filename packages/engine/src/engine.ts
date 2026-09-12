@@ -172,7 +172,7 @@ export class Town {
       home: { place: "inn", nightsPaid: 3 }, asleep: false, arrivedAt: this.t,
       relationships: new Map(), memory: [],
       budget: { tier1Max: 50, tier2Max: 5, tier1Left: 50, tier2Left: 5, ...o.budget },
-      plan: null, debts: [], hint: null, heading: null, starving: 0, roofless: 0, convictions: 0, secretsKnown: {}, seek: null, watch: [], selves: [], lastSelfDay: 0, doToday: 0, projects: [], beliefs: [],
+      plan: null, debts: [], hint: null, crossroads: null, ownerLetterDay: 0, heading: null, starving: 0, roofless: 0, convictions: 0, secretsKnown: {}, seek: null, watch: [], selves: [], lastSelfDay: 0, doToday: 0, projects: [], beliefs: [],
       funded: o.funded ?? true, owner: o.owner ?? null, letters: [], intentions: [],
       lastConversation: -999, lastThought: -999, heard: [], workedToday: false, rumors: [], appearance: null, instructions: "", brainKind: "hosted", thinkEvery: null,
     };
@@ -206,7 +206,7 @@ export class Town {
         relationships: new Map(sa.relationships.map((r) => [r.other, { trust: r.trust, affection: r.affection, lastSeen: r.lastSeen, opinion: r.opinion }])),
         memory: [...sa.memory].sort((x, y) => x.t - y.t),
         budget: { ...sa.state.budget }, funded: sa.funded, owner: sa.owner, letters: sa.state.letters ?? [], intentions: [...sa.state.intentions],
-        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0, convictions: sa.state.convictions ?? 0, secretsKnown: { ...(sa.state.secretsKnown ?? {}) }, seek: null, watch: [...(sa.state.watch ?? [])], selves: [...(sa.state.selves ?? [])], lastSelfDay: sa.state.lastSelfDay ?? 0, doToday: 0, projects: [...(sa.state.projects ?? [])], beliefs: [...(sa.state.beliefs ?? [])],
+        lastConversation: sa.state.lastConversation ?? -999, lastThought: sa.state.lastThought ?? -999, heard: [], workedToday: false, rumors: [...sa.state.rumors], appearance: sa.appearance, instructions: sa.state.instructions ?? "", brainKind: sa.state.brainKind ?? "hosted", thinkEvery: sa.state.thinkEvery ?? null, plan: sa.state.plan ?? null, debts: sa.state.debts ?? [], hint: null, crossroads: null, ownerLetterDay: 0, heading: null, starving: sa.state.starving ?? 0, roofless: sa.state.roofless ?? 0, convictions: sa.state.convictions ?? 0, secretsKnown: { ...(sa.state.secretsKnown ?? {}) }, seek: null, watch: [...(sa.state.watch ?? [])], selves: [...(sa.state.selves ?? [])], lastSelfDay: sa.state.lastSelfDay ?? 0, doToday: 0, projects: [...(sa.state.projects ?? [])], beliefs: [...(sa.state.beliefs ?? [])],
       };
       this.agents.set(a.id, a);
       if (a.job) this.jobs.get(a.job)!.holders.push(a.id);
@@ -320,7 +320,7 @@ export class Town {
     }
     perceived.forEach(({ th }, i) => {
       const proposal = proposals[i]!;
-      th.a.lastThought = this.t; th.a.hint = null;
+      th.a.lastThought = this.t; th.a.hint = null; th.a.crossroads = null;
       for (const l of th.a.letters) if (!l.read) { l.read = true; this.remember(th.a, `A letter from whoever sent me: "${l.text}"`, 0.6, "letter"); }
       for (const r of proposal.remember) this.remember(th.a, r, 0.4);
       th.a.heard = [];
@@ -373,7 +373,7 @@ export class Town {
       heard: a.heard.map((h) => ({ from: h.from, name: h.name, text: h.text })),
       recent: retrieve(a.memory, q, this.t, 8).map((m) => this.recall(a, m)),
       owner_letters: [...(a.instructions ? [{ id: 0, text: `Standing instructions from whoever sent you: ${a.instructions}` }] : []), ...a.letters.filter((l) => !l.read).map((l) => ({ id: l.id, text: l.text }))],
-      ...(a.hint ? { hint: a.hint } : {}),
+      ...(a.hint ? { hint: a.hint } : {}), ...(a.crossroads ? { crossroads: a.crossroads } : {}),
       today: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals, steps: a.plan.steps } : null,
       options: [...OPTIONS_DEFAULT, ...(here.kind === "plot" && !here.site ? ["build" as const] : []), ...(here.owner === a.id ? ["hire" as const] : []), ...([...this.places.values()].some((p) => p.owner === a.id && p.beds) && nearby.length ? ["lodge" as const] : []), ...(nearby.length && a.coins > 0 ? ["lend" as const] : []), ...(here.kind === "harbor" && !this.boatHeld ? ["leave" as const] : []), ...(here.kind === "civic" ? ["accuse" as const, ...(this.mayor === a.id ? ["fund" as const] : [])] : []), ...(here.owner === a.id ? ["stock" as const] : []), ...((here.owner === a.id || (a.job && this.jobs.get(a.job)?.place === here.id)) && Object.keys(here.stock).length ? ["make" as const] : []), ...(here.kind !== "wild" ? ["call" as const] : []), ...(this.residentsOf(here).some((r) => r.id !== a.id) && !this.residentsOf(here).some((r) => r.id !== a.id && r.location === here.id) ? ["search" as const] : [])],
       deadline_ms: 8000,
@@ -591,7 +591,7 @@ export class Town {
       }
       case "message_owner": {
         this.emit("agent.letter", [a.id], here.id, `${name} wrote to ${a.owner}: “${action.text}”`, 0.8, { text: action.text });
-        this.remember(a, `I wrote to whoever sent me: "${action.text}"`, 0.6, "letter");
+        this.remember(a, `I wrote to whoever sent me: "${action.text}"`, 0.6, "letter"); a.ownerLetterDay = this.day; a.crossroads = null;
         break;
       }
       case "sleep": {
@@ -1412,6 +1412,8 @@ export class Town {
     const withWhy = this.because && kind !== "action.rejected" ? { ...(payload ?? {}), because: this.because } : payload;
     const e: TownEvent = { id: this.nextEventId++, t: this.t, day: this.day, kind, actors, text, importance: clamp(importance), ...(place ? { place } : {}), ...(withWhy ? { payload: withWhy } : {}) };
     this.events.push(e); this.onEvent?.(e);
+    // a moment worth a letter home: something that mattered, to someone whose plan carries careful thoughts, at most once a day between reflections
+    if (e.importance >= 0.5 && kind !== "agent.letter" && kind !== "agent.reflect" && kind !== "action.rejected" && kind !== "town.book") for (const id of actors) { const a = this.agents.get(id); if (a && a.owner && a.budget.tier2Max > 0 && !a.crossroads && a.ownerLetterDay !== this.day && !a.asleep) a.crossroads = text; }
     return e;
   }
   private rollWeather(): string { return this.rng.pick(WEATHERS); }
@@ -1436,6 +1438,7 @@ export class Town {
       events: d.items.slice(0, 14).map((e) => `${this.clockAt(e.t)}: ${e.text}${e.payload?.because ? ` (because: ${String(e.payload.because)})` : ""}`),
       plan: a.plan?.day === this.day && a.plan.goals.length ? { mood: a.plan.mood, goals: a.plan.goals } : null,
       letter: letter ? String(letter.payload?.text ?? "") : null,
+      reflection: (() => { const r = [...this.events].reverse().find((e) => e.kind === "agent.reflect" && e.actors[0] === agentId); return r ? r.text.replace(/^.*? reflected: /, "") : null; })(), intentions: [...a.intentions].slice(0, 3),
       people: d.people.slice(0, 6), coins: a.coins, job: a.job ? (this.jobs.get(a.job)?.title ?? a.job) : null, home: a.home ? (this.places.get(a.home.place)?.name ?? a.home.place) : null,
     };
   }

@@ -36,7 +36,7 @@ export function LandingHero({ github }: { github?: React.ReactNode }) {
           <span className="tabular">{line}</span>
         </div>
         <h1 className="landfall text-[32px] sm:text-[48px] lg:text-[64px] font-semibold text-kelp" style={{ letterSpacing: "-0.03em", lineHeight: 1.02, textWrap: "balance", "--i": 1 } as React.CSSProperties}>A town that keeps living while you are away.</h1>
-        <p className="landfall text-[17px] sm:text-xl text-mist max-w-[42ch] leading-[1.45]" style={{ "--i": 2 } as React.CSSProperties}>Put a person on the island. They get a job, make friends, make enemies, and write to you when it matters. You can advise them. You cannot control them.</p>
+        <p className="landfall text-[17px] sm:text-xl text-mist max-w-[42ch] leading-[1.45]" style={{ "--i": 2 } as React.CSSProperties}>Put a person on the island. They find work, make friends and enemies, and write to you when something matters. You can write back. What they do with it is their decision.</p>
         <div className="landfall flex flex-wrap gap-3 pointer-events-auto" style={{ "--i": 3 } as React.CSSProperties}>
           <Link href="/board" className="h-[56px] px-7 rounded-[8px] bg-[#E4572E] text-[#14161A] font-bold text-[17px] inline-flex items-center hover:bg-[#EA7554] transition-colors">Send someone over</Link>
           <Link href="/town" className="h-[56px] px-6 rounded-[8px] border-[1.5px] border-[rgba(247,246,243,0.3)] text-kelp font-bold text-[17px] inline-flex items-center hover:border-kelp transition-colors">Watch tonight</Link>{github}
